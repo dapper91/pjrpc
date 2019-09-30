@@ -1,0 +1,2 @@
+include README.md LICENSE NOTICE CHANGELOG.md
+recursive-include tests *.py

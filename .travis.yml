@@ -1,0 +1,12 @@
+language: python
+python:
+  - 3.6
+  - 3.7
+  - 3.8
+install:
+  - pip install pipenv --upgrade
+  - pipenv install --dev
+script:
+  - pipenv run py.test --cov=pjrpc tests
+after_success:
+  - codecov
