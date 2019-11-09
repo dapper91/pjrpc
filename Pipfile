@@ -1,0 +1,26 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+aiohttp = "~=3.0"
+aio-pika = "~=6.0"
+flask = "~=1.0"
+jsonschema = "~=3.0"
+pydantic = "~=1.0"
+requests = "~=2.0"
+kombu = "~=4.0"
+
+[dev-packages]
+aioresponses = "~=0.0"
+codecov = "~=2.0"
+pre-commit = "~=1.0"
+pytest = "~=4.0"
+pytest-mock = "~=1.0"
+pytest-aiohttp = "~=0.0"
+pytest-cov = "~=2.7"
+responses = "~=0.0"
+
+[requires]
+python_version = "3.6"
