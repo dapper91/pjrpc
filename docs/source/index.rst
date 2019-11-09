@@ -19,6 +19,9 @@ Welcome to pjrpc's documentation!
 .. image:: https://codecov.io/gh/dapper91/pjrpc/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/dapper91/pjrpc
     :alt: Code coverage
+.. image:: https://readthedocs.org/projects/pjrpc/badge/?version=stable&style=flat
+   :alt: ReadTheDocs status
+   :target: https://pjrpc.readthedocs.io/en/stable/
 
 
 ``pjrpc`` is a extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library that provides a very

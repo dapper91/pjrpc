@@ -53,7 +53,7 @@ setup(
     author_email=about['__email__'],
     url=about['__url__'],
     license=about['__license__'],
-    keywords=['json-rpc', 'rpc' 'jsonrpc-client', 'jsonrpc-server', 'requests' 'aiohttp', 'flask'],
+    keywords=['json-rpc', 'rpc', 'jsonrpc-client', 'jsonrpc-server', 'requests', 'aiohttp', 'flask'],
     python_requires=">=3.5",
     packages=find_packages(),
     install_requires=requirements,
