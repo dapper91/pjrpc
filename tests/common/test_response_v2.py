@@ -1,4 +1,6 @@
 import pytest
+
+import pjrpc
 from pjrpc.common import v20, exceptions
 
 
@@ -124,11 +126,25 @@ def test_batch_response_methods():
         v20.Response(id=None, result='result0'),
         v20.Response(id=1, result='result1'),
     )
+    assert len(request) == 3
+
     request.append(v20.Response(id=2, result='result2'))
+    assert len(request) == 4
+
     request.extend([
         v20.Response(id=3, result='result3'),
         v20.Response(id=4, result='result4'),
     ])
+    assert len(request) == 6
+
+    assert not request.has_error
+
+    request.append(v20.Response(id=5, error=pjrpc.exc.JsonRpcError(code=1, message='msg')))
+    with pytest.raises(pjrpc.exc.JsonRpcError) as e:
+        request.result
+
+    assert e.value.code == 1
+    assert e.value.message == 'msg'
 
 
 def test_batch_response_errors():
@@ -137,3 +153,45 @@ def test_batch_response_errors():
             v20.Response(id=1, result='result1'),
             v20.Response(id=1, result='result1'),
         )
+
+
+def test_response_deserialization_error():
+    with pytest.raises(pjrpc.exc.DeserializationError, match="data must be of type dict"):
+        v20.Response.from_json([])
+
+    with pytest.raises(pjrpc.exc.DeserializationError, match="required field 'jsonrpc' not found"):
+        v20.Response.from_json({})
+
+    with pytest.raises(pjrpc.exc.DeserializationError, match="jsonrpc version '2.1' is not supported"):
+        v20.Response.from_json({'jsonrpc': '2.1'})
+
+    with pytest.raises(pjrpc.exc.DeserializationError, match="field 'id' must be of type integer or string"):
+        v20.Response.from_json({'jsonrpc': '2.0', 'id': {}})
+
+    with pytest.raises(pjrpc.exc.DeserializationError, match="'result' or 'error' fields must be provided"):
+        v20.Response.from_json({'jsonrpc': '2.0', 'id': 1})
+
+    with pytest.raises(pjrpc.exc.DeserializationError, match="'result' and 'error' fields are mutually exclusive"):
+        v20.Response.from_json({'jsonrpc': '2.0', 'id': 1, 'error': {'code': 1, 'message': 'message'}, 'result': 1})
+
+
+def test_response_repr():
+    response = v20.Response(id=1, result='result1')
+    assert str(response) == "result1"
+    assert repr(response) == "Response(id=1, result='result1', error=UNSET)"
+
+
+def test_batch_response_repr():
+    request = v20.BatchResponse(
+        v20.Response(id=None, result='result0'),
+        v20.Response(id=1, result='result1'),
+    )
+
+    assert str(request) == "[result0, result1]"
+    assert repr(request) == "BatchResponse(Response(id=None, result='result0', error=UNSET)," \
+                            "Response(id=1, result='result1', error=UNSET), error=UNSET)"
+
+
+def test_batch_response_deserialization_error():
+    with pytest.raises(pjrpc.exc.DeserializationError, match="data must be of type list"):
+        v20.BatchResponse.from_json('')

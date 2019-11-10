@@ -54,7 +54,7 @@ class Response:
 
             return cls(id=id, result=result, error=error)
         except KeyError as e:
-            raise DeserializationError(f"required field '{e}' not found") from e
+            raise DeserializationError(f"required field {e} not found") from e
 
     @property
     def id(self):
@@ -194,7 +194,7 @@ class Request:
 
             return cls(method, params, id)
         except KeyError as e:
-            raise DeserializationError(f"required field '{e}' not found") from e
+            raise DeserializationError(f"required field {e} not found") from e
 
     @property
     def id(self):
@@ -227,15 +227,15 @@ class Request:
 
     def __str__(self):
         if isinstance(self.params, list):
-            params = ', '.join(self.params)
+            params = ', '.join(map(str, self.params))
         else:
-            params = ','.join(f"{k}={v}" for k, v in self.params)
+            params = ','.join(f"{k}={v}" for k, v in self.params.items())
 
         return f"{self.method}({params})"
 
     def __repr__(self):
         return "{class_name}(method={method}, params={params}, id={id})".format(
-            class_name=self.__class__.__name__, method=self._method, params=repr(self._params), id=self._id
+            class_name=self.__class__.__name__, method=repr(self._method), params=repr(self._params), id=repr(self._id),
         )
 
     def to_json(self):
@@ -275,18 +275,58 @@ class BatchResponse:
     version = '2.0'
 
     @classmethod
-    def from_json(cls, data):
+    def from_json(cls, json_data, error_cls=JsonRpcError):
         """
         Deserializes a batch response from json data.
 
-        :param data: data the response to be deserialized from
+        :param json_data: data the response to be deserialized from
+        :param error_cls: error class
         :returns: batch response object
         """
 
-        if not isinstance(data, (list, tuple)):
-            raise DeserializationError(f"data must be of type list")
+        try:
+            if isinstance(json_data, dict):
+                jsonrpc = json_data['jsonrpc']
+                if jsonrpc != cls.version:
+                    raise DeserializationError(f"jsonrpc version '{json_data['jsonrpc']}' is not supported")
 
-        return cls(*(Response.from_json(item) for item in data))
+                id, error = json_data.get('id'), json_data.get('error', UNSET)
+                if id is None and error is not UNSET:
+                    return cls(error=error_cls.from_json(json_data['error']))
+
+            if not isinstance(json_data, (list, tuple)):
+                raise DeserializationError(f"data must be of type list")
+
+        except KeyError as e:
+            raise DeserializationError(f"required field {e} not found") from e
+
+        return cls(*(Response.from_json(item) for item in json_data))
+
+    @property
+    def error(self):
+        """
+        Response error. If the response has succeeded returns :py:data:`pjrpc.common.UNSET`.
+        """
+
+        return self._error
+
+    @property
+    def is_success(self):
+        """
+        Returns ``True`` if the response has succeeded.
+        """
+
+        return self._error is UNSET
+
+    @property
+    def is_error(self):
+        """
+        Returns ``True`` if the request has not succeeded. Note that it is not the same as
+        :py:attr:`pjrpc.common.BatchResponse.has_error`. `is_error` indicates that the batch request failed
+        at all, while `has_error` indicates that one of the requests in the batch failed.
+        """
+
+        return not self.is_success
 
     @property
     def has_error(self):
@@ -303,11 +343,14 @@ class BatchResponse:
         raises an exception of the first errored response.
         """
 
+        if self.is_error:
+            raise self._error
+
         result = []
 
         for response in self._responses:
             if response.is_error:
-                raise response
+                raise response.error
             result.append(response.result)
 
         return tuple(result)
@@ -329,19 +372,20 @@ class BatchResponse:
 
         self._related = request
 
-    def __init__(self, *responses, strict=True):
+    def __init__(self, *responses, error=UNSET, strict=True):
         self._responses = []
         self._ids = set()
         self._related = None
+        self._error = error
         self._strict = strict
 
         self.extend(responses)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({','.join(map(repr, self._responses))})"
+        return f"{self.__class__.__name__}({','.join(map(repr, self._responses))}, error={repr(self._error)})"
 
     def __str__(self):
-        return f"[{', '.join(map(str, self._responses))}]"
+        return f"[{', '.join(map(str, self._responses))}]" if self.is_success else self.error
 
     def __getitem__(self, idx):
         """
@@ -352,6 +396,9 @@ class BatchResponse:
 
     def __iter__(self):
         return iter(self._responses)
+
+    def __len__(self):
+        return len(self._responses)
 
     def append(self, response):
         """
@@ -436,6 +483,9 @@ class BatchRequest:
 
     def __iter__(self):
         return iter(self._requests)
+
+    def __len__(self):
+        return len(self._requests)
 
     def append(self, request):
         """

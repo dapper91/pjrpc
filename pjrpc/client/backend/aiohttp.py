@@ -43,7 +43,8 @@ class Client(AbstractAsyncClient):
         await self._session.close()
 
     async def __aenter__(self):
-        return self._session.__aenter__()
+        await self._session.__aenter__()
+        return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        return self._session.__aexit__(exc_type, exc_val, exc_tb)
+        await self._session.__aexit__(exc_type, exc_val, exc_tb)

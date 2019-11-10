@@ -160,3 +160,19 @@ async def test_batch():
                 'params': [2, 3]
             }
         ]
+
+
+async def test_context_manager():
+    test_url = 'http://test.com/api'
+    with aioresponses() as m:
+        m.post(test_url, repeat=True, status=200, payload={
+            'jsonrpc': '2.0',
+            'id': 1,
+            'result': 'result',
+        })
+
+        async with pjrpc_cli.Client(test_url) as client:
+            response = await client.send(pjrpc.Request('method', (1, 2), id=1))
+
+            assert response.id == 1
+            assert response.result == 'result'
