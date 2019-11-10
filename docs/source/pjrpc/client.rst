@@ -75,13 +75,13 @@ Batch requests
 Batch requests also supported. There are several approaches of sending batch requests:
 
 - using handmade :py:class:`pjrpc.Request` class object. The result is a ``pjrpc.BatchResponse``
-  instance you can iterate over to get all the results or get each one by the index:
+  instance you can iterate over to get all the results or get each one by index:
 
 .. code-block:: python
 
     client = Client('http://server/api/v1')
 
-    batch_response = client.send(BatchRequest(
+    batch_response = client.batch.send(BatchRequest(
         pjrpc.Request('sum', [2, 2], id=1),
         pjrpc.Request('sub', [2, 2], id=2),
         pjrpc.Request('div', [2, 2], id=3),
@@ -115,8 +115,8 @@ Batch requests also supported. There are several approaches of sending batch req
     result = client.batch[
         ('sum', 2, 2),
         ('sub', 2, 2),
-        dict(method='div', a=2, b=2),
-        dict(method='mult', a=2, b=2),
+        ('div', 2, 2),
+        ('mult', 2, 2),
     ]
     print(f"2 + 2 = {result[0]}")
     print(f"2 - 2 = {result[1]}")
@@ -167,6 +167,6 @@ the succeeded ones like this:
 Id generators
 --------------
 
-The library request id generator also can be customized. There are four generators implemented in the library
+The library request id generator can also be customized. There are four generator types implemented in the library
 see :py:mod:`pjrpc.common.generators`. You can implement your own one and pass it to a client by `id_gen`
 parameter.
