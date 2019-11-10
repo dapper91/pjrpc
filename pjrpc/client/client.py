@@ -56,6 +56,7 @@ class Batch:
     def __init__(self, client, strict=True):
         self._client = client
         self._strict = strict
+        self._error_cls = client.error_cls
         self._id_gen = client.id_gen()
         self._requests = client.batch_request_class()
 
@@ -114,10 +115,11 @@ class Batch:
         response_text = self._client._request(request_text)
 
         response = self._client.batch_response_class.from_json(
-            self._client.json_loader(response_text, cls=self._client.json_decoder)
+            self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._error_cls
         )
 
-        self._relate(self._requests, response)
+        if response.is_success:
+            self._relate(self._requests, response)
 
         return response.result
 
@@ -169,7 +171,7 @@ class AsyncBatch(Batch):
         response_text = await self._client._request(request_text)
 
         response = self._client.batch_response_class.from_json(
-            self._client.json_loader(response_text, cls=self._client.json_decoder)
+            self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._error_cls
         )
 
         self._relate(self._requests, response)
@@ -286,9 +288,12 @@ class AbstractClient(abc.ABC):
         request_text = self.json_dumper(request, cls=self.json_encoder)
         response_text = self._request(request_text, **kwargs)
 
-        return self.response_class.from_json(
+        response = self.response_class.from_json(
             self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls
         )
+        self._relate(request, response)
+
+        return response
 
     def notify(self, method, *args, **kwargs):
         """
@@ -329,7 +334,6 @@ class AbstractClient(abc.ABC):
             params=args or kwargs,
         )
         response = self.send(request)
-        self._relate(request, response)
 
         return response.result
 
@@ -386,9 +390,12 @@ class AbstractAsyncClient(AbstractClient):
         request_text = self.json_dumper(request, cls=self.json_encoder)
         response_text = await self._request(request_text, **kwargs)
 
-        return self.response_class.from_json(
+        response = self.response_class.from_json(
             self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls
         )
+        self._relate(request, response)
+
+        return response
 
     async def notify(self, method, *args, **kwargs):
         """
@@ -429,6 +436,5 @@ class AbstractAsyncClient(AbstractClient):
             params=args or kwargs,
         )
         response = await self.send(request)
-        self._relate(request, response)
 
         return response.result

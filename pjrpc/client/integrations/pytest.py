@@ -35,6 +35,7 @@ class PjRpcMocker:
 
     :param target: method to be mocked
     :param mocker: mocking package
+    :param passthrough: pass not mocked requests to the original method
     """
 
     def __init__(self, target, mocker=unittest.mock, passthrough=False):
@@ -61,7 +62,7 @@ class PjRpcMocker:
         method_name,
         result=common.UNSET,
         error=common.UNSET,
-        id=common.UNSET,
+        id=None,
         version='2.0',
         once=False,
         callback=None
@@ -88,7 +89,7 @@ class PjRpcMocker:
         method_name,
         result=common.UNSET,
         error=common.UNSET,
-        id=common.UNSET,
+        id=None,
         version='2.0',
         once=False,
         callback=None,
@@ -123,9 +124,13 @@ class PjRpcMocker:
         """
 
         if method_name is None:
-            return self._matches.pop(endpoint)
+            result = self._matches.pop(endpoint)
         else:
-            return self._matches[endpoint].pop((version, method_name))
+            result = self._matches[endpoint].pop((version, method_name))
+
+        self._cleanup_matches(endpoint, version, method_name)
+
+        return result
 
     def reset(self):
         """
@@ -159,6 +164,14 @@ class PjRpcMocker:
 
         self.reset()
         self._patcher.stop()
+
+    def _cleanup_matches(self, endpoint, version='2.0', method_name=None):
+        matches = self._matches[endpoint].get((version, method_name))
+
+        if not matches:
+            self._matches[endpoint].pop((version, method_name), None)
+        if not self._matches[endpoint]:
+            self._matches.pop(endpoint)
 
     def _on_request(self, origin_self, data):
         endpoint = origin_self._endpoint
@@ -197,6 +210,8 @@ class PjRpcMocker:
         match = matches.pop(0)
         if not match.once:
             matches.append(match)
+
+        self._cleanup_matches(endpoint, version, method_name)
 
         stub = self.calls[endpoint].setdefault(
             (version, method_name),
