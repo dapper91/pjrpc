@@ -24,9 +24,9 @@ async def test_using_fixture(pjrpc_aiohttp_mocker):
     assert exc_info.value.message == 'error'
     assert exc_info.value.data == 'oops'
 
-    sum_calls = pjrpc_aiohttp_mocker.calls[('http://localhost/api/v1', '2.0', 'sum')]
-    assert sum_calls.call_count == 2
-    assert sum_calls.mock_calls == [mock.call(1, 1), mock.call(a=1, b=1)]
+    localhost_calls = pjrpc_aiohttp_mocker.calls['http://localhost/api/v1']
+    assert localhost_calls[('2.0', 'sum')].call_count == 2
+    assert localhost_calls[('2.0', 'sum')].mock_calls == [mock.call(1, 1), mock.call(a=1, b=1)]
 
 
 async def test_using_resource_manager():
@@ -36,4 +36,6 @@ async def test_using_resource_manager():
         mocker.add('http://localhost/api/v1', 'div', result=2)
         result = await client.proxy.div(4, 2)
         assert result == 2
-        assert mocker.calls[('http://localhost/api/v1', '2.0', 'div')].mock_calls == [mock.call(4, 2)]
+
+        localhost_calls = mocker.calls['http://localhost/api/v1']
+        assert localhost_calls[('2.0', 'div')].mock_calls == [mock.call(4, 2)]

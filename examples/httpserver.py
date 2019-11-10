@@ -2,15 +2,8 @@ import uuid
 import http.server
 import socketserver
 
-import pjrpc.server
-
-"""
-Standard python http server JSON-RPC integration.
-"""
-
-import http.server
-
 import pjrpc
+import pjrpc.server
 
 
 class JsonRpcHandler(http.server.BaseHTTPRequestHandler):
@@ -78,7 +71,7 @@ def add_user(request: http.server.BaseHTTPRequestHandler, user: dict):
     return {'id': user_id, **user}
 
 
-class ThreadingJsonRpcServer(socketserver.ThreadingMixIn, integration.JsonRpcServer):
+class ThreadingJsonRpcServer(socketserver.ThreadingMixIn, JsonRpcServer):
     users = {}
 
 

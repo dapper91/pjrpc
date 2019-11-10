@@ -123,14 +123,26 @@ class Batch:
 
         return response.result
 
-    def send(self):
+    def send(self, request, **kwargs):
         """
-        Sends a JSON-RPC request.
+        Sends a JSON-RPC batch request.
 
-        :returns: batch response instance
+        :param request: request instance
+        :param kwargs: additional client request argument
+        :returns: response instance
         """
 
-        return self._client.send(self._requests)
+        kwargs = {**self._client.request_args, **kwargs}
+
+        request_text = self._client.json_dumper(request, cls=self._client.json_encoder)
+        response_text = self._client._request(request_text, **kwargs)
+
+        response = self._client.batch_response_class.from_json(
+            self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._client.error_cls
+        )
+        self._relate(request, response)
+
+        return response
 
     def _relate(self, batch_request, batch_response):
         """
@@ -177,6 +189,27 @@ class AsyncBatch(Batch):
         self._relate(self._requests, response)
 
         return response.result
+
+    async def send(self, request, **kwargs):
+        """
+        Sends a JSON-RPC batch request.
+
+        :param request: request instance
+        :param kwargs: additional client request argument
+        :returns: response instance
+        """
+
+        kwargs = {**self._client.request_args, **kwargs}
+
+        request_text = self._client.json_dumper(request, cls=self._client.json_encoder)
+        response_text = await self._client._request(request_text, **kwargs)
+
+        response = self._client.batch_response_class.from_json(
+            self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._client.error_cls
+        )
+        self._relate(request, response)
+
+        return response
 
 
 class AbstractClient(abc.ABC):

@@ -387,9 +387,9 @@ class AsyncDispatcher(Dispatcher):
                         error=pjrpc.exceptions.InvalidRequestError(data="request ids are not unique")
                     )
                 else:
-                    response = self._batch_response(*filter(lambda resp: resp is not UNSET, (
+                    response = self._batch_response(*filter(lambda resp: resp is not UNSET, [
                         await self._handle_rpc_request(request, context) for request in request
-                    )))
+                    ]))
 
             else:
                 response = await self._handle_rpc_request(request, context)

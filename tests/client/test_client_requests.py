@@ -171,6 +171,31 @@ def test_batch():
         }
     ]
 
+    result = client.batch.send(pjrpc.BatchRequest(
+        pjrpc.Request(method='method1', params=[1, 2], id=1),
+        pjrpc.Request(method='method2', params=[2, 3], id=2),
+    ))
+    assert result[0].id == 1
+    assert result[0].result == 'result1'
+    assert result[1].id == 2
+    assert result[1].result == 2
+
+    assert responses.calls[2].request.url == test_url
+    assert json.loads(responses.calls[2].request.body) == [
+        {
+            'jsonrpc': '2.0',
+            'id': 1,
+            'method': 'method1',
+            'params': [1, 2]
+        },
+        {
+            'jsonrpc': '2.0',
+            'id': 2,
+            'method': 'method2',
+            'params': [2, 3]
+        }
+    ]
+
 
 @responses.activate
 def test_error():
