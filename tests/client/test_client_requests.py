@@ -196,3 +196,53 @@ def test_error():
         'method': 'method',
         'params': [1, 2]
     }
+
+    responses.replace(responses.POST, test_url, status=200, json={
+        'jsonrpc': '2.0',
+        'error': {
+            'code': -32600,
+            'message': 'Invalid request'
+        },
+    })
+
+    with pytest.raises(pjrpc.exceptions.InvalidRequestError):
+        client.batch[('method', 'param')]
+
+    with pytest.raises(pjrpc.exceptions.IdentityError):
+        client.send(pjrpc.Request(method='method', id=2))
+
+    responses.replace(responses.POST, test_url, status=200, json=[
+        {
+            'jsonrpc': '2.0',
+            'id': 1,
+            'result': 'result1',
+        },
+        {
+            'jsonrpc': '2.0',
+            'id': 3,
+            'result': 2,
+        }
+    ])
+
+    client = pjrpc_cli.Client(test_url)
+
+    with pytest.raises(pjrpc.exceptions.IdentityError):
+        client.batch[
+            ('method1', 'param'),
+            ('method2', 'param'),
+        ]
+
+
+@responses.activate
+def test_context_manager():
+    test_url = 'http://test.com/api'
+    responses.add(responses.POST, test_url, status=200, json={
+        'jsonrpc': '2.0',
+        'id': 1,
+        'result': 'result',
+    })
+
+    with pjrpc_cli.Client(test_url) as client:
+        response = client.send(pjrpc.Request('method', (1, 2), id=1))
+        assert response.id == 1
+        assert response.result == 'result'

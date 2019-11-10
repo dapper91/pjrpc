@@ -89,11 +89,6 @@ ________
 .. automodule:: pjrpc.server.integration.aio_pika
     :members:
 
-httpserver
-__________
-
-.. automodule:: pjrpc.server.integration.httpserver
-    :members:
 
 werkzeug
 ________

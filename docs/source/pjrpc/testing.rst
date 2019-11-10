@@ -1,8 +1,11 @@
 .. _testing:
 
-pytest
-======
+Testing
+=======
 
+
+pytest
+------
 
 ``pjrpc`` implements pytest plugin that simplifies JSON-RPC requests mocking.
 Look at the following test example:
@@ -51,11 +54,9 @@ Look at the following test example:
 
 
 
-Server testing
-==============
-
 For testing server-side code you should use framework-dependant utils and fixtures. Since ``pjrpc`` may be easily
 extended you are free from writing JSON-RPC protocol related code.
+
 
 aiohttp
 -------

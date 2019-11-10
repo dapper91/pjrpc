@@ -2,7 +2,7 @@ import pytest
 from unittest import mock
 
 import pjrpc
-from pjrpc.client.integrations.pytest import PjRpcAsyncMocker
+from pjrpc.client.integrations.pytest import PjRpcAiohttpMocker
 from pjrpc.client.backend import aiohttp as aiohttp_client
 
 
@@ -32,7 +32,7 @@ async def test_using_fixture(pjrpc_aiohttp_mocker):
 async def test_using_resource_manager():
     client = aiohttp_client.Client('http://localhost/api/v1')
 
-    with PjRpcAsyncMocker() as mocker:
+    with PjRpcAiohttpMocker() as mocker:
         mocker.add('http://localhost/api/v1', 'div', result=2)
         result = await client.proxy.div(4, 2)
         assert result == 2

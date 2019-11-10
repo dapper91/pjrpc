@@ -43,7 +43,8 @@ class Client(AbstractClient):
         self._session.close()
 
     def __enter__(self):
-        return self._session.__enter__()
+        self._session.__enter__()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        return self._session.__exit__(exc_type, exc_val, exc_tb)
+        self._session.__exit__(exc_type, exc_val, exc_tb)

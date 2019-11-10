@@ -72,7 +72,7 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
 
         try:
             if not isinstance(json_data, dict):
-                raise DeserializationError(f"data must be of type dict")
+                raise DeserializationError("data must be of type dict")
 
             code = json_data['code']
             if not isinstance(code, int):
@@ -86,7 +86,7 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
 
             return error_class(code, message, json_data.get('data', UNSET))
         except KeyError as e:
-            raise DeserializationError(f"required field '{e}' not found") from e
+            raise DeserializationError(f"required field {e} not found") from e
 
     @classmethod
     def get_error_cls(cls, code, default):
@@ -106,8 +106,8 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
         return "({code}) {message}".format(code=self.code, message=self.message)
 
     def __repr__(self):
-        return '{class_name}(code={code}, message={message}, data={data})'.format(
-            class_name=self.__class__.__name__, code=self.code, message=self.message, data=repr(self.data)
+        return "{class_name}(code={code}, message={message}, data={data})".format(
+            class_name=self.__class__.__name__, code=repr(self.code), message=repr(self.message), data=repr(self.data)
         )
 
     def __eq__(self, other):

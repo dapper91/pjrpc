@@ -1,3 +1,5 @@
+import pytest
+
 import pjrpc
 
 
@@ -82,3 +84,25 @@ def test_custom_error_registration():
     assert error.code == 2000
     assert error.message == 'Custom error'
     assert error.data == 'custom_data'
+
+
+def test_error_deserialization_errors():
+    with pytest.raises(pjrpc.exc.DeserializationError, match="data must be of type dict"):
+        pjrpc.exc.JsonRpcError.from_json([])
+
+    with pytest.raises(pjrpc.exc.DeserializationError, match="required field 'message' not found"):
+        pjrpc.exc.JsonRpcError.from_json({'code': 1})
+
+    with pytest.raises(pjrpc.exc.DeserializationError, match="required field 'code' not found"):
+        pjrpc.exc.JsonRpcError.from_json({'message': ""})
+
+    with pytest.raises(pjrpc.exc.DeserializationError, match="field 'code' must be of type integer"):
+        pjrpc.exc.JsonRpcError.from_json({'code': "1", 'message': ""})
+
+    with pytest.raises(pjrpc.exc.DeserializationError, match="field 'message' must be of type string"):
+        pjrpc.exc.JsonRpcError.from_json({'code': 1, 'message': 2})
+
+
+def test_error_repr():
+    assert repr(pjrpc.exc.ServerError(data='data')) == "ServerError(code=-32000, message='Server error', data='data')"
+    assert str(pjrpc.exc.ServerError()) == "(-32000) Server error"
