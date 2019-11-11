@@ -28,6 +28,7 @@ class Response:
         :param json_data: data the response to be deserialized from
         :param error_cls: error class
         :returns: response object
+        :raises: :py:class:`pjrpc.common.exception.DeserializationError` if format is incorrect
         """
 
         try:
@@ -67,7 +68,7 @@ class Response:
     @property
     def result(self):
         """
-        Response result. If the response has not succeeded raises an exception deserialized from the `error` filed.
+        Response result. If the response has not succeeded raises an exception deserialized from the `error` field.
         """
 
         if self._error is not UNSET:
@@ -170,6 +171,7 @@ class Request:
 
         :param json_data: data the request to be deserialized from
         :returns: request object
+        :raises: :py:class:`pjrpc.common.exception.DeserializationError` if format is incorrect
         """
 
         try:
@@ -247,9 +249,10 @@ class Request:
 
         json_data = {
             'jsonrpc': self.version,
-            'id': self._id,
             'method': self._method,
         }
+        if self._id is not None:
+            json_data.update(id=self._id)
         if self.params:
             json_data.update(params=self._params)
 
@@ -423,6 +426,9 @@ class BatchResponse:
         :returns: json data
         """
 
+        if self.is_error:
+            return Response(id=None, error=self.error).to_json()
+
         return [response.to_json() for response in self._responses]
 
     def _add_ids(self, *ids):
@@ -431,7 +437,7 @@ class BatchResponse:
 
             for id in filter(ft.partial(op.is_not, None), ids):
                 if id in new_ids:
-                    raise IdentityError(id)
+                    raise IdentityError(f"response id duplicates found: {id}")
                 else:
                     new_ids.add(id)
 
@@ -459,6 +465,9 @@ class BatchRequest:
 
         if not isinstance(data, (list, tuple)):
             raise DeserializationError(f"data must be of type list")
+
+        if len(data) == 0:
+            raise DeserializationError(f"request list is empty")
 
         return cls(*(Request.from_json(request) for request in data))
 
@@ -512,13 +521,21 @@ class BatchRequest:
 
         return [request.to_json() for request in self._requests]
 
+    @property
+    def is_notification(self):
+        """
+        Returns ``True`` if all the request in the batch are notifications.
+        """
+
+        return all(map(op.attrgetter('is_notification'), self._requests))
+
     def _add_ids(self, *ids):
         if self._strict:
             new_ids = self._ids.copy()
 
             for id in filter(ft.partial(op.is_not, None), ids):
                 if id in new_ids:
-                    raise IdentityError(id)
+                    raise IdentityError(f"request id duplicates found: {id}")
                 else:
                     new_ids.add(id)
 

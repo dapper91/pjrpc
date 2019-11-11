@@ -13,7 +13,7 @@ class BaseError(Exception):
 
 class IdentityError(BaseError):
     """
-    Raised when a batch requests/responses identifiers are not unique.
+    Raised when a batch requests/responses identifiers are not unique or missing.
     """
 
 
@@ -45,7 +45,7 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
     """
     `JSON-RPC <https://www.jsonrpc.org>`_ protocol error.
     For more information see `Error object <https://www.jsonrpc.org/specification#error_object>`_.
-    All protocol errors are inherited from it.
+    All JSON-RPC protocol errors are inherited from it.
 
     :param code: number that indicates the error type
     :param message: short description of the error
@@ -67,7 +67,7 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
         :param json_data: json data the error to be deserialized from
 
         :returns: deserialized error
-        :raises: :py:class:`ValueError` if format is incorrect
+        :raises: :py:class:`pjrpc.common.exception.DeserializationError` if format is incorrect
         """
 
         try:
@@ -132,7 +132,7 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
 
 class ClientError(JsonRpcError):
     """
-    Raised when client sent an incorrect request.
+    Raised when a client sent an incorrect request.
     """
 
 

@@ -6,7 +6,7 @@ Client
 
 ``pjrpc`` client provides three main method invocation approaches:
 
-- using handmade :py:class:`pjrpc.Request` class object
+- using handmade :py:class:`pjrpc.common.Request` class object
 
 .. code-block:: python
 
@@ -51,7 +51,7 @@ you need to send a request without id:
     response: pjrpc.Response = client.send(Request('sum', params=[1, 2]))
 
 
-or use a special method :py:func:`pjrpc.client.AbstractClient.notify`
+or use a special method :py:meth:`pjrpc.client.AbstractClient.notify`
 
 .. code-block:: python
 
@@ -74,7 +74,7 @@ Batch requests
 
 Batch requests also supported. There are several approaches of sending batch requests:
 
-- using handmade :py:class:`pjrpc.Request` class object. The result is a ``pjrpc.BatchResponse``
+- using handmade :py:class:`pjrpc.common.Request` class object. The result is a :py:class:`pjrpc.common.BatchResponse`
   instance you can iterate over to get all the results or get each one by index:
 
 .. code-block:: python
@@ -149,7 +149,7 @@ the succeeded ones like this:
 
     client = pjrpc_client.Client('http://localhost/api/v1')
 
-    batch_response = client.send(pjrpc.BatchRequest(
+    batch_response = client.batch.send(pjrpc.BatchRequest(
         pjrpc.Request('sum', [2, 2], id=1),
         pjrpc.Request('sub', [2, 2], id=2),
         pjrpc.Request('div', [2, 2], id=3),
@@ -161,6 +161,19 @@ the succeeded ones like this:
             print(response.result)
         else:
             print(response.error)
+
+
+Notifications also supported:
+
+.. code-block:: python
+
+    import pjrpc
+    from pjrpc.client.backend import requests as pjrpc_client
+
+
+    client = pjrpc_client.Client('http://localhost/api/v1')
+
+    client.batch.notify('tick').notify('tack').notify('tick').notify('tack').call()
 
 
 

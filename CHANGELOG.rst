@@ -5,6 +5,7 @@ Changelog
 ------------------
 
 - Some bugs fixed
+- Documentation completed
 
 
 0.1.2 (2019-11-10)

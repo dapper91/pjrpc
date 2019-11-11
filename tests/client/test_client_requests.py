@@ -7,6 +7,7 @@ import pjrpc
 from pjrpc.client.backend import requests as pjrpc_cli
 
 
+# TODO refactor tests
 @responses.activate
 def test_call():
     test_url = 'http://test.com/api'
@@ -81,13 +82,20 @@ def test_notify():
     responses.add(responses.POST, test_url, status=200, body='')
     client = pjrpc_cli.Client(test_url)
 
-    response = client.notify('method', 1, 2)
+    response = client.send(pjrpc.Request('method', params=[1, 2]))
     assert response is None
-
     assert responses.calls[0].request.url == test_url
     assert json.loads(responses.calls[0].request.body) == {
         'jsonrpc': '2.0',
-        'id': None,
+        'method': 'method',
+        'params': [1, 2]
+    }
+
+    response = client.notify('method', 1, 2)
+    assert response is None
+    assert responses.calls[0].request.url == test_url
+    assert json.loads(responses.calls[0].request.body) == {
+        'jsonrpc': '2.0',
         'method': 'method',
         'params': [1, 2]
     }
@@ -111,11 +119,16 @@ def test_batch():
 
     client = pjrpc_cli.Client(test_url)
 
-    result = client.batch[
-        ('method1', 1, 2),
-        ('method2', 2, 3),
-    ]
-    assert result == ('result1', 2)
+    result = client.batch.send(pjrpc.BatchRequest(
+        pjrpc.Request('method1', params=[1, 2], id=1),
+        pjrpc.Request('method2', params=[2, 3], id=2),
+        pjrpc.Request('method3', params=[3, 4]),
+    ))
+    assert len(result) == 2
+    assert result[0].id == 1
+    assert result[0].result == 'result1'
+    assert result[1].id == 2
+    assert result[1].result == 2
 
     assert responses.calls[0].request.url == test_url
     assert json.loads(responses.calls[0].request.body) == [
@@ -130,10 +143,18 @@ def test_batch():
             'id': 2,
             'method': 'method2',
             'params': [2, 3]
+        },
+        {
+            'jsonrpc': '2.0',
+            'method': 'method3',
+            'params': [3, 4]
         }
     ]
 
-    result = client.batch('method1', 1, 2)('method2', 2, 3).call()
+    result = client.batch[
+        ('method1', 1, 2),
+        ('method2', 2, 3),
+    ]
     assert result == ('result1', 2)
 
     assert responses.calls[1].request.url == test_url
@@ -152,11 +173,30 @@ def test_batch():
         }
     ]
 
-    result = client.batch.proxy.method1(1, 2).method2(2, 3)()
+    result = client.batch('method1', 1, 2)('method2', 2, 3).call()
     assert result == ('result1', 2)
 
     assert responses.calls[2].request.url == test_url
     assert json.loads(responses.calls[2].request.body) == [
+        {
+            'jsonrpc': '2.0',
+            'id': 1,
+            'method': 'method1',
+            'params': [1, 2]
+        },
+        {
+            'jsonrpc': '2.0',
+            'id': 2,
+            'method': 'method2',
+            'params': [2, 3]
+        }
+    ]
+
+    result = client.batch.proxy.method1(1, 2).method2(2, 3)()
+    assert result == ('result1', 2)
+
+    assert responses.calls[3].request.url == test_url
+    assert json.loads(responses.calls[3].request.body) == [
         {
             'jsonrpc': '2.0',
             'id': 1,
@@ -180,8 +220,8 @@ def test_batch():
     assert result[1].id == 2
     assert result[1].result == 2
 
-    assert responses.calls[2].request.url == test_url
-    assert json.loads(responses.calls[2].request.body) == [
+    assert responses.calls[4].request.url == test_url
+    assert json.loads(responses.calls[4].request.body) == [
         {
             'jsonrpc': '2.0',
             'id': 1,
@@ -191,6 +231,24 @@ def test_batch():
         {
             'jsonrpc': '2.0',
             'id': 2,
+            'method': 'method2',
+            'params': [2, 3]
+        }
+    ]
+
+    responses.add(responses.POST, test_url, status=200)
+    result = client.batch.notify('method1', 1, 2).notify('method2', 2, 3).call()
+    assert result is None
+
+    assert responses.calls[5].request.url == test_url
+    assert json.loads(responses.calls[5].request.body) == [
+        {
+            'jsonrpc': '2.0',
+            'method': 'method1',
+            'params': [1, 2]
+        },
+        {
+            'jsonrpc': '2.0',
             'method': 'method2',
             'params': [2, 3]
         }

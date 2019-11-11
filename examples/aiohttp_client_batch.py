@@ -41,5 +41,7 @@ async def main():
         print(f"2 / 2 = {result[2]}")
         print(f"2 * 2 = {result[3]}")
 
+        await client.batch.notify('tick').notify('tack').call()
+
 
 asyncio.run(main())

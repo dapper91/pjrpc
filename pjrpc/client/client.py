@@ -1,9 +1,12 @@
 import abc
+import logging
 import functools as ft
 import json
 
 from pjrpc import common
 from pjrpc.common import generators, exceptions, v20
+
+logger = logging.getLogger(__package__)
 
 
 class Batch:
@@ -111,17 +114,9 @@ class Batch:
         :returns: request results as a tuple
         """
 
-        request_text = self._client.json_dumper(self._requests, cls=self._client.json_encoder)
-        response_text = self._client._request(request_text)
+        response = self.send(self._requests)
 
-        response = self._client.batch_response_class.from_json(
-            self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._error_cls
-        )
-
-        if response.is_success:
-            self._relate(self._requests, response)
-
-        return response.result
+        return response.result if response is not None else None
 
     def send(self, request, **kwargs):
         """
@@ -132,17 +127,34 @@ class Batch:
         :returns: response instance
         """
 
-        kwargs = {**self._client.request_args, **kwargs}
+        kwargs = {**self._client._request_args, **kwargs}
 
         request_text = self._client.json_dumper(request, cls=self._client.json_encoder)
-        response_text = self._client._request(request_text, **kwargs)
+        response_text = self._client._jsonrpc_request(request_text, **kwargs)
 
-        response = self._client.batch_response_class.from_json(
-            self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._client.error_cls
-        )
-        self._relate(request, response)
+        if not request.is_notification:
+            response = self._client.batch_response_class.from_json(
+                self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._client.error_cls
+            )
 
-        return response
+            if response.is_success:
+                self._relate(request, response)
+
+            return response
+
+    def notify(self, method, *args, **kwargs):
+        """
+        Adds a notification request to the batch.
+
+        :param method: method name
+        :param args: method positional arguments
+        :param kwargs: method named arguments
+        """
+
+        assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
+
+        self._requests.append(self._client.request_class(method, args or kwargs))
+        return self
 
     def _relate(self, batch_request, batch_response):
         """
@@ -163,7 +175,7 @@ class Batch:
                 else:
                     request.related = related
 
-        if response_map:
+        if response_map and self._strict:
             raise exceptions.IdentityError(f"unexpected response found: {response_map.keys()}")
 
 
@@ -179,16 +191,9 @@ class AsyncBatch(Batch):
         :returns: request results as a tuple
         """
 
-        request_text = self._client.json_dumper(self._requests, cls=self._client.json_encoder)
-        response_text = await self._client._request(request_text)
+        response = await self.send(self._requests)
 
-        response = self._client.batch_response_class.from_json(
-            self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._error_cls
-        )
-
-        self._relate(self._requests, response)
-
-        return response.result
+        return response.result if response is not None else None
 
     async def send(self, request, **kwargs):
         """
@@ -199,17 +204,20 @@ class AsyncBatch(Batch):
         :returns: response instance
         """
 
-        kwargs = {**self._client.request_args, **kwargs}
+        kwargs = {**self._client._request_args, **kwargs}
 
         request_text = self._client.json_dumper(request, cls=self._client.json_encoder)
-        response_text = await self._client._request(request_text, **kwargs)
+        response_text = await self._client._jsonrpc_request(request_text, **kwargs)
 
-        response = self._client.batch_response_class.from_json(
-            self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._client.error_cls
-        )
-        self._relate(request, response)
+        if not request.is_notification:
+            response = self._client.batch_response_class.from_json(
+                self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._client.error_cls
+            )
 
-        return response
+            if response.is_success:
+                self._relate(request, response)
+
+            return response
 
 
 class AbstractClient(abc.ABC):
@@ -259,11 +267,11 @@ class AbstractClient(abc.ABC):
         return Batch(self)
 
     @abc.abstractmethod
-    def _request(self, data, **kwargs):
+    def _request(self, request_text, **kwargs):
         """
         Makes a JSON-RPC request.
 
-        :param data: request text representation
+        :param request_text: request text representation
         :returns: response text representation
         """
 
@@ -273,12 +281,12 @@ class AbstractClient(abc.ABC):
         response_class=v20.Response,
         batch_request_class=v20.BatchRequest,
         batch_response_class=v20.BatchResponse,
+        error_cls=exceptions.JsonRpcError,
         id_gen=generators.sequential,
         json_loader=json.loads,
         json_dumper=json.dumps,
         json_encoder=common.JSONEncoder,
         json_decoder=None,
-        error_cls=exceptions.JsonRpcError,
         strict=True,
         request_args=None
     ):
@@ -286,14 +294,14 @@ class AbstractClient(abc.ABC):
         self.response_class = response_class
         self.batch_request_class = batch_request_class
         self.batch_response_class = batch_response_class
+        self.error_cls = error_cls
         self.json_loader = json_loader
         self.json_dumper = json_dumper
         self.json_encoder = json_encoder
         self.json_decoder = json_decoder
         self.id_gen = id_gen
-        self.error_cls = error_cls
-        self.strict = strict
-        self.request_args = request_args or {}
+        self._strict = strict
+        self._request_args = request_args or {}
 
     def __call__(self, method, *args, **kwargs):
         """
@@ -316,17 +324,18 @@ class AbstractClient(abc.ABC):
         :returns: response instance
         """
 
-        kwargs = {**self.request_args, **kwargs}
+        kwargs = {**self._request_args, **kwargs}
 
         request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = self._request(request_text, **kwargs)
+        response_text = self._jsonrpc_request(request_text, **kwargs)
 
-        response = self.response_class.from_json(
-            self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls
-        )
-        self._relate(request, response)
+        if not request.is_notification:
+            response = self.response_class.from_json(
+                self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls
+            )
+            self._relate(request, response)
 
-        return response
+            return response
 
     def notify(self, method, *args, **kwargs):
         """
@@ -345,8 +354,8 @@ class AbstractClient(abc.ABC):
             params=args or kwargs,
         )
         request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = self._request(request_text, **self.request_args)
-        if self.strict and response_text:
+        response_text = self._jsonrpc_request(request_text, **self._request_args)
+        if self._strict and response_text:
             raise exceptions.BaseError("unexpected response")
 
     def call(self, method, *args, **kwargs):
@@ -370,8 +379,14 @@ class AbstractClient(abc.ABC):
 
         return response.result
 
-    @classmethod
-    def _relate(cls, request, response):
+    def _jsonrpc_request(self, request_text, **kwargs):
+        logger.debug("request sent: %s", request_text)
+        response_text = self._request(request_text, **kwargs)
+        logger.debug("response received: %s", response_text)
+
+        return response_text
+
+    def _relate(self, request, response):
         """
         Checks the the request and the response identifiers match.
 
@@ -379,7 +394,7 @@ class AbstractClient(abc.ABC):
         :param response: response
         """
 
-        if response.id != request.id:
+        if self._strict and response.id != request.id:
             raise exceptions.IdentityError(
                 f"response id doesn't match the request one: expected {request.id}, got {response.id}"
             )
@@ -401,11 +416,11 @@ class AbstractAsyncClient(AbstractClient):
         return AsyncBatch(self)
 
     @abc.abstractmethod
-    async def _request(self, data, **kwargs):
+    async def _request(self, request_text, **kwargs):
         """
         Makes a JSON-RPC request.
 
-        :param data: request text representation
+        :param request_text: request text representation
         :returns: response text representation
         """
 
@@ -418,17 +433,18 @@ class AbstractAsyncClient(AbstractClient):
         :returns: response instance
         """
 
-        kwargs = {**self.request_args, **kwargs}
+        kwargs = {**self._request_args, **kwargs}
 
         request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = await self._request(request_text, **kwargs)
+        response_text = await self._jsonrpc_request(request_text, **kwargs)
 
-        response = self.response_class.from_json(
-            self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls
-        )
-        self._relate(request, response)
+        if not request.is_notification:
+            response = self.response_class.from_json(
+                self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls
+            )
+            self._relate(request, response)
 
-        return response
+            return response
 
     async def notify(self, method, *args, **kwargs):
         """
@@ -447,8 +463,8 @@ class AbstractAsyncClient(AbstractClient):
             params=args or kwargs,
         )
         request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = await self._request(request_text, **self.request_args)
-        if self.strict and response_text:
+        response_text = await self._jsonrpc_request(request_text, **self._request_args)
+        if self._strict and response_text:
             raise exceptions.BaseError("unexpected response")
 
     async def call(self, method, *args, **kwargs):

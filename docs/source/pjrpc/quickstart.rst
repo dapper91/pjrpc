@@ -8,9 +8,8 @@ Client requests
 _______________
 
 The way of using ``pjrpc`` clients is very simple and intuitive. Methods may be called by name, using proxy object
-or by sending handmade ``pjrpc.Request`` class object. Of course, the request class can be inherited and easily
-adapted to your needs. Notification requests can be made using ``pjrpc.Request.notify`` method or by sending a
-``pjrpc.Request`` object without id.
+or by sending handmade :py:class:`pjrpc.common.Request` class object. Notification requests can be made using
+:py:meth:`pjrpc.client.AbstractClient.notify` method or by sending a :py:class:`pjrpc.common.Request` object without id.
 
 .. code-block:: python
 
@@ -57,9 +56,9 @@ Asynchronous client api looks pretty much the same:
 Batch requests
 ______________
 
-Batch requests also supported. You can build ``pjrpc.BatchRequest`` request by your hand and then send it to the
-server. The result is a ``pjrpc.BatchResponse`` instance you can iterate over to get all the results or get
-each one by index:
+Batch requests also supported. You can build :py:class:`pjrpc.common.BatchRequest` request by your hand and then send
+it to the server. The result is a :py:class:`pjrpc.common.BatchResponse` instance you can iterate over to get all
+the results or get each one by index:
 
 .. code-block:: python
 
@@ -82,7 +81,7 @@ each one by index:
 
 
 There are also several alternative approaches which are a syntactic sugar for the first one (note that the result
-is not a ``pjrpc.BatchResponse`` object anymore but a tuple of "plain" method invocation results):
+is not a :py:class:`pjrpc.common.BatchResponse` object anymore but a tuple of "plain" method invocation results):
 
 - using chain call notation:
 
@@ -134,7 +133,7 @@ the succeeded ones like this:
 
     client = pjrpc_client.Client('http://localhost/api/v1')
 
-    batch_response = client.send(pjrpc.BatchRequest(
+    batch_response = client.batch.send(pjrpc.BatchRequest(
         pjrpc.Request('sum', [2, 2], id=1),
         pjrpc.Request('sub', [2, 2], id=2),
         pjrpc.Request('div', [2, 2], id=3),
@@ -146,6 +145,20 @@ the succeeded ones like this:
             print(response.result)
         else:
             print(response.error)
+
+
+Batch notifications:
+
+.. code-block:: python
+
+    import pjrpc
+    from pjrpc.client.backend import requests as pjrpc_client
+
+
+    client = pjrpc_client.Client('http://localhost/api/v1')
+
+    client.batch.notify('tick').notify('tack').notify('tick').notify('tack').call()
+
 
 
 Server
@@ -263,7 +276,7 @@ Error handling
 ______________
 
 ``pjrpc`` implements all the errors listed in `protocol specification <https://www.jsonrpc.org/specification#error_object>`_
-which can be found in ``pjrpc.common.exceptions`` module so that error handling is very simple and "pythonic-way":
+which can be found in :py:mod:`pjrpc.common.exceptions` module so that error handling is very simple and "pythonic-way":
 
 .. code-block:: python
 
@@ -279,8 +292,8 @@ which can be found in ``pjrpc.common.exceptions`` module so that error handling 
 
 
 Default error list may be easily extended. All you need to create an error class inherited from
-``pjrpc.exc.JsonRpcError`` and define an error code and a description message. ``pjrpc`` will be automatically
-deserializing custom errors for you:
+:py:class:`pjrpc.common.exceptions.JsonRpcError`` and define an error code and a description message. ``pjrpc``
+will be automatically deserializing custom errors for you:
 
 .. code-block:: python
 
@@ -321,6 +334,7 @@ On the server side everything is also pretty straightforward:
         code = 1
         message = 'user not found'
 
+
     @methods.add
     def add_user(user: dict):
         user_id = uuid.uuid4().hex
@@ -328,6 +342,7 @@ On the server side everything is also pretty straightforward:
 
         return {'id': user_id, **user}
 
+    @methods.add
      def get_user(self, user_id: str):
         user = flask.current_app.users.get(user_id)
         if not user:
