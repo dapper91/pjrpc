@@ -24,8 +24,8 @@ Welcome to pjrpc's documentation!
    :target: https://pjrpc.readthedocs.io/en/stable/
 
 
-``pjrpc`` is a extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library that provides a very
-intuitive interface, may be easily extended and integrated in your project without writing a lot of boilerplate code.
+``pjrpc`` is an extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library with an intuitive interface
+that may be easily extended and integrated in your project without writing a lot of boilerplate code.
 
 Features:
 

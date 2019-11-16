@@ -6,8 +6,10 @@ import pjrpc
 from pjrpc.client.backend import aiohttp as pjrpc_cli
 
 
+# TODO refactor tests
 async def test_call():
     test_url = 'http://test.com/api'
+
     with aioresponses() as m:
         m.post(test_url, repeat=True, status=200, payload={
             'jsonrpc': '2.0',
@@ -72,14 +74,21 @@ async def test_notify():
 
         client = pjrpc_cli.Client(test_url)
 
-        await client.notify('method', 1, 2)
-
+        response = await client.send(pjrpc.Request('method', params=[1, 2]))
+        assert response is None
         requests = m.requests[('POST', yarl.URL(test_url))]
         assert json.loads(requests[0].kwargs['data']) == {
             'jsonrpc': '2.0',
-            'id': None,
             'method': 'method',
-            'params': [1, 2]
+            'params': [1, 2],
+        }
+
+        response = await client.notify('method', a=1, b=2)
+        assert response is None
+        assert json.loads(requests[1].kwargs['data']) == {
+            'jsonrpc': '2.0',
+            'method': 'method',
+            'params': {'a': 1, 'b': 2},
         }
 
 
@@ -101,11 +110,16 @@ async def test_batch():
 
         client = pjrpc_cli.Client(test_url)
 
-        result = await client.batch[
-            ('method1', 1, 2),
-            ('method2', 2, 3),
-        ]
-        assert result == ('result1', 2)
+        result = await client.batch.send(pjrpc.BatchRequest(
+            pjrpc.Request('method1', params=[1, 2], id=1),
+            pjrpc.Request('method2', params=[2, 3], id=2),
+            pjrpc.Request('method3', params=[3, 4]),
+        ))
+        assert len(result) == 2
+        assert result[0].id == 1
+        assert result[0].result == 'result1'
+        assert result[1].id == 2
+        assert result[1].result == 2
 
         requests = m.requests[('POST', yarl.URL(test_url))]
         assert json.loads(requests[0].kwargs['data']) == [
@@ -120,10 +134,18 @@ async def test_batch():
                 'id': 2,
                 'method': 'method2',
                 'params': [2, 3]
+            },
+            {
+                'jsonrpc': '2.0',
+                'method': 'method3',
+                'params': [3, 4]
             }
         ]
 
-        result = await client.batch('method1', 1, 2)('method2', 2, 3).call()
+        result = await client.batch[
+            ('method1', 1, 2),
+            ('method2', 2, 3),
+        ]
         assert result == ('result1', 2)
 
         requests = m.requests[('POST', yarl.URL(test_url))]
@@ -142,7 +164,7 @@ async def test_batch():
             }
         ]
 
-        result = await client.batch.proxy.method1(1, 2).method2(2, 3)()
+        result = await client.batch('method1', 1, 2)('method2', 2, 3).call()
         assert result == ('result1', 2)
 
         requests = m.requests[('POST', yarl.URL(test_url))]
@@ -156,6 +178,43 @@ async def test_batch():
             {
                 'jsonrpc': '2.0',
                 'id': 2,
+                'method': 'method2',
+                'params': [2, 3]
+            }
+        ]
+
+        result = await client.batch.proxy.method1(1, 2).method2(2, 3)()
+        assert result == ('result1', 2)
+
+        requests = m.requests[('POST', yarl.URL(test_url))]
+        assert json.loads(requests[3].kwargs['data']) == [
+            {
+                'jsonrpc': '2.0',
+                'id': 1,
+                'method': 'method1',
+                'params': [1, 2]
+            },
+            {
+                'jsonrpc': '2.0',
+                'id': 2,
+                'method': 'method2',
+                'params': [2, 3]
+            }
+        ]
+
+        m.post(test_url, repeat=True, status=200)
+        result = await client.batch.notify('method1', 1, 2).notify('method2', 2, 3).call()
+        assert result is None
+
+        requests = m.requests[('POST', yarl.URL(test_url))]
+        assert json.loads(requests[4].kwargs['data']) == [
+            {
+                'jsonrpc': '2.0',
+                'method': 'method1',
+                'params': [1, 2]
+            },
+            {
+                'jsonrpc': '2.0',
                 'method': 'method2',
                 'params': [2, 3]
             }

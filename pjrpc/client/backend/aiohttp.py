@@ -1,5 +1,6 @@
 from aiohttp import client
 
+import pjrpc
 from pjrpc.client import AbstractAsyncClient
 
 
@@ -7,7 +8,7 @@ class Client(AbstractAsyncClient):
     """
     `Aiohttp <https://aiohttp.readthedocs.io/en/stable/client.html>`_ library client backend.
 
-    :param url: base url to be used as JSON-RPC endpoint
+    :param url: url to be used as JSON-RPC endpoint
     :param session_args: additional :py:class:`aiohttp.ClientSession` arguments
     :param session: custom session to be used instead of :py:class:`aiohttp.ClientSession`
     """
@@ -33,7 +34,12 @@ class Client(AbstractAsyncClient):
         resp = await self._session.post(self._endpoint, data=data, **kwargs)
         resp.raise_for_status()
 
-        return await resp.text()
+        response_text = await resp.text()
+        content_type = resp.headers.get('Content-Type', '')
+        if response_text and content_type.split(';')[0] != 'application/json':
+            raise pjrpc.exc.DeserializationError(f"unexpected response content type: {content_type}")
+
+        return response_text
 
     async def close(self):
         """

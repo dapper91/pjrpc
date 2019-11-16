@@ -1,5 +1,5 @@
 """
-Flaks JSON-RPC extension.
+Flask JSON-RPC extension.
 """
 
 import flask
@@ -11,7 +11,7 @@ import pjrpc.server
 
 class JsonRPC:
     """
-    `Flaks <https://flask.palletsprojects.com/en/1.1.x/>`_ framework JSON-RPC extension class.
+    `Flask <https://flask.palletsprojects.com/en/1.1.x/>`_ framework JSON-RPC extension class.
 
     :param path: JSON-RPC handler base path
     :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`

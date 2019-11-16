@@ -60,99 +60,10 @@ def test_response_properties():
     assert response.is_error is True
 
 
-def test_batch_response_serialization():
-    response = v20.BatchResponse(
-        v20.Response(id=None, result='result0'),
-        v20.Response(id=1, result='result1'),
-        v20.Response(id=2, result='result2'),
-    )
-
-    actual_dict = response.to_json()
-    expected_dict = [
-        {
-            'jsonrpc': '2.0',
-            'id': None,
-            'result': 'result0',
-        },
-        {
-            'jsonrpc': '2.0',
-            'id': 1,
-            'result': 'result1',
-        },
-        {
-            'jsonrpc': '2.0',
-            'id': 2,
-            'result': 'result2',
-        },
-    ]
-
-    assert actual_dict == expected_dict
-
-
-def test_batch_response_deserialization():
-    data = [
-        {
-            'jsonrpc': '2.0',
-            'id': None,
-            'result': 'result0',
-        },
-        {
-            'jsonrpc': '2.0',
-            'id': 1,
-            'result': 'result1',
-        },
-        {
-            'jsonrpc': '2.0',
-            'id': 2,
-            'result': 'result2',
-        },
-    ]
-
-    response = v20.BatchResponse.from_json(data)
-
-    assert response[0].id is None
-    assert response[0].result == 'result0'
-
-    assert response[1].id == 1
-    assert response[1].result == 'result1'
-
-    assert response[2].id == 2
-    assert response[2].result == 'result2'
-
-
-def test_batch_response_methods():
-    request = v20.BatchResponse(
-        v20.Response(id=None, result='result0'),
-        v20.Response(id=None, result='result0'),
-        v20.Response(id=1, result='result1'),
-    )
-    assert len(request) == 3
-
-    request.append(v20.Response(id=2, result='result2'))
-    assert len(request) == 4
-
-    request.extend([
-        v20.Response(id=3, result='result3'),
-        v20.Response(id=4, result='result4'),
-    ])
-    assert len(request) == 6
-
-    assert not request.has_error
-
-    request.append(v20.Response(id=5, error=pjrpc.exc.JsonRpcError(code=1, message='msg')))
-    with pytest.raises(pjrpc.exc.JsonRpcError) as e:
-        request.result
-
-    assert e.value.code == 1
-    assert e.value.message == 'msg'
-
-
-def test_batch_response_errors():
-    with pytest.raises(exceptions.IdentityError):
-        v20.BatchResponse(
-            v20.Response(id=1, result='result1'),
-            v20.Response(id=1, result='result1'),
-        )
+def test_response_repr():
+    response = v20.Response(id=1, result='result1')
+    assert str(response) == "result1"
+    assert repr(response) == "Response(id=1, result='result1', error=UNSET)"
 
 
 def test_response_deserialization_error():
@@ -175,21 +86,137 @@ def test_response_deserialization_error():
         v20.Response.from_json({'jsonrpc': '2.0', 'id': 1, 'error': {'code': 1, 'message': 'message'}, 'result': 1})
 
 
-def test_response_repr():
-    response = v20.Response(id=1, result='result1')
-    assert str(response) == "result1"
-    assert repr(response) == "Response(id=1, result='result1', error=UNSET)"
+def test_batch_response_serialization():
+    response = v20.BatchResponse(
+        v20.Response(id=None, result='result0'),
+        v20.Response(id=1, result='result1'),
+        v20.Response(id=None, result='result2'),
+    )
+
+    actual_dict = response.to_json()
+    expected_dict = [
+        {
+            'jsonrpc': '2.0',
+            'id': None,
+            'result': 'result0',
+        },
+        {
+            'jsonrpc': '2.0',
+            'id': 1,
+            'result': 'result1',
+        },
+        {
+            'jsonrpc': '2.0',
+            'id': None,
+            'result': 'result2',
+        },
+    ]
+
+    assert actual_dict == expected_dict
+
+    response = v20.BatchResponse(error=pjrpc.exc.MethodNotFoundError())
+    actual_dict = response.to_json()
+    expected_dict = {
+        'jsonrpc': '2.0',
+        'id': None,
+        'error': {
+            'code': -32601,
+            'message': 'Method not found',
+        }
+    }
+
+    assert actual_dict == expected_dict
+
+
+def test_batch_response_deserialization():
+    data = [
+        {
+            'jsonrpc': '2.0',
+            'id': None,
+            'result': 'result0',
+        },
+        {
+            'jsonrpc': '2.0',
+            'id': 1,
+            'result': 'result1',
+        },
+        {
+            'jsonrpc': '2.0',
+            'id': None,
+            'result': 'result2',
+        },
+    ]
+
+    response = v20.BatchResponse.from_json(data)
+
+    assert response[0].id is None
+    assert response[0].result == 'result0'
+
+    assert response[1].id == 1
+    assert response[1].result == 'result1'
+
+    assert response[2].id is None
+    assert response[2].result == 'result2'
+
+    data = {
+        'jsonrpc': '2.0',
+        'id': None,
+        'error': {
+            'code': -32601,
+            'message': 'Method not found',
+        }
+    }
+    response = v20.BatchResponse.from_json(data)
+
+    assert response.is_error
+    assert response.error == pjrpc.exc.MethodNotFoundError()
+
+
+def test_batch_response_methods():
+    response = v20.BatchResponse(
+        v20.Response(id=None, result='result0'),
+        v20.Response(id=None, result='result0'),
+        v20.Response(id=1, result='result1'),
+    )
+    assert len(response) == 3
+
+    response.append(v20.Response(id=2, result='result2'))
+    assert len(response) == 4
+
+    response.extend([
+        v20.Response(id=3, result='result3'),
+        v20.Response(id=4, result='result4'),
+    ])
+    assert len(response) == 6
+
+    assert not response.has_error
+
+    response.append(v20.Response(id=5, error=pjrpc.exc.JsonRpcError(code=1, message='msg')))
+    assert response.has_error
+    with pytest.raises(pjrpc.exc.JsonRpcError) as e:
+        response.result
+
+    assert e.value.code == 1
+    assert e.value.message == 'msg'
+
+
+def test_batch_response_errors():
+    with pytest.raises(exceptions.IdentityError):
+        v20.BatchResponse(
+            v20.Response(id=1, result='result1'),
+            v20.Response(id=1, result='result1'),
+        )
 
 
 def test_batch_response_repr():
-    request = v20.BatchResponse(
+    response = v20.BatchResponse(
         v20.Response(id=None, result='result0'),
         v20.Response(id=1, result='result1'),
     )
 
-    assert str(request) == "[result0, result1]"
-    assert repr(request) == "BatchResponse(Response(id=None, result='result0', error=UNSET)," \
-                            "Response(id=1, result='result1', error=UNSET), error=UNSET)"
+    assert str(response) == "[result0, result1]"
+    assert repr(response) == "BatchResponse(Response(id=None, result='result0', error=UNSET)," \
+                             "Response(id=1, result='result1', error=UNSET), error=UNSET)"
 
 
 def test_batch_response_deserialization_error():

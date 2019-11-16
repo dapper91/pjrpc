@@ -72,5 +72,5 @@ that's it. ``pjrpc`` will be validating method parameters and returning informat
         web.run_app(app, host='localhost', port=8080)
 
 
-The library also support builtin :py:mod:`pjrpc.server.validators.jsonschema` validator. In case you like any other
-validation library/framework like cerberus you can easily implement it and integrate into your project.
+The library also supports :py:mod:`pjrpc.server.validators.jsonschema` validator. In case you like any other
+validation library/framework it can be easily integrated in ``pjrpc`` library.

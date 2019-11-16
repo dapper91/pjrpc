@@ -22,7 +22,7 @@ Errors handling
     -32000 to -32099 , Server error , Reserved for implementation-defined server-errors.
 
 
-Errors can be found in ``pjrpc.common.exceptions`` module. Having said that error handling
+Errors can be found in :py:mod:`pjrpc.common.exceptions` module. Having said that error handling
 is very simple and "pythonic-way":
 
 .. code-block:: python
@@ -42,8 +42,8 @@ Custom errors
 -------------
 
 Default error list may be easily extended. All you need to create an error class inherited from
-``pjrpc.exc.JsonRpcError`` and define an error code and a description message. ``pjrpc`` will be automatically
-deserializing custom errors for you:
+:py:class:`pjrpc.common.exceptions.JsonRpcError` and define an error code and a description message. ``pjrpc``
+will be automatically deserializing custom errors for you:
 
 .. code-block:: python
 
@@ -66,7 +66,7 @@ deserializing custom errors for you:
 Server side
 -----------
 
-On the server side everything is pretty straightforward:
+On the server side everything is also pretty straightforward:
 
 .. code-block:: python
 

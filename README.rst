@@ -19,8 +19,8 @@ pjrpc
    :target: https://pjrpc.readthedocs.io/en/stable/
 
 
-``pjrpc`` is an extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library that provides a very
-intuitive interface, may be easily extended and integrated with your project without writing a lot of boilerplate code.
+``pjrpc`` is an extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library with an intuitive interface
+that may be easily extended and integrated in your project without writing a lot of boilerplate code.
 
 Features:
 
@@ -66,9 +66,8 @@ Client requests
 _______________
 
 The way of using ``pjrpc`` clients is very simple and intuitive. Methods may be called by name, using proxy object
-or by sending handmade ``pjrpc.Request`` class object. Of course, the request class can be inherited and easily
-adapted to your needs. Notification requests can be made using ``pjrpc.Request.notify`` method or by sending a
-``pjrpc.Request`` object without id.
+or by sending handmade ``pjrpc.common.Request`` class object. Notification requests can be made using
+``pjrpc.client.AbstractClient.notify`` method or by sending a ``pjrpc.common.Request`` object without id.
 
 .. code-block:: python
 
@@ -78,7 +77,7 @@ adapted to your needs. Notification requests can be made using ``pjrpc.Request.n
 
     client = pjrpc_client.Client('http://localhost/api/v1')
 
-    response: pjrpc.Response = client.send(pjrpc.Request('sum', params=[1, 2]))
+    response: pjrpc.Response = client.send(pjrpc.Request('sum', params=[1, 2], id=1))
     print(f"1 + 2 = {response.result}")
 
     result = client('sum', a=1, b=2)
@@ -115,9 +114,9 @@ Asynchronous client api looks pretty much the same:
 Batch requests
 ______________
 
-Batch requests also supported. You can build ``pjrpc.BatchRequest`` request by your hand and then send it to the
-server. The result is a ``pjrpc.BatchResponse`` instance you can iterate over to get all the results or get
-each one by the index:
+Batch requests also supported. You can build ``pjrpc.common.BatchRequest`` request by your hand and then send it to the
+server. The result is a ``pjrpc.common.BatchResponse`` instance you can iterate over to get all the results or get
+each one by index:
 
 .. code-block:: python
 
@@ -127,7 +126,7 @@ each one by the index:
 
     client = pjrpc_client.Client('http://localhost/api/v1')
 
-    batch_response = client.send(pjrpc.BatchRequest(
+    batch_response = await client.batch.send(pjrpc.BatchRequest(
         pjrpc.Request('sum', [2, 2], id=1),
         pjrpc.Request('sub', [2, 2], id=2),
         pjrpc.Request('div', [2, 2], id=3),
@@ -140,7 +139,7 @@ each one by the index:
 
 
 There are also several alternative approaches which are a syntactic sugar for the first one (note that the result
-is not a ``pjrpc.BatchResponse`` anymore but a tuple of "plain" method results):
+is not a ``pjrpc.common.BatchResponse`` object anymore but a tuple of "plain" method invocation results):
 
 - using chain call notation:
 
@@ -160,8 +159,8 @@ is not a ``pjrpc.BatchResponse`` anymore but a tuple of "plain" method results):
     result = await client.batch[
         ('sum', 2, 2),
         ('sub', 2, 2),
-        dict(method='div', a=2, b=2),
-        dict(method='mult', a=2, b=2),
+        ('div', 2, 2),
+        ('mult', 2, 2),
     ]
     print(f"2 + 2 = {result[0]}")
     print(f"2 - 2 = {result[1]}")
@@ -192,7 +191,7 @@ the succeeded ones like this:
 
     client = pjrpc_client.Client('http://localhost/api/v1')
 
-    batch_response = client.send(pjrpc.BatchRequest(
+    batch_response = client.batch.send(pjrpc.BatchRequest(
         pjrpc.Request('sum', [2, 2], id=1),
         pjrpc.Request('sub', [2, 2], id=2),
         pjrpc.Request('div', [2, 2], id=3),
@@ -204,6 +203,20 @@ the succeeded ones like this:
             print(response.result)
         else:
             print(response.error)
+
+
+Batch notifications:
+
+.. code-block:: python
+
+    import pjrpc
+    from pjrpc.client.backend import requests as pjrpc_client
+
+
+    client = pjrpc_client.Client('http://localhost/api/v1')
+
+    client.batch.notify('tick').notify('tack').notify('tick').notify('tack').call()
+
 
 
 Server
@@ -358,7 +371,7 @@ deserializing custom errors for you:
         print(e)
 
 
-On the server side everything is pretty straightforward:
+On the server side everything is also pretty straightforward:
 
 .. code-block:: python
 
@@ -379,6 +392,7 @@ On the server side everything is pretty straightforward:
         code = 1
         message = 'user not found'
 
+
     @methods.add
     def add_user(user: dict):
         user_id = uuid.uuid4().hex
@@ -386,6 +400,7 @@ On the server side everything is pretty straightforward:
 
         return {'id': user_id, **user}
 
+    @methods.add
      def get_user(self, user_id: str):
         user = flask.current_app.users.get(user_id)
         if not user:

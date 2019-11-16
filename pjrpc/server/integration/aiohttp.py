@@ -12,8 +12,8 @@ class Application(web.Application):
     `aiohttp <https://aiohttp.readthedocs.io/en/stable/web.html>`_ based JSON-RPC server.
 
     :param path: JSON-RPC handler base path
-    :param app_args: arguments to be passed to :py:class:`web.Application`
-    :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
+    :param app_args: arguments to be passed to :py:class:`aiohttp.web.Application`
+    :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.AsyncDispatcher`
     """
 
     def __init__(self, path='', app_args=None, **kwargs):
