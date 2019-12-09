@@ -384,9 +384,9 @@ class AsyncDispatcher(Dispatcher):
 
         else:
             if isinstance(request, collections.Iterable):
-                response = self._batch_response(*filter(lambda resp: resp is not UNSET, [
-                    await self._handle_rpc_request(request, context) for request in request
-                ]))
+                response = self._batch_response(*filter(lambda resp: resp is not UNSET, await asyncio.gather(
+                    *(self._handle_rpc_request(request, context) for request in request)
+                )))
 
             else:
                 response = await self._handle_rpc_request(request, context)

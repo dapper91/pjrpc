@@ -4,6 +4,7 @@ import uuid
 
 import aio_pika
 
+import pjrpc
 from pjrpc.client import AbstractAsyncClient
 
 logger = logging.getLogger(__package__)
@@ -17,6 +18,7 @@ class Client(AbstractAsyncClient):
     :param conn_args: broker connection arguments.
     :param queue_name: queue name to publish requests to
     :param exchange_name: exchange to publish requests to. If ``None`` default exchange is used
+    :param exchange_args: exchange arguments
     :param routing_key: reply message routing key. If ``None`` queue name is used
     :param result_queue_name: result queue name. If ``None`` random exclusive queue is declared for each request
     :param conn_args: additional connection arguments
@@ -79,10 +81,12 @@ class Client(AbstractAsyncClient):
         Closes current broker connection.
         """
 
-        await self._result_queue.cancel(self._consumer_tag)
+        if self._consumer_tag:
+            await self._result_queue.cancel(self._consumer_tag)
+            self._consumer_tag = None
+
         await self._channel.close()
         await self._connection.close()
-        self._consumer_tag = None
 
         for future in self._futures.values():
             if future.done():
@@ -95,12 +99,29 @@ class Client(AbstractAsyncClient):
         future = self._futures.pop(correlation_id, None)
 
         if future is None:
-            logger.warning("unexpected message: %r", message)
+            logger.warning("unexpected or outdated message received: %r", message)
             return
 
-        future.set_result(message.body)
+        if message.content_type != 'application/json':
+            future.set_exception(
+                pjrpc.exc.DeserializationError(f"unexpected response content type: {message.content_type}")
+            )
+        else:
+            future.set_result(message.body.decode(message.content_encoding or 'utf8'))
 
-    async def _request(self, data, **kwargs):
+    async def _request(self, data, is_notification=False, **kwargs):
+        if is_notification:
+            async with self._connection.channel() as channel:
+                message = aio_pika.message.Message(
+                    body=data.encode(),
+                    content_encoding='utf8',
+                    content_type='application/json',
+                    **kwargs,
+                )
+                exchange = self._exchange or channel.default_exchange
+                await exchange.publish(message, routing_key=self._routing_key)
+                return
+
         request_id = str(uuid.uuid4())
 
         async with self._connection.channel() as channel:
@@ -121,9 +142,9 @@ class Client(AbstractAsyncClient):
                 **kwargs,
             )
 
-            try:
-                self._futures[request_id] = future = asyncio.Future()
+            self._futures[request_id] = future = asyncio.Future()
 
+            try:
                 exchange = self._exchange or channel.default_exchange
                 await exchange.publish(message, routing_key=self._routing_key)
                 return await future

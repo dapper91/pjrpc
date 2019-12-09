@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.1.4 (2019-12-10)
+------------------
+
+- aio-pika and kombu integration refactoring
+- async dispatcher concurrent methods execution implemented
+
+
 0.1.3 (2019-11-10)
 ------------------
 
