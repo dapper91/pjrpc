@@ -130,7 +130,7 @@ class Batch:
         kwargs = {**self._client._request_args, **kwargs}
 
         request_text = self._client.json_dumper(request, cls=self._client.json_encoder)
-        response_text = self._client._jsonrpc_request(request_text, **kwargs)
+        response_text = self._client._jsonrpc_request(request_text, request.is_notification, **kwargs)
 
         if not request.is_notification:
             response = self._client.batch_response_class.from_json(
@@ -207,7 +207,7 @@ class AsyncBatch(Batch):
         kwargs = {**self._client._request_args, **kwargs}
 
         request_text = self._client.json_dumper(request, cls=self._client.json_encoder)
-        response_text = await self._client._jsonrpc_request(request_text, **kwargs)
+        response_text = await self._client._jsonrpc_request(request_text, request.is_notification, **kwargs)
 
         if not request.is_notification:
             response = self._client.batch_response_class.from_json(
@@ -267,11 +267,12 @@ class AbstractClient(abc.ABC):
         return Batch(self)
 
     @abc.abstractmethod
-    def _request(self, request_text, **kwargs):
+    def _request(self, request_text, is_notification=False, **kwargs):
         """
         Makes a JSON-RPC request.
 
         :param request_text: request text representation
+        :param is_notification: is the request a notification
         :returns: response text representation
         """
 
@@ -327,7 +328,7 @@ class AbstractClient(abc.ABC):
         kwargs = {**self._request_args, **kwargs}
 
         request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = self._jsonrpc_request(request_text, **kwargs)
+        response_text = self._jsonrpc_request(request_text, request.is_notification, **kwargs)
 
         if not request.is_notification:
             response = self.response_class.from_json(
@@ -354,7 +355,7 @@ class AbstractClient(abc.ABC):
             params=args or kwargs,
         )
         request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = self._jsonrpc_request(request_text, **self._request_args)
+        response_text = self._jsonrpc_request(request_text, is_notification=True, **self._request_args)
         if self._strict and response_text:
             raise exceptions.BaseError("unexpected response")
 
@@ -379,9 +380,9 @@ class AbstractClient(abc.ABC):
 
         return response.result
 
-    def _jsonrpc_request(self, request_text, **kwargs):
+    def _jsonrpc_request(self, request_text, is_notification=False, **kwargs):
         logger.debug("request sent: %s", request_text)
-        response_text = self._request(request_text, **kwargs)
+        response_text = self._request(request_text, is_notification, **kwargs)
         logger.debug("response received: %s", response_text)
 
         return response_text
@@ -416,11 +417,12 @@ class AbstractAsyncClient(AbstractClient):
         return AsyncBatch(self)
 
     @abc.abstractmethod
-    async def _request(self, request_text, **kwargs):
+    async def _request(self, request_text, is_notification=False, **kwargs):
         """
         Makes a JSON-RPC request.
 
         :param request_text: request text representation
+        :param is_notification: is the request a notification
         :returns: response text representation
         """
 
@@ -436,7 +438,7 @@ class AbstractAsyncClient(AbstractClient):
         kwargs = {**self._request_args, **kwargs}
 
         request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = await self._jsonrpc_request(request_text, **kwargs)
+        response_text = await self._jsonrpc_request(request_text, request.is_notification, **kwargs)
 
         if not request.is_notification:
             response = self.response_class.from_json(
@@ -463,7 +465,7 @@ class AbstractAsyncClient(AbstractClient):
             params=args or kwargs,
         )
         request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = await self._jsonrpc_request(request_text, **self._request_args)
+        response_text = await self._jsonrpc_request(request_text, is_notification=True, **self._request_args)
         if self._strict and response_text:
             raise exceptions.BaseError("unexpected response")
 

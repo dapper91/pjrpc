@@ -2,6 +2,7 @@ import logging
 
 import kombu.mixins
 
+import pjrpc
 from pjrpc.common import UNSET
 from pjrpc.client import AbstractClient
 
@@ -11,11 +12,13 @@ logger = logging.getLogger(__package__)
 class Client(AbstractClient):
     """
     `kombu <https://aio-pika.readthedocs.io/en/latest/>`_ based JSON-RPC client.
+    Note: the client is not thread-safe.
 
     :param broker_url: broker connection url
     :param conn_args: broker connection arguments.
     :param queue_name: queue name to publish requests to
     :param exchange_name: exchange to publish requests to. If ``None`` default exchange is used
+    :param exchange_args: exchange arguments
     :param routing_key: reply message routing key. If ``None`` queue name is used
     :param result_queue_name: result queue name. If ``None`` random exclusive queue is declared for each request
     :param conn_args: additional connection arguments
@@ -28,6 +31,7 @@ class Client(AbstractClient):
         queue_name=None,
         conn_args=None,
         exchange_name=None,
+        exchange_args=None,
         routing_key=None,
         result_queue_name=None,
         result_queue_args=None,
@@ -36,14 +40,15 @@ class Client(AbstractClient):
         assert queue_name or routing_key, "queue_name or routing_key must be provided"
 
         super().__init__(**kwargs)
-        self.connection = kombu.Connection(broker_url, **(conn_args or {}))
+        self._connection = kombu.Connection(broker_url, **(conn_args or {}))
         self._routing_key = routing_key or queue_name
-        self._result_queue_args = result_queue_args
         self._result_queue = None
+        self._result_queue_args = result_queue_args
         self._exchange = None
+        self._exchange_args = exchange_args
 
         if exchange_name:
-            self._exchange = kombu.Exchange(exchange_name)
+            self._exchange = kombu.Exchange(exchange_name,  **(exchange_args or {}))
         if result_queue_name:
             self._result_queue = kombu.Queue(result_queue_name, **(result_queue_args or {}))
 
@@ -52,23 +57,35 @@ class Client(AbstractClient):
         Closes the current broker connection.
         """
 
-        self.connection.close()
+        self._connection.close()
 
-    def _request(self, data, **kwargs):
+    def _request(self, data, is_notification=False, **kwargs):
         """
         Sends a JSON-RPC request.
 
         :param data: request text
+        :param is_notification: is the request a notification
         :param kwargs: publish additional arguments
         :returns: response text
         """
+
+        if is_notification:
+            with kombu.Producer(self._connection) as producer:
+                producer.publish(
+                    data,
+                    exchange=self._exchange or '',
+                    routing_key=self._routing_key,
+                    content_type='application/json',
+                    **kwargs,
+                )
+                return
 
         request_id = kombu.uuid()
         result_queue = self._result_queue or kombu.Queue(
             exclusive=True, name=request_id, **(self._result_queue_args or {})
         )
 
-        with kombu.Producer(self.connection) as producer:
+        with kombu.Producer(self._connection) as producer:
             producer.publish(
                 data,
                 exchange=self._exchange or '',
@@ -84,13 +101,23 @@ class Client(AbstractClient):
         def on_response(message):
             nonlocal response
 
-            if message.properties.get('correlation_id') == request_id:
-                response = message.body
-            else:
-                logger.warning("unexpected message: %r", message)
+            try:
+                if message.properties.get('correlation_id') != request_id:
+                    logger.warning("unexpected message received: %r", message)
+                    return
 
-        with kombu.Consumer(self.connection, on_message=on_response, queues=result_queue, no_ack=True):
+                if message.content_type != 'application/json':
+                    raise pjrpc.exc.DeserializationError(f"unexpected response content type: {message.content_type}")
+                else:
+                    response = message.body
+            except Exception as e:
+                response = e
+
+        with kombu.Consumer(self._connection, on_message=on_response, queues=result_queue, no_ack=True):
             while response is UNSET:
-                self.connection.drain_events(timeout=kwargs.get('timeout', None))
+                self._connection.drain_events(timeout=kwargs.get('timeout', None))
+
+        if isinstance(response, Exception):
+            raise response
 
         return response

@@ -71,6 +71,7 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
                         routing_key=reply_to,
                         correlation_id=message.properties.get('correlation_id'),
                         content_type='application/json',
+                        content_encoding='utf8',
                         **(self._publish_args or {})
                     )
 

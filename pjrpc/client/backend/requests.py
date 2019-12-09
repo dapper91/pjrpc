@@ -18,11 +18,12 @@ class Client(AbstractClient):
         self._endpoint = url
         self._session = session or requests.Session()
 
-    def _request(self, data, **kwargs):
+    def _request(self, data, is_notification=False, **kwargs):
         """
         Sends a JSON-RPC request.
 
         :param data: request text
+        :param is_notification: is the request a notification
         :returns: response text
         """
 
@@ -33,6 +34,8 @@ class Client(AbstractClient):
 
         resp = self._session.post(self._endpoint, data=data, **kwargs)
         resp.raise_for_status()
+        if is_notification:
+            return
 
         response_text = resp.text
         content_type = resp.headers.get('Content-Type', '')

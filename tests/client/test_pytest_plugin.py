@@ -9,7 +9,7 @@ class TestClient:
     def __init__(self, endpoint):
         self._endpoint = endpoint
 
-    def _request(self, data, **kwargs):
+    def _request(self, data, is_notification=False, **kwargs):
         return json.dumps(pjrpc.Response(id='original_id', result='original_result').to_json())
 
 
@@ -154,7 +154,7 @@ class TestAsyncClient:
     def __init__(self, endpoint):
         self._endpoint = endpoint
 
-    async def _request(self, data, **kwargs):
+    async def _request(self, data, is_notification=False, **kwargs):
         return json.dumps(pjrpc.Response(id='original_id', result='original_result').to_json())
 
 
