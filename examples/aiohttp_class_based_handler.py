@@ -30,9 +30,9 @@ class UserView(pjrpc.server.View):
         return user
 
 
-app = aiohttp.Application('/api/v1')
-app.dispatcher.add_methods(methods)
-app['users'] = {}
+jsonrpc_app = aiohttp.Application('/api/v1')
+jsonrpc_app.dispatcher.add_methods(methods)
+jsonrpc_app.app['users'] = {}
 
 if __name__ == "__main__":
-    web.run_app(app, host='localhost', port=8080)
+    web.run_app(jsonrpc_app.app, host='localhost', port=8080)

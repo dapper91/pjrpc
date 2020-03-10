@@ -20,7 +20,7 @@ pjrpc
 
 
 ``pjrpc`` is an extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library with an intuitive interface
-that may be easily extended and integrated in your project without writing a lot of boilerplate code.
+that can be easily extended and integrated in your project without writing a lot of boilerplate code.
 
 Features:
 
@@ -250,12 +250,12 @@ registry and run the server:
         return {'id': user_id, **user}
 
 
-    app = aiohttp.Application('/api/v1')
-    app.dispatcher.add_methods(methods)
-    app['users'] = {}
+    jsonrpc_app = aiohttp.Application('/api/v1')
+    jsonrpc_app.dispatcher.add_methods(methods)
+    jsonrpc_app.app['users'] = {}
 
     if __name__ == "__main__":
-        web.run_app(app, host='localhost', port=8080)
+        web.run_app(jsonrpc_app.app, host='localhost', port=8080)
 
 
 Parameter validation
@@ -322,12 +322,12 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
             return super().default(o)
 
 
-    app = aiohttp.Application('/api/v1', json_encoder=JSONEncoder)
-    app.dispatcher.add_methods(methods)
-    app['users'] = {}
+    jsonrpc_app = aiohttp.Application('/api/v1', json_encoder=JSONEncoder)
+    jsonrpc_app.dispatcher.add_methods(methods)
+    jsonrpc_app.app['users'] = {}
 
     if __name__ == "__main__":
-        web.run_app(app, host='localhost', port=8080)
+        web.run_app(jsonrpc_app.app, host='localhost', port=8080)
 
 
 Error handling
@@ -349,7 +349,7 @@ which can be found in ``pjrpc.common.exceptions`` module so that error handling 
         print(e)
 
 
-Default error list may be easily extended. All you need to create an error class inherited from
+Default error list can be easily extended. All you need to create an error class inherited from
 ``pjrpc.exc.JsonRpcError`` and define an error code and a description message. ``pjrpc`` will be automatically
 deserializing custom errors for you:
 

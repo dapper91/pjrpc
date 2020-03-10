@@ -4,15 +4,17 @@ import pjrpc
 from pjrpc.common import v20, exceptions
 
 
-@pytest.mark.parametrize('id, result', [
-    (1, None),
-    ('1', None),
-    (None, None),
-    (1, 'result'),
-    (1, {'key': 'value'}),
-    (1, [1, 2]),
-    (1, None),
-])
+@pytest.mark.parametrize(
+    'id, result', [
+        (1, None),
+        ('1', None),
+        (None, None),
+        (1, 'result'),
+        (1, {'key': 'value'}),
+        (1, [1, 2]),
+        (1, None),
+    ],
+)
 def test_response_serialization(id, result):
     response = v20.Response(id=id, result=result)
 
@@ -26,15 +28,17 @@ def test_response_serialization(id, result):
     assert actual_dict == expected_dict
 
 
-@pytest.mark.parametrize('id, result', [
-    (1, None),
-    ('1', None),
-    (None, None),
-    (1, 'result'),
-    (1, {'key': 'value'}),
-    (1, [1, 2]),
-    (1, None),
-])
+@pytest.mark.parametrize(
+    'id, result', [
+        (1, None),
+        ('1', None),
+        (None, None),
+        (1, 'result'),
+        (1, {'key': 'value'}),
+        (1, [1, 2]),
+        (1, None),
+    ],
+)
 def test_response_deserialization(id, result):
     data = {
         'jsonrpc': '2.0',
@@ -122,7 +126,7 @@ def test_batch_response_serialization():
         'error': {
             'code': -32601,
             'message': 'Method not found',
-        }
+        },
     }
 
     assert actual_dict == expected_dict
@@ -164,7 +168,7 @@ def test_batch_response_deserialization():
         'error': {
             'code': -32601,
             'message': 'Method not found',
-        }
+        },
     }
     response = v20.BatchResponse.from_json(data)
 

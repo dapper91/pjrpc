@@ -65,7 +65,7 @@ class PjRpcMocker:
         id=None,
         version='2.0',
         once=False,
-        callback=None
+        callback=None,
     ):
         """
         Appends response patch. If the same method patch already exists they will be used in a round-robin way.
@@ -93,7 +93,7 @@ class PjRpcMocker:
         version='2.0',
         once=False,
         callback=None,
-        idx=0
+        idx=0,
     ):
         """
         Replaces a previously added response patch by a new one.
@@ -188,7 +188,7 @@ class PjRpcMocker:
             response = pjrpc.BatchResponse()
             for request in pjrpc.BatchRequest.from_json(json_data):
                 response.append(
-                    self._match_request(endpoint, request.version, request.method, request.params, request.id)
+                    self._match_request(endpoint, request.version, request.method, request.params, request.id),
                 )
 
         else:
@@ -215,7 +215,7 @@ class PjRpcMocker:
 
         stub = self.calls[endpoint].setdefault(
             (version, method_name),
-            self._mocker.MagicMock(spec=lambda *args, **kwargs: None, name=f'{endpoint}:{version}:{method_name}')
+            self._mocker.MagicMock(spec=lambda *args, **kwargs: None, name=f'{endpoint}:{version}:{method_name}'),
         )
         if isinstance(params, (list, tuple)):
             stub(*params)

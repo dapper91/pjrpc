@@ -107,7 +107,7 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
 
     def __repr__(self):
         return "{class_name}(code={code}, message={message}, data={data})".format(
-            class_name=self.__class__.__name__, code=repr(self.code), message=repr(self.message), data=repr(self.data)
+            class_name=self.__class__.__name__, code=repr(self.code), message=repr(self.message), data=repr(self.data),
         )
 
     def __eq__(self, other):

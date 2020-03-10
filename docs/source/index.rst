@@ -25,7 +25,7 @@ Welcome to pjrpc's documentation!
 
 
 ``pjrpc`` is an extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library with an intuitive interface
-that may be easily extended and integrated in your project without writing a lot of boilerplate code.
+that can be easily extended and integrated in your project without writing a lot of boilerplate code.
 
 Features:
 
@@ -63,6 +63,8 @@ The User Guide
    pjrpc/errors
    pjrpc/extending
    pjrpc/testing
+   pjrpc/tracing
+   pjrpc/examples
 
 
 The API Documentation

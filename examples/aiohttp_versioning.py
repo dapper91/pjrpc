@@ -9,7 +9,7 @@ methods_v1 = pjrpc.server.MethodRegistry()
 
 
 @methods_v1.add(context='request')
-async def add_user(request: web.Request, user: dict):
+async def add_user_v1(request: web.Request, user: dict):
     user_id = uuid.uuid4().hex
     request.config_dict['users'][user_id] = user
 
@@ -20,7 +20,7 @@ methods_v2 = pjrpc.server.MethodRegistry()
 
 
 @methods_v2.add(context='request')
-async def add_user(request: web.Request, user: dict):
+async def add_user_v2(request: web.Request, user: dict):
     user_id = uuid.uuid4().hex
     request.config_dict['users'][user_id] = user
 

@@ -14,7 +14,7 @@ def test_using_fixture(pjrpc_requests_mocker):
     assert result == 2
 
     pjrpc_requests_mocker.replace(
-        'http://localhost/api/v1', 'sum', error=pjrpc.exc.JsonRpcError(code=1, message='error', data='oops')
+        'http://localhost/api/v1', 'sum', error=pjrpc.exc.JsonRpcError(code=1, message='error', data='oops'),
     )
     with pytest.raises(pjrpc.exc.JsonRpcError) as exc_info:
         client.proxy.sum(a=1, b=1)

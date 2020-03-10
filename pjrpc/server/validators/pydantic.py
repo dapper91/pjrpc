@@ -45,7 +45,7 @@ class PydanticValidator(base.BaseValidator):
         try:
             obj = params_model(**bound_params.arguments)
         except pydantic.ValidationError as e:
-            raise base.ValidationError(e.errors()) from e
+            raise base.ValidationError(*e.errors()) from e
 
         return {attr: getattr(obj, attr) for attr in obj.__fields_set__} if self._coerce else bound_params.arguments
 

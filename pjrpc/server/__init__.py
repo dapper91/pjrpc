@@ -2,11 +2,12 @@
 JSON-RPC server package.
 """
 
-from .dispatcher import Dispatcher, AsyncDispatcher, Method, MethodRegistry, View
+from .dispatcher import AsyncDispatcher, Dispatcher, JSONEncoder, Method, MethodRegistry, View
 
 __all__ = [
-    'Dispatcher',
     'AsyncDispatcher',
+    'Dispatcher',
+    'JSONEncoder',
     'Method',
     'MethodRegistry',
     'View',

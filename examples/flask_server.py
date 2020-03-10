@@ -3,7 +3,6 @@ import uuid
 import flask
 
 import pjrpc
-from pjrpc.server import MethodRegistry
 from pjrpc.server.integration import flask as integration
 
 app = flask.Flask(__name__)

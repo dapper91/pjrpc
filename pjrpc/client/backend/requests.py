@@ -29,7 +29,7 @@ class Client(AbstractClient):
 
         kwargs = {
             'headers': {'Content-Type': 'application/json'},
-            **kwargs
+            **kwargs,
         }
 
         resp = self._session.post(self._endpoint, data=data, **kwargs)

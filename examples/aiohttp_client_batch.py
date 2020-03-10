@@ -7,12 +7,14 @@ from pjrpc.client.backend import aiohttp as pjrpc_client
 async def main():
     async with pjrpc_client.Client('http://localhost:8080/api/v1') as client:
 
-        batch_response = await client.batch.send(pjrpc.BatchRequest(
-            pjrpc.Request('sum', [2, 2], id=1),
-            pjrpc.Request('sub', [2, 2], id=2),
-            pjrpc.Request('div', [2, 2], id=3),
-            pjrpc.Request('mult', [2, 2], id=4),
-        ))
+        batch_response = await client.batch.send(
+            pjrpc.BatchRequest(
+                pjrpc.Request('sum', [2, 2], id=1),
+                pjrpc.Request('sub', [2, 2], id=2),
+                pjrpc.Request('div', [2, 2], id=3),
+                pjrpc.Request('mult', [2, 2], id=4),
+            ),
+        )
         print(f"2 + 2 = {batch_response[0].result}")
         print(f"2 - 2 = {batch_response[1].result}")
         print(f"2 / 2 = {batch_response[2].result}")

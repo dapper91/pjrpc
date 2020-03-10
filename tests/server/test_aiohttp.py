@@ -20,25 +20,27 @@ def json_rpc(path):
     return json_rpc
 
 
-@pytest.mark.parametrize('request_id, params, result', [
-    (
-            1,
-            (1, 1.1, 'str', {}, False),
-            [1, 1.1, 'str', {}, False],
-    ),
-    (
-            'abc',
-            {'int': 1, 'float': 1.1, 'str': 'str', 'dict': {}, 'bool': False},
-            {'int': 1, 'float': 1.1, 'str': 'str', 'dict': {}, 'bool': False},
-    ),
-])
+@pytest.mark.parametrize(
+    'request_id, params, result', [
+        (
+                1,
+                (1, 1.1, 'str', {}, False),
+                [1, 1.1, 'str', {}, False],
+        ),
+        (
+                'abc',
+                {'int': 1, 'float': 1.1, 'str': 'str', 'dict': {}, 'bool': False},
+                {'int': 1, 'float': 1.1, 'str': 'str', 'dict': {}, 'bool': False},
+        ),
+    ],
+)
 async def test_request(json_rpc, path, mocker, aiohttp_client, request_id, params, result):
     method_name = 'test_method'
     mock = mocker.Mock(name=method_name, return_value=result)
 
     json_rpc.dispatcher.add(mock, method_name)
 
-    cli = await aiohttp_client(json_rpc)
+    cli = await aiohttp_client(json_rpc.app)
     raw = await cli.post(path, json=v20.Request(method=method_name, params=params, id=request_id).to_json())
     assert raw.status == 200
 
@@ -60,7 +62,7 @@ async def test_notify(json_rpc, path, mocker, aiohttp_client):
 
     json_rpc.dispatcher.add(mock, method_name)
 
-    cli = await aiohttp_client(json_rpc)
+    cli = await aiohttp_client(json_rpc.app)
     raw = await cli.post(path, json=v20.Request(method=method_name, params=params).to_json())
     assert raw.status == 200
     assert raw.content_type != 'application/json'
@@ -79,7 +81,7 @@ async def test_errors(json_rpc, path, mocker, aiohttp_client):
 
     json_rpc.dispatcher.add(mock, method_name)
 
-    cli = await aiohttp_client(json_rpc)
+    cli = await aiohttp_client(json_rpc.app)
     # method not found
     raw = await cli.post(path, json=v20.Request(method='unknown_method', params=params, id=request_id).to_json())
     assert raw.status == 200
@@ -126,7 +128,7 @@ async def test_context(json_rpc, path, mocker, aiohttp_client):
 
     json_rpc.dispatcher.add(mock, method_name, context='request')
 
-    cli = await aiohttp_client(json_rpc)
+    cli = await aiohttp_client(json_rpc.app)
     raw = await cli.post(path, json=v20.Request(method=method_name, params=params, id=request_id).to_json())
     assert raw.status == 200
 
@@ -141,7 +143,7 @@ async def test_context(json_rpc, path, mocker, aiohttp_client):
 
     mock.reset_mock()
 
-    cli = await aiohttp_client(json_rpc)
+    cli = await aiohttp_client(json_rpc.app)
     raw = await cli.post(path, json=v20.Request(method=method_name, params=params, id=request_id).to_json())
     assert raw.status == 200
 

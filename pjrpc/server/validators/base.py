@@ -65,7 +65,7 @@ class BaseValidator:
         try:
             return signature.bind(*method_args, **method_kwargs)
         except TypeError as e:
-            raise ValidationError([e]) from e
+            raise ValidationError(str(e)) from e
 
     @ft.lru_cache(None)
     def signature(self, method, exclude):

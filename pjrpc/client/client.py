@@ -2,6 +2,7 @@ import abc
 import logging
 import functools as ft
 import json
+from types import SimpleNamespace
 
 from pjrpc import common
 from pjrpc.common import generators, exceptions, v20
@@ -34,19 +35,23 @@ class Batch:
 
             return wrapped
 
-        def __call__(self):
+        def __call__(self, _trace_ctx=SimpleNamespace()):
             """
             Makes an RPC call.
+
+            :param _trace_ctx: tracers request context
             """
 
-            return self.call()
+            return self.call(_trace_ctx)
 
-        def call(self):
+        def call(self, _trace_ctx=SimpleNamespace()):
             """
             Makes an RPC call.
+
+            :param _trace_ctx: tracers request context
             """
 
-            return self._batch.call()
+            return self._batch.call(_trace_ctx)
 
     @property
     def proxy(self):
@@ -56,9 +61,8 @@ class Batch:
 
         return Batch.Proxy(self)
 
-    def __init__(self, client, strict=True):
+    def __init__(self, client):
         self._client = client
-        self._strict = strict
         self._error_cls = client.error_cls
         self._id_gen = client.id_gen()
         self._requests = client.batch_request_class()
@@ -75,7 +79,7 @@ class Batch:
             self._client.request_class(
                 method=method,
                 params=params,
-                id=next(self._id_gen)
+                id=next(self._id_gen),
             ) for method, *params in requests
         ])
         return self.call()
@@ -107,10 +111,11 @@ class Batch:
         self._requests.append(self._client.request_class(method, args or kwargs, id=next(self._id_gen)))
         return self
 
-    def call(self):
+    def call(self, _trace_ctx=SimpleNamespace()):
         """
         Makes a JSON-RPC request.
 
+        :param _trace_ctx: tracers request context
         :returns: request results as a tuple
         """
 
@@ -118,29 +123,43 @@ class Batch:
 
         return response.result if response is not None else None
 
-    def send(self, request, **kwargs):
+    def send(self, request, _trace_ctx=SimpleNamespace(), **kwargs):
         """
         Sends a JSON-RPC batch request.
 
         :param request: request instance
         :param kwargs: additional client request argument
+        :param _trace_ctx: tracers request context
         :returns: response instance
         """
 
         kwargs = {**self._client._request_args, **kwargs}
 
         request_text = self._client.json_dumper(request, cls=self._client.json_encoder)
-        response_text = self._client._jsonrpc_request(request_text, request.is_notification, **kwargs)
+        for tracer in self._client._tracers:
+            tracer.on_batch_begin(_trace_ctx, request)
 
-        if not request.is_notification:
-            response = self._client.batch_response_class.from_json(
-                self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._client.error_cls
-            )
+        try:
+            response_text = self._client._request(request_text, request.is_notification, **kwargs)
+            if not request.is_notification:
+                response = self._client.batch_response_class.from_json(
+                    self._client.json_loader(response_text, cls=self._client.json_decoder),
+                    error_cls=self._client.error_cls,
+                )
+                if response.is_success:
+                    self._relate(request, response)
+            else:
+                response = None
 
-            if response.is_success:
-                self._relate(request, response)
+        except BaseException as e:
+            for tracer in self._client._tracers:
+                tracer.on_error(_trace_ctx, request, e)
+            raise
 
-            return response
+        for tracer in self._client._tracers:
+            tracer.on_batch_end(_trace_ctx, request, response)
+
+        return response
 
     def notify(self, method, *args, **kwargs):
         """
@@ -170,12 +189,12 @@ class Batch:
         for request in batch_request:
             if request.id is not None:
                 related = response_map.pop(request.id, None)
-                if related is None and self._strict:
+                if related is None and self._client._strict:
                     raise exceptions.IdentityError(f"response '{request.id}' not found")
                 else:
                     request.related = related
 
-        if response_map and self._strict:
+        if response_map and self._client._strict:
             raise exceptions.IdentityError(f"unexpected response found: {response_map.keys()}")
 
 
@@ -184,40 +203,55 @@ class AsyncBatch(Batch):
     Asynchronous batch wrapper. Used to make asynchronous JSON-RPC batch requests.
     """
 
-    async def call(self):
+    async def call(self, _trace_ctx=SimpleNamespace()):
         """
         Makes a JSON-RPC request.
 
+        :param _trace_ctx: tracers request context
         :returns: request results as a tuple
         """
 
-        response = await self.send(self._requests)
+        response = await self.send(self._requests, _trace_ctx=_trace_ctx)
 
         return response.result if response is not None else None
 
-    async def send(self, request, **kwargs):
+    async def send(self, request, _trace_ctx=SimpleNamespace(), **kwargs):
         """
         Sends a JSON-RPC batch request.
 
         :param request: request instance
         :param kwargs: additional client request argument
+        :param _trace_ctx: tracers request context
         :returns: response instance
         """
 
         kwargs = {**self._client._request_args, **kwargs}
 
         request_text = self._client.json_dumper(request, cls=self._client.json_encoder)
-        response_text = await self._client._jsonrpc_request(request_text, request.is_notification, **kwargs)
+        for tracer in self._client._tracers:
+            tracer.on_batch_begin(_trace_ctx, request)
 
-        if not request.is_notification:
-            response = self._client.batch_response_class.from_json(
-                self._client.json_loader(response_text, cls=self._client.json_decoder), error_cls=self._client.error_cls
-            )
+        try:
+            response_text = await self._client._request(request_text, request.is_notification, **kwargs)
+            if not request.is_notification:
+                response = self._client.batch_response_class.from_json(
+                    self._client.json_loader(response_text, cls=self._client.json_decoder),
+                    error_cls=self._client.error_cls,
+                )
+                if response.is_success:
+                    self._relate(request, response)
+            else:
+                response = None
 
-            if response.is_success:
-                self._relate(request, response)
+        except BaseException as e:
+            for tracer in self._client._tracers:
+                tracer.on_error(_trace_ctx, request, e)
+            raise
 
-            return response
+        for tracer in self._client._tracers:
+            tracer.on_batch_end(_trace_ctx, request, response)
+
+        return response
 
 
 class AbstractClient(abc.ABC):
@@ -289,7 +323,8 @@ class AbstractClient(abc.ABC):
         json_encoder=common.JSONEncoder,
         json_decoder=None,
         strict=True,
-        request_args=None
+        request_args=None,
+        tracers=(),
     ):
         self.request_class = request_class
         self.response_class = response_class
@@ -303,48 +338,67 @@ class AbstractClient(abc.ABC):
         self.id_gen = id_gen
         self._strict = strict
         self._request_args = request_args or {}
+        self._tracers = tracers
 
-    def __call__(self, method, *args, **kwargs):
+    def __call__(self, method, *args, _trace_ctx=SimpleNamespace(), **kwargs):
         """
         Makes JSON-RPC call.
 
         :param method: method name
         :param args: method positional arguments
         :param kwargs: method named arguments
+        :param _trace_ctx: tracers request context
         :returns: response result
         """
 
         return self.call(method, *args, **kwargs)
 
-    def send(self, request, **kwargs):
+    def send(self, request, _trace_ctx=SimpleNamespace(), **kwargs):
         """
         Sends a JSON-RPC request.
 
         :param request: request instance
         :param kwargs: additional client request argument
+        :param _trace_ctx: tracers request context
         :returns: response instance
         """
 
         kwargs = {**self._request_args, **kwargs}
 
         request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = self._jsonrpc_request(request_text, request.is_notification, **kwargs)
+        for tracer in self._tracers:
+            tracer.on_request_begin(_trace_ctx, request)
 
-        if not request.is_notification:
-            response = self.response_class.from_json(
-                self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls
-            )
-            self._relate(request, response)
+        try:
+            response_text = self._request(request_text, request.is_notification, **kwargs)
+            if not request.is_notification:
+                response = self.response_class.from_json(
+                    self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls,
+                )
+                self._relate(request, response)
+            else:
+                if self._strict and response_text:
+                    raise exceptions.BaseError("unexpected response")
+                response = None
 
-            return response
+        except BaseException as e:
+            for tracer in self._tracers:
+                tracer.on_error(_trace_ctx, request, e)
+            raise
 
-    def notify(self, method, *args, **kwargs):
+        for tracer in self._tracers:
+            tracer.on_request_end(_trace_ctx, request, response)
+
+        return response
+
+    def notify(self, method, *args, _trace_ctx=SimpleNamespace(), **kwargs):
         """
         Makes a notification request
 
         :param method: method name
         :param args: method positional arguments
         :param kwargs: method named arguments
+        :param _trace_ctx: tracers request context
         """
 
         assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
@@ -354,18 +408,16 @@ class AbstractClient(abc.ABC):
             method=method,
             params=args or kwargs,
         )
-        request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = self._jsonrpc_request(request_text, is_notification=True, **self._request_args)
-        if self._strict and response_text:
-            raise exceptions.BaseError("unexpected response")
+        return self.send(request, _trace_ctx=_trace_ctx)
 
-    def call(self, method, *args, **kwargs):
+    def call(self, method, *args, _trace_ctx=SimpleNamespace(), **kwargs):
         """
         Makes JSON-RPC call.
 
         :param method: method name
         :param args: method positional arguments
         :param kwargs: method named arguments
+        :param _trace_ctx: tracers request context
         :returns: response result
         """
 
@@ -376,16 +428,9 @@ class AbstractClient(abc.ABC):
             method=method,
             params=args or kwargs,
         )
-        response = self.send(request)
+        response = self.send(request, _trace_ctx=_trace_ctx)
 
         return response.result
-
-    def _jsonrpc_request(self, request_text, is_notification=False, **kwargs):
-        logger.debug("request sent: %s", request_text)
-        response_text = self._request(request_text, is_notification, **kwargs)
-        logger.debug("response received: %s", response_text)
-
-        return response_text
 
     def _relate(self, request, response):
         """
@@ -397,7 +442,7 @@ class AbstractClient(abc.ABC):
 
         if self._strict and response.id != request.id:
             raise exceptions.IdentityError(
-                f"response id doesn't match the request one: expected {request.id}, got {response.id}"
+                f"response id doesn't match the request one: expected {request.id}, got {response.id}",
             )
 
         response.related = request
@@ -426,56 +471,52 @@ class AbstractAsyncClient(AbstractClient):
         :returns: response text representation
         """
 
-    async def send(self, request, **kwargs):
+    async def send(self, request, _trace_ctx=SimpleNamespace(), **kwargs):
         """
         Sends a JSON-RPC request.
 
         :param request: request instance
         :param kwargs: additional client request argument
+        :param _trace_ctx: tracers request context
         :returns: response instance
         """
 
         kwargs = {**self._request_args, **kwargs}
 
         request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = await self._jsonrpc_request(request_text, request.is_notification, **kwargs)
+        for tracer in self._tracers:
+            tracer.on_request_begin(_trace_ctx, request)
 
-        if not request.is_notification:
-            response = self.response_class.from_json(
-                self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls
-            )
-            self._relate(request, response)
+        try:
+            response_text = await self._request(request_text, request.is_notification, **kwargs)
+            if not request.is_notification:
+                response = self.response_class.from_json(
+                    self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls,
+                )
+                self._relate(request, response)
+            else:
+                if self._strict and response_text:
+                    raise exceptions.BaseError("unexpected response")
+                response = None
 
-            return response
+        except BaseException as e:
+            for tracer in self._tracers:
+                tracer.on_error(_trace_ctx, request, e)
+            raise
 
-    async def notify(self, method, *args, **kwargs):
-        """
-        Makes a notification request
+        for tracer in self._tracers:
+            tracer.on_request_end(_trace_ctx, request, response)
 
-        :param method: method name
-        :param args: method positional arguments
-        :param kwargs: method named arguments
-        """
+        return response
 
-        assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
-
-        request = self.request_class(
-            id=None,
-            method=method,
-            params=args or kwargs,
-        )
-        request_text = self.json_dumper(request, cls=self.json_encoder)
-        response_text = await self._jsonrpc_request(request_text, is_notification=True, **self._request_args)
-        if self._strict and response_text:
-            raise exceptions.BaseError("unexpected response")
-
-    async def call(self, method, *args, **kwargs):
+    async def call(self, method, *args, _trace_ctx=SimpleNamespace(), **kwargs):
         """
         Makes JSON-RPC call.
 
         :param method: method name
         :param args: method positional arguments
         :param kwargs: method named arguments
+        :param _trace_ctx: tracers request context
         :returns: response result
         """
 
@@ -486,6 +527,6 @@ class AbstractAsyncClient(AbstractClient):
             method=method,
             params=args or kwargs,
         )
-        response = await self.send(request)
+        response = await self.send(request, _trace_ctx=_trace_ctx)
 
         return response.result

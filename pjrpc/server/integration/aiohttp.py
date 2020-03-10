@@ -7,7 +7,7 @@ from aiohttp import web
 import pjrpc
 
 
-class Application(web.Application):
+class Application:
     """
     `aiohttp <https://aiohttp.readthedocs.io/en/stable/web.html>`_ based JSON-RPC server.
 
@@ -16,11 +16,19 @@ class Application(web.Application):
     :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.AsyncDispatcher`
     """
 
-    def __init__(self, path='', app_args=None, **kwargs):
-        super().__init__(**(app_args or {}))
+    def __init__(self, path='', app=None, **kwargs):
+        self._app = app or web.Application()
         self._dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
 
-        self.router.add_post(path, self.rpc_handle)
+        self._app.router.add_post(path, self.rpc_handle)
+
+    @property
+    def app(self):
+        """
+        aiohttp application.
+        """
+
+        return self._app
 
     @property
     def dispatcher(self):
