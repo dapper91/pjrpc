@@ -1,4 +1,3 @@
-.PHONY: docs
 
 init:
 	pip install pipenv --upgrade
@@ -16,5 +15,10 @@ publish:
 	twine upload dist/*
 	rm -fr build dist .egg requests.egg-info
 
+check-code:
+	pre-commit run --all-file
+
 docs:
 	cd docs && make html
+
+.PHONY: docs init test coverage publish check-code

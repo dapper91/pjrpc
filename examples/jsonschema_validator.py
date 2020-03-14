@@ -19,7 +19,7 @@ contact_schema = {
         },
         'value': {'type': 'string'},
     },
-    'required': ['type', 'value']
+    'required': ['type', 'value'],
 }
 
 user_schema = {
@@ -31,17 +31,17 @@ user_schema = {
         'contacts': {
             'type': 'array',
             'items': contact_schema,
-        }
+        },
     },
-    'required': ['name', 'surname', 'age', 'contacts']
+    'required': ['name', 'surname', 'age', 'contacts'],
 }
 
 params_schema = {
     'type': 'object',
     'properties': {
-        'user': user_schema
+        'user': user_schema,
     },
-    'required': ['user']
+    'required': ['user'],
 }
 
 
@@ -54,9 +54,9 @@ async def add_user(request: web.Request, user):
     return {'id': user_id, **user}
 
 
-app = aiohttp.Application('/api/v1')
-app.dispatcher.add_methods(methods)
-app['users'] = {}
+jsonrpc_app = aiohttp.Application('/api/v1')
+jsonrpc_app.dispatcher.add_methods(methods)
+jsonrpc_app.app['users'] = {}
 
 if __name__ == "__main__":
-    web.run_app(app, host='localhost', port=8080)
+    web.run_app(jsonrpc_app.app, host='localhost', port=8080)

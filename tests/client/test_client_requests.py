@@ -11,11 +11,13 @@ from pjrpc.client.backend import requests as pjrpc_cli
 @responses.activate
 def test_call():
     test_url = 'http://test.com/api'
-    responses.add(responses.POST, test_url, status=200, json={
-        'jsonrpc': '2.0',
-        'id': 1,
-        'result': 'result',
-    })
+    responses.add(
+        responses.POST, test_url, status=200, json={
+            'jsonrpc': '2.0',
+            'id': 1,
+            'result': 'result',
+        },
+    )
 
     client = pjrpc_cli.Client(test_url)
 
@@ -28,7 +30,7 @@ def test_call():
         'jsonrpc': '2.0',
         'id': 1,
         'method': 'method',
-        'params': [1, 2]
+        'params': [1, 2],
     }
 
     result = client.call('method', arg1=1, arg2=2)
@@ -50,7 +52,7 @@ def test_call():
         'jsonrpc': '2.0',
         'id': 1,
         'method': 'method',
-        'params': [1, 2]
+        'params': [1, 2],
     }
 
     result = client.proxy.method(1, 2)
@@ -61,7 +63,7 @@ def test_call():
         'jsonrpc': '2.0',
         'id': 1,
         'method': 'method',
-        'params': [1, 2]
+        'params': [1, 2],
     }
 
     result = client.proxy.method(arg1=1, arg2=2)
@@ -88,7 +90,7 @@ def test_notify():
     assert json.loads(responses.calls[0].request.body) == {
         'jsonrpc': '2.0',
         'method': 'method',
-        'params': [1, 2]
+        'params': [1, 2],
     }
 
     response = client.notify('method', 1, 2)
@@ -97,33 +99,37 @@ def test_notify():
     assert json.loads(responses.calls[0].request.body) == {
         'jsonrpc': '2.0',
         'method': 'method',
-        'params': [1, 2]
+        'params': [1, 2],
     }
 
 
 @responses.activate
 def test_batch():
     test_url = 'http://test.com/api'
-    responses.add(responses.POST, test_url, status=200, json=[
-        {
-            'jsonrpc': '2.0',
-            'id': 1,
-            'result': 'result1',
-        },
-        {
-            'jsonrpc': '2.0',
-            'id': 2,
-            'result': 2,
-        }
-    ])
+    responses.add(
+        responses.POST, test_url, status=200, json=[
+            {
+                'jsonrpc': '2.0',
+                'id': 1,
+                'result': 'result1',
+            },
+            {
+                'jsonrpc': '2.0',
+                'id': 2,
+                'result': 2,
+            },
+        ],
+    )
 
     client = pjrpc_cli.Client(test_url)
 
-    result = client.batch.send(pjrpc.BatchRequest(
-        pjrpc.Request('method1', params=[1, 2], id=1),
-        pjrpc.Request('method2', params=[2, 3], id=2),
-        pjrpc.Request('method3', params=[3, 4]),
-    ))
+    result = client.batch.send(
+        pjrpc.BatchRequest(
+            pjrpc.Request('method1', params=[1, 2], id=1),
+            pjrpc.Request('method2', params=[2, 3], id=2),
+            pjrpc.Request('method3', params=[3, 4]),
+        ),
+    )
     assert len(result) == 2
     assert result[0].id == 1
     assert result[0].result == 'result1'
@@ -136,19 +142,19 @@ def test_batch():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method1',
-            'params': [1, 2]
+            'params': [1, 2],
         },
         {
             'jsonrpc': '2.0',
             'id': 2,
             'method': 'method2',
-            'params': [2, 3]
+            'params': [2, 3],
         },
         {
             'jsonrpc': '2.0',
             'method': 'method3',
-            'params': [3, 4]
-        }
+            'params': [3, 4],
+        },
     ]
 
     result = client.batch[
@@ -163,14 +169,14 @@ def test_batch():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method1',
-            'params': [1, 2]
+            'params': [1, 2],
         },
         {
             'jsonrpc': '2.0',
             'id': 2,
             'method': 'method2',
-            'params': [2, 3]
-        }
+            'params': [2, 3],
+        },
     ]
 
     result = client.batch('method1', 1, 2)('method2', 2, 3).call()
@@ -182,14 +188,14 @@ def test_batch():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method1',
-            'params': [1, 2]
+            'params': [1, 2],
         },
         {
             'jsonrpc': '2.0',
             'id': 2,
             'method': 'method2',
-            'params': [2, 3]
-        }
+            'params': [2, 3],
+        },
     ]
 
     result = client.batch.proxy.method1(1, 2).method2(2, 3)()
@@ -201,20 +207,22 @@ def test_batch():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method1',
-            'params': [1, 2]
+            'params': [1, 2],
         },
         {
             'jsonrpc': '2.0',
             'id': 2,
             'method': 'method2',
-            'params': [2, 3]
-        }
+            'params': [2, 3],
+        },
     ]
 
-    result = client.batch.send(pjrpc.BatchRequest(
-        pjrpc.Request(method='method1', params=[1, 2], id=1),
-        pjrpc.Request(method='method2', params=[2, 3], id=2),
-    ))
+    result = client.batch.send(
+        pjrpc.BatchRequest(
+            pjrpc.Request(method='method1', params=[1, 2], id=1),
+            pjrpc.Request(method='method2', params=[2, 3], id=2),
+        ),
+    )
     assert result[0].id == 1
     assert result[0].result == 'result1'
     assert result[1].id == 2
@@ -226,14 +234,14 @@ def test_batch():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method1',
-            'params': [1, 2]
+            'params': [1, 2],
         },
         {
             'jsonrpc': '2.0',
             'id': 2,
             'method': 'method2',
-            'params': [2, 3]
-        }
+            'params': [2, 3],
+        },
     ]
 
     responses.add(responses.POST, test_url, status=200)
@@ -245,27 +253,29 @@ def test_batch():
         {
             'jsonrpc': '2.0',
             'method': 'method1',
-            'params': [1, 2]
+            'params': [1, 2],
         },
         {
             'jsonrpc': '2.0',
             'method': 'method2',
-            'params': [2, 3]
-        }
+            'params': [2, 3],
+        },
     ]
 
 
 @responses.activate
 def test_error():
     test_url = 'http://test.com/api'
-    responses.add(responses.POST, test_url, status=200, json={
-        'jsonrpc': '2.0',
-        'id': 1,
-        'error': {
-            'code': -32601,
-            'message': 'Method not found'
+    responses.add(
+        responses.POST, test_url, status=200, json={
+            'jsonrpc': '2.0',
+            'id': 1,
+            'error': {
+                'code': -32601,
+                'message': 'Method not found',
+            },
         },
-    })
+    )
 
     client = pjrpc_cli.Client(test_url)
 
@@ -277,16 +287,18 @@ def test_error():
         'jsonrpc': '2.0',
         'id': 1,
         'method': 'method',
-        'params': [1, 2]
+        'params': [1, 2],
     }
 
-    responses.replace(responses.POST, test_url, status=200, json={
-        'jsonrpc': '2.0',
-        'error': {
-            'code': -32600,
-            'message': 'Invalid request'
+    responses.replace(
+        responses.POST, test_url, status=200, json={
+            'jsonrpc': '2.0',
+            'error': {
+                'code': -32600,
+                'message': 'Invalid request',
+            },
         },
-    })
+    )
 
     with pytest.raises(pjrpc.exceptions.InvalidRequestError):
         client.batch[('method', 'param')]
@@ -294,18 +306,20 @@ def test_error():
     with pytest.raises(pjrpc.exceptions.IdentityError):
         client.send(pjrpc.Request(method='method', id=2))
 
-    responses.replace(responses.POST, test_url, status=200, json=[
-        {
-            'jsonrpc': '2.0',
-            'id': 1,
-            'result': 'result1',
-        },
-        {
-            'jsonrpc': '2.0',
-            'id': 3,
-            'result': 2,
-        }
-    ])
+    responses.replace(
+        responses.POST, test_url, status=200, json=[
+            {
+                'jsonrpc': '2.0',
+                'id': 1,
+                'result': 'result1',
+            },
+            {
+                'jsonrpc': '2.0',
+                'id': 3,
+                'result': 2,
+            },
+        ],
+    )
 
     client = pjrpc_cli.Client(test_url)
 
@@ -319,11 +333,13 @@ def test_error():
 @responses.activate
 def test_context_manager():
     test_url = 'http://test.com/api'
-    responses.add(responses.POST, test_url, status=200, json={
-        'jsonrpc': '2.0',
-        'id': 1,
-        'result': 'result',
-    })
+    responses.add(
+        responses.POST, test_url, status=200, json={
+            'jsonrpc': '2.0',
+            'id': 1,
+            'result': 'result',
+        },
+    )
 
     with pjrpc_cli.Client(test_url) as client:
         response = client.send(pjrpc.Request('method', (1, 2), id=1))

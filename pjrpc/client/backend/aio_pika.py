@@ -104,7 +104,7 @@ class Client(AbstractAsyncClient):
 
         if message.content_type != 'application/json':
             future.set_exception(
-                pjrpc.exc.DeserializationError(f"unexpected response content type: {message.content_type}")
+                pjrpc.exc.DeserializationError(f"unexpected response content type: {message.content_type}"),
             )
         else:
             future.set_result(message.body.decode(message.content_encoding or 'utf8'))

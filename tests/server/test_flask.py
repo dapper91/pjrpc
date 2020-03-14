@@ -26,18 +26,20 @@ def json_rpc(app, path):
     return json_rpc
 
 
-@pytest.mark.parametrize('request_id, params, result', [
-    (
-            1,
-            (1, 1.1, 'a', {}, False),
-            [1, 1.1, 'a', {}, False],
-    ),
-    (
-            'abc',
-            {'int': 1, 'float': 1.1, 'str': 'a', 'dict': {}, 'bool': False},
-            {'int': 1, 'float': 1.1, 'str': 'a', 'dict': {}, 'bool': False},
-    ),
-])
+@pytest.mark.parametrize(
+    'request_id, params, result', [
+        (
+                1,
+                (1, 1.1, 'a', {}, False),
+                [1, 1.1, 'a', {}, False],
+        ),
+        (
+                'abc',
+                {'int': 1, 'float': 1.1, 'str': 'a', 'dict': {}, 'bool': False},
+                {'int': 1, 'float': 1.1, 'str': 'a', 'dict': {}, 'bool': False},
+        ),
+    ],
+)
 def test_request(app, json_rpc, path, mocker, request_id, params, result):
     method_name = 'test_method'
     mock = mocker.Mock(name=method_name, return_value=result)

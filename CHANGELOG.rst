@@ -1,6 +1,16 @@
 Changelog
 =========
 
+1.0.0 (2020-03-14)
+------------------
+
+- middleware support implemented
+- client tracing implemented
+- aiohttp server backend refactored
+- validation error json serialization fix
+- request dispatcher refactored
+
+
 0.1.4 (2019-12-10)
 ------------------
 

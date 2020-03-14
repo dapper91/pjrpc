@@ -30,7 +30,11 @@ class JSONEncoder(json.JSONEncoder):
 
     def default(self, o):
         if isinstance(
-            o, (pjrpc.Response, pjrpc.Request, pjrpc.BatchResponse, pjrpc.BatchRequest, pjrpc.exceptions.JsonRpcError)
+            o, (
+                pjrpc.Response, pjrpc.Request,
+                pjrpc.BatchResponse, pjrpc.BatchRequest,
+                pjrpc.exceptions.JsonRpcError,
+            ),
         ):
             return o.to_json()
 

@@ -190,6 +190,18 @@ class MethodRegistry:
         self._registry[name] = method
 
 
+class JSONEncoder(pjrpc.JSONEncoder):
+    """
+    Server JSON encoder. All custom server encoders should be inherited from it.
+    """
+
+    def default(self, o):
+        if isinstance(o, validators.base.ValidationError):
+            return [err for err in o.args]
+
+        return super().default(o)
+
+
 class Dispatcher:
     """
     Method dispatcher.
@@ -202,7 +214,6 @@ class Dispatcher:
     :param json_dumper: response json dumper
     :param json_encoder: response json encoder
     :param json_decoder: request json decoder
-    :param error_handler: error handling function
     """
 
     def __init__(
@@ -216,17 +227,17 @@ class Dispatcher:
         json_dumper=json.dumps,
         json_encoder=None,
         json_decoder=None,
-        error_handler=None,
+        middlewares=(),
     ):
         self._json_loader = json_loader
         self._json_dumper = json_dumper
-        self._json_encoder = json_encoder or pjrpc.JSONEncoder
+        self._json_encoder = json_encoder or JSONEncoder
         self._json_decoder = json_decoder
         self._request_class = request_class
         self._response_class = response_class
         self._batch_request = batch_request
         self._batch_response = batch_response
-        self._error_handler = error_handler or self._handle_jsonrpc_error
+        self._middlewares = middlewares
 
         self._registry = MethodRegistry()
 
@@ -292,13 +303,17 @@ class Dispatcher:
             response = self._response_class(id=None, error=pjrpc.exceptions.InvalidRequestError(data=str(e)))
 
         else:
-            if isinstance(request, collections.Iterable):
-                response = self._batch_response(*filter(lambda resp: resp is not UNSET, (
-                    self._handle_rpc_request(request, context) for request in request
-                )))
+            if isinstance(request, collections.abc.Iterable):
+                response = self._batch_response(
+                    *filter(
+                        lambda resp: resp is not UNSET, (
+                            self._handle_request(request, context) for request in request
+                        ),
+                    )
+                )
 
             else:
-                response = self._handle_rpc_request(request, context)
+                response = self._handle_request(request, context)
 
         if response is not UNSET:
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
@@ -306,25 +321,34 @@ class Dispatcher:
 
             return response_text
 
-    def _handle_rpc_request(self, request, context):
-        response_id, result, error = request.id, UNSET, UNSET
-
+    def _handle_request(self, request, context):
         try:
-            result = self._handle_rpc_method(request.method, request.params, context)
+            handler = self._handle_rpc_request
+
+            for middleware in reversed(self._middlewares):
+                handler = ft.partial(middleware, handler=handler)
+
+            return handler(request, context)
+
         except pjrpc.exceptions.JsonRpcError as e:
             logger.info("method execution error %s(%r): %r", request.method, request.params, e)
             error = e
+
         except Exception as e:
             logger.exception("internal server error: %r", e)
             error = pjrpc.exceptions.InternalError()
 
-        if response_id is None:
+        if request.id is None:
             return UNSET
 
-        if error:
-            error = self._error_handler(error)
+        return self._response_class(id=request.id, error=error)
 
-        return self._response_class(id=response_id, result=result, error=error)
+    def _handle_rpc_request(self, request, context):
+        result = self._handle_rpc_method(request.method, request.params, context)
+        if request.id is None:
+            return UNSET
+
+        return self._response_class(id=request.id, result=result)
 
     def _handle_rpc_method(self, method_name, params, context):
         method = self._registry.get(method_name)
@@ -345,12 +369,6 @@ class Dispatcher:
         except Exception as e:
             logger.exception("method unhandled exception %s(%r): %r", method_name, params, e)
             raise pjrpc.exceptions.ServerError() from e
-
-    def _handle_jsonrpc_error(self, error):
-        if error and error.data:
-            error.data = str(error.data)
-
-        return error
 
 
 class AsyncDispatcher(Dispatcher):
@@ -384,12 +402,16 @@ class AsyncDispatcher(Dispatcher):
 
         else:
             if isinstance(request, collections.Iterable):
-                response = self._batch_response(*filter(lambda resp: resp is not UNSET, await asyncio.gather(
-                    *(self._handle_rpc_request(request, context) for request in request)
-                )))
+                response = self._batch_response(
+                    *filter(
+                        lambda resp: resp is not UNSET, await asyncio.gather(
+                            *(self._handle_request(request, context) for request in request)
+                        ),
+                    )
+                )
 
             else:
-                response = await self._handle_rpc_request(request, context)
+                response = await self._handle_request(request, context)
 
         if response is not UNSET:
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
@@ -397,25 +419,34 @@ class AsyncDispatcher(Dispatcher):
 
             return response_text
 
-    async def _handle_rpc_request(self, request, context):
-        response_id, result, error = request.id, UNSET, UNSET
-
+    async def _handle_request(self, request, context):
         try:
-            result = await self._handle_rpc_method(request.method, request.params, context)
+            handler = self._handle_rpc_request
+
+            for middleware in reversed(self._middlewares):
+                handler = ft.partial(middleware, handler=handler)
+
+            return await handler(request, context)
+
         except pjrpc.exceptions.JsonRpcError as e:
             logger.info("method execution error %s(%r): %r", request.method, request.params, e)
             error = e
+
         except Exception as e:
             logger.exception("internal server error: %r", e)
             error = pjrpc.exceptions.InternalError()
 
-        if response_id is None:
+        if request.id is None:
             return UNSET
 
-        if error:
-            error = self._error_handler(error)
+        return self._response_class(id=request.id, error=error)
 
-        return self._response_class(id=response_id, result=result, error=error)
+    async def _handle_rpc_request(self, request, context):
+        result = await self._handle_rpc_method(request.method, request.params, context)
+        if request.id is None:
+            return UNSET
+
+        return self._response_class(id=request.id, result=result)
 
     async def _handle_rpc_method(self, method_name, params, context):
         method = self._registry.get(method_name)

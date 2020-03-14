@@ -11,11 +11,13 @@ async def test_call():
     test_url = 'http://test.com/api'
 
     with aioresponses() as m:
-        m.post(test_url, repeat=True, status=200, payload={
-            'jsonrpc': '2.0',
-            'id': 1,
-            'result': 'result',
-        })
+        m.post(
+            test_url, repeat=True, status=200, payload={
+                'jsonrpc': '2.0',
+                'id': 1,
+                'result': 'result',
+            },
+        )
 
         client = pjrpc_cli.Client(test_url)
 
@@ -30,7 +32,7 @@ async def test_call():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method',
-            'params': [1, 2]
+            'params': [1, 2],
         }
 
         result = await client.call('method', arg1=1, arg2=2)
@@ -41,7 +43,7 @@ async def test_call():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method',
-            'params': {'arg1': 1, 'arg2': 2}
+            'params': {'arg1': 1, 'arg2': 2},
         }
 
         result = await client('method', 1, 2)
@@ -52,7 +54,7 @@ async def test_call():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method',
-            'params': [1, 2]
+            'params': [1, 2],
         }
 
         result = await client.proxy.method(1, 2)
@@ -63,7 +65,7 @@ async def test_call():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method',
-            'params': [1, 2]
+            'params': [1, 2],
         }
 
 
@@ -95,26 +97,30 @@ async def test_notify():
 async def test_batch():
     test_url = 'http://test.com/api'
     with aioresponses() as m:
-        m.post(test_url, repeat=True, status=200, payload=[
-            {
-                'jsonrpc': '2.0',
-                'id': 1,
-                'result': 'result1',
-            },
-            {
-                'jsonrpc': '2.0',
-                'id': 2,
-                'result': 2,
-            }
-        ])
+        m.post(
+            test_url, repeat=True, status=200, payload=[
+                {
+                    'jsonrpc': '2.0',
+                    'id': 1,
+                    'result': 'result1',
+                },
+                {
+                    'jsonrpc': '2.0',
+                    'id': 2,
+                    'result': 2,
+                },
+            ],
+        )
 
         client = pjrpc_cli.Client(test_url)
 
-        result = await client.batch.send(pjrpc.BatchRequest(
-            pjrpc.Request('method1', params=[1, 2], id=1),
-            pjrpc.Request('method2', params=[2, 3], id=2),
-            pjrpc.Request('method3', params=[3, 4]),
-        ))
+        result = await client.batch.send(
+            pjrpc.BatchRequest(
+                pjrpc.Request('method1', params=[1, 2], id=1),
+                pjrpc.Request('method2', params=[2, 3], id=2),
+                pjrpc.Request('method3', params=[3, 4]),
+            ),
+        )
         assert len(result) == 2
         assert result[0].id == 1
         assert result[0].result == 'result1'
@@ -127,19 +133,19 @@ async def test_batch():
                 'jsonrpc': '2.0',
                 'id': 1,
                 'method': 'method1',
-                'params': [1, 2]
+                'params': [1, 2],
             },
             {
                 'jsonrpc': '2.0',
                 'id': 2,
                 'method': 'method2',
-                'params': [2, 3]
+                'params': [2, 3],
             },
             {
                 'jsonrpc': '2.0',
                 'method': 'method3',
-                'params': [3, 4]
-            }
+                'params': [3, 4],
+            },
         ]
 
         result = await client.batch[
@@ -154,14 +160,14 @@ async def test_batch():
                 'jsonrpc': '2.0',
                 'id': 1,
                 'method': 'method1',
-                'params': [1, 2]
+                'params': [1, 2],
             },
             {
                 'jsonrpc': '2.0',
                 'id': 2,
                 'method': 'method2',
-                'params': [2, 3]
-            }
+                'params': [2, 3],
+            },
         ]
 
         result = await client.batch('method1', 1, 2)('method2', 2, 3).call()
@@ -173,14 +179,14 @@ async def test_batch():
                 'jsonrpc': '2.0',
                 'id': 1,
                 'method': 'method1',
-                'params': [1, 2]
+                'params': [1, 2],
             },
             {
                 'jsonrpc': '2.0',
                 'id': 2,
                 'method': 'method2',
-                'params': [2, 3]
-            }
+                'params': [2, 3],
+            },
         ]
 
         result = await client.batch.proxy.method1(1, 2).method2(2, 3)()
@@ -192,14 +198,14 @@ async def test_batch():
                 'jsonrpc': '2.0',
                 'id': 1,
                 'method': 'method1',
-                'params': [1, 2]
+                'params': [1, 2],
             },
             {
                 'jsonrpc': '2.0',
                 'id': 2,
                 'method': 'method2',
-                'params': [2, 3]
-            }
+                'params': [2, 3],
+            },
         ]
 
         m.post(test_url, repeat=True, status=200)
@@ -211,24 +217,26 @@ async def test_batch():
             {
                 'jsonrpc': '2.0',
                 'method': 'method1',
-                'params': [1, 2]
+                'params': [1, 2],
             },
             {
                 'jsonrpc': '2.0',
                 'method': 'method2',
-                'params': [2, 3]
-            }
+                'params': [2, 3],
+            },
         ]
 
 
 async def test_context_manager():
     test_url = 'http://test.com/api'
     with aioresponses() as m:
-        m.post(test_url, repeat=True, status=200, payload={
-            'jsonrpc': '2.0',
-            'id': 1,
-            'result': 'result',
-        })
+        m.post(
+            test_url, repeat=True, status=200, payload={
+                'jsonrpc': '2.0',
+                'id': 1,
+                'result': 'result',
+            },
+        )
 
         async with pjrpc_cli.Client(test_url) as client:
             response = await client.send(pjrpc.Request('method', (1, 2), id=1))

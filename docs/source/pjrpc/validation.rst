@@ -64,12 +64,12 @@ that's it. ``pjrpc`` will be validating method parameters and returning informat
             return super().default(o)
 
 
-    app = aiohttp.Application('/api/v1', json_encoder=JSONEncoder)
-    app.dispatcher.add_methods(methods)
-    app['users'] = {}
+    jsonrpc_app = aiohttp.Application('/api/v1', json_encoder=JSONEncoder)
+    jsonrpc_app.dispatcher.add_methods(methods)
+    jsonrpc_app.app['users'] = {}
 
     if __name__ == "__main__":
-        web.run_app(app, host='localhost', port=8080)
+        web.run_app(jsonrpc_app.app, host='localhost', port=8080)
 
 
 The library also supports :py:mod:`pjrpc.server.validators.jsonschema` validator. In case you like any other

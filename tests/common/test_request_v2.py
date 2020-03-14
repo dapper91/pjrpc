@@ -4,15 +4,17 @@ import pjrpc
 from pjrpc.common import v20, exceptions
 
 
-@pytest.mark.parametrize('id, params', [
-    (1, []),
-    ('1', []),
-    (None, []),
-    (1, None),
-    (1, []),
-    (1, [1, 2]),
-    (1, {'a': 1, 'b': 2}),
-])
+@pytest.mark.parametrize(
+    'id, params', [
+        (1, []),
+        ('1', []),
+        (None, []),
+        (1, None),
+        (1, []),
+        (1, [1, 2]),
+        (1, {'a': 1, 'b': 2}),
+    ],
+)
 def test_request_serialization(id, params):
     request = v20.Request('method', params, id=id)
 
@@ -29,15 +31,17 @@ def test_request_serialization(id, params):
     assert actual_dict == expected_dict
 
 
-@pytest.mark.parametrize('id, params', [
-    (1, []),
-    ('1', []),
-    (None, []),
-    (1, None),
-    (1, []),
-    (1, [1, 2]),
-    (1, {'a': 1, 'b': 2}),
-])
+@pytest.mark.parametrize(
+    'id, params', [
+        (1, []),
+        ('1', []),
+        (None, []),
+        (1, None),
+        (1, []),
+        (1, [1, 2]),
+        (1, {'a': 1, 'b': 2}),
+    ],
+)
 def test_request_deserialization(id, params):
     data = {
         'jsonrpc': '2.0',
@@ -95,7 +99,7 @@ def test_batch_request_serialization():
     request = v20.BatchRequest(
         v20.Request('method0', [], id=None),
         v20.Request('method1', [1, 2], id=1),
-        v20.Request('method2', {'a': 1, 'b': 2}, id=None)
+        v20.Request('method2', {'a': 1, 'b': 2}, id=None),
     )
 
     actual_dict = request.to_json()
@@ -114,7 +118,7 @@ def test_batch_request_serialization():
             'jsonrpc': '2.0',
             'method': 'method2',
             'params': {'a': 1, 'b': 2},
-        }
+        },
     ]
 
     assert actual_dict == expected_dict
@@ -139,7 +143,7 @@ def test_batch_request_deserialization():
             'id': None,
             'method': 'method2',
             'params': {'a': 1, 'b': 2},
-        }
+        },
     ]
 
     request = v20.BatchRequest.from_json(data)
@@ -194,7 +198,7 @@ def test_batch_request_errors():
 def test_batch_request_repr():
     request = v20.BatchRequest(
         v20.Request('method1', [1, 2]),
-        v20.Request('method2', {'a': 1, 'b': 2}, id='2')
+        v20.Request('method2', {'a': 1, 'b': 2}, id='2'),
     )
 
     assert str(request) == "[method1(1, 2), method2(a=1,b=2)]"

@@ -56,7 +56,7 @@ Look at the following test example:
 
 
 
-For testing server-side code you should use framework-dependant utils and fixtures. Since ``pjrpc`` may be easily
+For testing server-side code you should use framework-dependant utils and fixtures. Since ``pjrpc`` can be easily
 extended you are free from writing JSON-RPC protocol related code.
 
 
@@ -81,11 +81,11 @@ Testing aiohttp server code is very straightforward:
     async def sum(request: web.Request, a, b):
         return a + b
 
-    app = aiohttp.Application('/api/v1')
-    app.dispatcher.add_methods(methods)
+    jsonrpc_app = aiohttp.Application('/api/v1')
+    jsonrpc_app.dispatcher.add_methods(methods)
 
     async def test_sum(aiohttp_client, loop):
-        session = await aiohttp_client(app)
+        session = await aiohttp_client(jsonrpc_app.app)
         client = aiohttp_client.Client('http://localhost/api/v1', session=session)
 
         result = await client.sum(a=1, b=1)

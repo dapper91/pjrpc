@@ -41,7 +41,7 @@ is very simple and "pythonic-way":
 Custom errors
 -------------
 
-Default error list may be easily extended. All you need to create an error class inherited from
+Default error list can be easily extended. All you need to create an error class inherited from
 :py:class:`pjrpc.common.exceptions.JsonRpcError` and define an error code and a description message. ``pjrpc``
 will be automatically deserializing custom errors for you:
 

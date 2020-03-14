@@ -32,6 +32,6 @@ class JsonSchemaValidator(base.BaseValidator):
             kwargs = {**self.default_kwargs, **kwargs}
             jsonschema.validate(arguments, **kwargs)
         except jsonschema.ValidationError as e:
-            raise base.ValidationError(e) from e
+            raise base.ValidationError(str(e)) from e
 
         return arguments

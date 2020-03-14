@@ -4,6 +4,7 @@ JSON-RPC version 2.0 protocol implementation.
 
 import operator as op
 import functools as ft
+import itertools as it
 
 from .exceptions import DeserializationError, JsonRpcError, IdentityError
 from .common import UNSET
@@ -134,6 +135,9 @@ class Response:
             class_name=self.__class__.__name__, id=self._id, result=repr(self._result), error=repr(self._error),
         )
 
+    def __eq__(self, other):
+        return (self.id, self.result, self.error) == (other.id, other.result, other.error)
+
     def to_json(self):
         """
         Serializes the response to json data.
@@ -239,6 +243,9 @@ class Request:
         return "{class_name}(method={method}, params={params}, id={id})".format(
             class_name=self.__class__.__name__, method=repr(self._method), params=repr(self._params), id=repr(self._id),
         )
+
+    def __eq__(self, other):
+        return (self.method, self.params, self.id) == (other.method, other.params, other.id)
 
     def to_json(self):
         """
@@ -403,6 +410,16 @@ class BatchResponse:
     def __len__(self):
         return len(self._responses)
 
+    def __eq__(self, other):
+        return all(
+            it.starmap(
+                op.eq, zip(
+                    sorted(self, key=op.attrgetter('id')),
+                    sorted(other, key=op.attrgetter('id')),
+                ),
+            ),
+        )
+
     def append(self, response):
         """
         Appends a response to the batch.
@@ -495,6 +512,16 @@ class BatchRequest:
 
     def __len__(self):
         return len(self._requests)
+
+    def __eq__(self, other):
+        return all(
+            it.starmap(
+                op.eq, zip(
+                    sorted(self, key=op.attrgetter('id')),
+                    sorted(other, key=op.attrgetter('id')),
+                ),
+            ),
+        )
 
     def append(self, request):
         """

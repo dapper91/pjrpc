@@ -87,7 +87,7 @@ class Executor:
                                 correlation_id=message.correlation_id,
                                 content_type='application/json',
                             ),
-                            routing_key=reply_to
+                            routing_key=reply_to,
                         )
 
             message.ack()

@@ -10,7 +10,7 @@ methods_v1 = pjrpc.server.MethodRegistry()
 
 
 @methods_v1.add
-def add_user(user: dict):
+def add_user_v1(user: dict):
     user_id = uuid.uuid4().hex
     flask.current_app.users[user_id] = user
 
@@ -21,7 +21,7 @@ methods_v2 = pjrpc.server.MethodRegistry()
 
 
 @methods_v2.add
-def add_user(user: dict):
+def add_user_v2(user: dict):
     user_id = uuid.uuid4().hex
     flask.current_app.users[user_id] = user
 

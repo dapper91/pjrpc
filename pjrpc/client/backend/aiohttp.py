@@ -29,7 +29,7 @@ class Client(AbstractAsyncClient):
 
         kwargs = {
             'headers': {'Content-Type': 'application/json'},
-            **kwargs
+            **kwargs,
         }
 
         resp = await self._session.post(self._endpoint, data=data, **kwargs)

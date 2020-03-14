@@ -114,7 +114,7 @@ def test_dispatcher():
         'error': {
             'code': -32601,
             'message': 'Method not found',
-            'data': "method 'method' not found"
+            'data': "method 'method' not found",
         },
     }
 
@@ -135,7 +135,7 @@ def test_dispatcher():
         'jsonrpc': '2.0',
         'id': 1,
         'method': 'method1',
-        'params': ['param1']
+        'params': ['param1'],
     })
 
     assert json.loads(disp.dispatch(request)) == {
@@ -169,19 +169,19 @@ def test_dispatcher():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method1',
-            'params': ['param1']
+            'params': ['param1'],
         },
         {
             'jsonrpc': '2.0',
             'id': None,
             'method': 'method1',
-            'params': ['param2']
+            'params': ['param2'],
         },
         {
             'jsonrpc': '2.0',
             'id': 2,
             'method': 'method3',
-        }
+        },
     ])
 
     assert json.loads(disp.dispatch(request)) == [
@@ -196,9 +196,9 @@ def test_dispatcher():
             'error': {
                 'code': -32601,
                 'message': 'Method not found',
-                'data': "method 'method3' not found"
+                'data': "method 'method3' not found",
             },
-        }
+        },
     ]
 
 
@@ -245,7 +245,7 @@ def test_dispatcher_errors():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method',
-        }
+        },
     ])
 
     assert json.loads(disp.dispatch(request)) == {
@@ -284,7 +284,7 @@ async def test_async_dispatcher():
         'error': {
             'code': -32601,
             'message': 'Method not found',
-            'data': "method 'method' not found"
+            'data': "method 'method' not found",
         },
     }
 
@@ -305,7 +305,7 @@ async def test_async_dispatcher():
         'jsonrpc': '2.0',
         'id': 1,
         'method': 'method1',
-        'params': ['param1']
+        'params': ['param1'],
     })
 
     assert json.loads(await disp.dispatch(request)) == {
@@ -339,19 +339,19 @@ async def test_async_dispatcher():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method1',
-            'params': ['param1']
+            'params': ['param1'],
         },
         {
             'jsonrpc': '2.0',
             'id': None,
             'method': 'method1',
-            'params': ['param2']
+            'params': ['param2'],
         },
         {
             'jsonrpc': '2.0',
             'id': 2,
             'method': 'method3',
-        }
+        },
     ])
 
     assert json.loads(await disp.dispatch(request)) == [
@@ -366,9 +366,9 @@ async def test_async_dispatcher():
             'error': {
                 'code': -32601,
                 'message': 'Method not found',
-                'data': "method 'method3' not found"
+                'data': "method 'method3' not found",
             },
-        }
+        },
     ]
 
 
@@ -405,7 +405,7 @@ async def test_async_dispatcher_errors():
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method',
-        }
+        },
     ])
 
     assert json.loads(await disp.dispatch(request)) == {

@@ -34,7 +34,7 @@ def test_error_data_serialization():
     expected_dict = {
         'code': -32601,
         'message': 'Method not found',
-        'data': 'method_name'
+        'data': 'method_name',
     }
 
     assert actual_dict == expected_dict
@@ -47,7 +47,7 @@ def test_custom_error_data_serialization():
     expected_dict = {
         'code': 2001,
         'message': 'Custom error',
-        'data': 'additional data'
+        'data': 'additional data',
     }
 
     assert actual_dict == expected_dict
@@ -57,7 +57,7 @@ def test_custom_error_data_deserialization():
     data = {
         'code': -32601,
         'message': 'Method not found',
-        'data': 'method_name'
+        'data': 'method_name',
     }
 
     error = pjrpc.exc.JsonRpcError.from_json(data)
@@ -93,7 +93,7 @@ def test_custom_error_registration():
     data = {
         'code': 2000,
         'message': 'Custom error',
-        'data': 'custom_data'
+        'data': 'custom_data',
     }
 
     class CustomError(pjrpc.exc.JsonRpcError):

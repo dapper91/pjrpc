@@ -19,18 +19,20 @@ def json_rpc(path):
     return integration.JsonRPC(path)
 
 
-@pytest.mark.parametrize('request_id, params, result', [
-    (
-            1,
-            (1, 1.1, 'a', {}, False),
-            [1, 1.1, 'a', {}, False],
-    ),
-    (
-            'abc',
-            {'int': 1, 'float': 1.1, 'str': 'a', 'dict': {}, 'bool': False},
-            {'int': 1, 'float': 1.1, 'str': 'a', 'dict': {}, 'bool': False},
-    ),
-])
+@pytest.mark.parametrize(
+    'request_id, params, result', [
+        (
+                1,
+                (1, 1.1, 'a', {}, False),
+                [1, 1.1, 'a', {}, False],
+        ),
+        (
+                'abc',
+                {'int': 1, 'float': 1.1, 'str': 'a', 'dict': {}, 'bool': False},
+                {'int': 1, 'float': 1.1, 'str': 'a', 'dict': {}, 'bool': False},
+        ),
+    ],
+)
 def test_request(json_rpc, path, mocker, request_id, params, result):
     method_name = 'test_method'
     mock = mocker.Mock(name=method_name, return_value=result)
@@ -39,7 +41,7 @@ def test_request(json_rpc, path, mocker, request_id, params, result):
 
     cli = werkzeug.test.Client(json_rpc)
     body_iter, code, header = cli.post(
-        path, json=v20.Request(method=method_name, params=params, id=request_id).to_json()
+        path, json=v20.Request(method=method_name, params=params, id=request_id).to_json(),
     )
     body = b''.join(body_iter)
     assert code == '200 OK'
@@ -84,7 +86,7 @@ def test_errors(json_rpc, path, mocker):
     cli = werkzeug.test.Client(json_rpc)
     # method not found
     body_iter, code, header = cli.post(
-        path, json=v20.Request(method='unknown_method', params=params, id=request_id).to_json()
+        path, json=v20.Request(method='unknown_method', params=params, id=request_id).to_json(),
     )
     body = b''.join(body_iter)
     assert code == '200 OK'
@@ -96,7 +98,7 @@ def test_errors(json_rpc, path, mocker):
 
     # customer error
     body_iter, code, header = cli.post(
-        path, json=v20.Request(method=method_name, params=params, id=request_id).to_json()
+        path, json=v20.Request(method=method_name, params=params, id=request_id).to_json(),
     )
     body = b''.join(body_iter)
     assert code == '200 OK'

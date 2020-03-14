@@ -44,12 +44,14 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
         return self._dispatcher
 
     def get_consumers(self, Consumer, channel):
-        return [Consumer(
-            queues=[self._rpc_queue],
-            on_message=self._rpc_handle,
-            accept={'application/json'},
-            prefetch_count=self._prefetch_count,
-        )]
+        return [
+            Consumer(
+                queues=[self._rpc_queue],
+                on_message=self._rpc_handle,
+                accept={'application/json'},
+                prefetch_count=self._prefetch_count,
+            ),
+        ]
 
     def _rpc_handle(self, message):
         """
