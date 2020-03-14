@@ -1,5 +1,6 @@
 import functools as ft
 import inspect
+from typing import Any, Callable, Dict, Iterable, Optional, Union
 
 
 class ValidationError(Exception):
@@ -13,7 +14,7 @@ class BaseValidator:
     Base method parameters validator. Uses :py:func:`inspect.signature` for validation.
     """
 
-    def validate(self, maybe_method=None, **kwargs):
+    def validate(self, maybe_method: Optional[Callable] = None, **kwargs: Any) -> Callable:
         """
         Decorator marks a method the parameters of which to be validated when calling it using JSON-RPC protocol.
 
@@ -21,7 +22,7 @@ class BaseValidator:
         :param kwargs: validator arguments
         """
 
-        def decorator(method):
+        def decorator(method: Callable) -> Callable:
             method.__pjrpc_meta__ = (self, kwargs)
 
             return method
@@ -33,7 +34,9 @@ class BaseValidator:
         else:
             return decorator(maybe_method)
 
-    def validate_method(self, method, params, exclude=(), **kwargs):
+    def validate_method(
+        self, method: Callable, params: Optional[Union[list, dict]], exclude: Iterable[str] = (), **kwargs: Any,
+    ) -> Dict[str, Any]:
         """
         Validates params against method signature.
 
@@ -49,7 +52,7 @@ class BaseValidator:
         signature = self.signature(method, exclude)
         return self.bind(signature, params).arguments
 
-    def bind(self, signature, params):
+    def bind(self, signature: inspect.Signature, params: Optional[Union[list, dict]]) -> inspect.BoundArguments:
         """
         Binds parameters to method.
         :param signature: method to bind parameters to
@@ -68,7 +71,7 @@ class BaseValidator:
             raise ValidationError(str(e)) from e
 
     @ft.lru_cache(None)
-    def signature(self, method, exclude):
+    def signature(self, method: Callable, exclude: Iterable[str]) -> inspect.Signature:
         """
         Returns method signature.
 

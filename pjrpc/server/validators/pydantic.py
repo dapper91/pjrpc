@@ -1,6 +1,6 @@
 import functools as ft
 import inspect
-from typing import List, Dict, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 import pydantic
 
@@ -16,7 +16,7 @@ class PydanticValidator(base.BaseValidator):
                    otherwise returns parameters as is
     """
 
-    def __init__(self, coerce=True, **config_args):
+    def __init__(self, coerce: bool = True, **config_args: Any):
         self._coerce = coerce
 
         config_args.setdefault('extra', 'forbid')
@@ -24,7 +24,9 @@ class PydanticValidator(base.BaseValidator):
         # https://pydantic-docs.helpmanual.io/usage/model_config/
         self._model_config = type('ModelConfig', (pydantic.BaseConfig,), config_args)
 
-    def validate_method(self, method, params, exclude=(), **kwargs):
+    def validate_method(
+        self, method: Callable, params: Optional[Union[list, dict]], exclude: Iterable[str] = (), **kwargs: Any,
+    ) -> Dict[str, Any]:
         """
         Validates params against method using ``pydantic`` validator.
 
@@ -50,7 +52,7 @@ class PydanticValidator(base.BaseValidator):
         return {attr: getattr(obj, attr) for attr in obj.__fields_set__} if self._coerce else bound_params.arguments
 
     @ft.lru_cache(maxsize=None)
-    def build_validation_schema(self, signature):
+    def build_validation_schema(self, signature: inspect.Signature) -> Dict[str, Any]:
         """
         Builds pydantic model based validation schema from method signature.
 

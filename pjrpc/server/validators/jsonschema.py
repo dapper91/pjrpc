@@ -1,3 +1,5 @@
+from typing import Any, Callable, Dict, Iterable, Optional, Union
+
 import jsonschema
 
 from . import base
@@ -10,11 +12,13 @@ class JsonSchemaValidator(base.BaseValidator):
     :param kwargs: default jsonschema validator arguments
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         kwargs.setdefault('types', {'array': (list, tuple)})
         self.default_kwargs = kwargs
 
-    def validate_method(self, method, params, exclude=(), **kwargs):
+    def validate_method(
+        self, method: Callable, params: Optional[Union[list, dict]], exclude: Iterable[str] = (), **kwargs: Any
+    ) -> Dict[str, Any]:
         """
         Validates params against method using ``pydantic`` validator.
 

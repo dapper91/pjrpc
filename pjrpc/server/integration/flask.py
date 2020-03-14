@@ -2,6 +2,8 @@
 Flask JSON-RPC extension.
 """
 
+from typing import Any
+
 import flask
 from flask import current_app
 from werkzeug import exceptions
@@ -17,7 +19,7 @@ class JsonRPC:
     :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
     """
 
-    def __init__(self, path, **kwargs):
+    def __init__(self, path: str, **kwargs: Any):
         self._path = path
 
         kwargs.setdefault('json_loader', flask.json.loads)
@@ -26,14 +28,14 @@ class JsonRPC:
         self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
 
     @property
-    def dispatcher(self):
+    def dispatcher(self) -> pjrpc.server.Dispatcher:
         """
         JSON-RPC method dispatcher.
         """
 
         return self._dispatcher
 
-    def init_app(self, app):
+    def init_app(self, app: flask.Flask) -> None:
         """
         Initializes flask application with JSON-RPC extension.
 
@@ -42,7 +44,7 @@ class JsonRPC:
 
         app.add_url_rule(self._path, methods=['POST'], view_func=self._rpc_handle)
 
-    def _rpc_handle(self):
+    def _rpc_handle(self) -> flask.Response:
         """
         Handles JSON-RPC request.
 

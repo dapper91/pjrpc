@@ -8,11 +8,13 @@ import collections
 import functools as ft
 import json
 import unittest.mock
+from typing import Any, Callable, Dict, Optional, Union
 
 import pytest
 
 import pjrpc
-from pjrpc import common
+from pjrpc import Response
+from pjrpc.common import UNSET, UnsetType
 
 
 class Match:
@@ -20,7 +22,15 @@ class Match:
     Match object. Incorporates request matching information.
     """
 
-    def __init__(self, endpoint, version, method_name, once, callback, **response_data):
+    def __init__(
+        self,
+        endpoint: str,
+        version: str,
+        method_name: str,
+        once: bool,
+        callback: Optional[Callable],
+        **response_data: Any,
+    ):
         self.endpoint = endpoint
         self.version = version
         self.method_name = method_name
@@ -38,18 +48,18 @@ class PjRpcMocker:
     :param passthrough: pass not mocked requests to the original method
     """
 
-    def __init__(self, target, mocker=unittest.mock, passthrough=False):
+    def __init__(self, target, mocker=unittest.mock, passthrough: bool = False):
         self._target = target
         self._mocker = mocker
         self._patcher = None
         self._async_resp = False
         self._passthrough = passthrough
 
-        self._matches = collections.defaultdict(lambda: collections.defaultdict(list))
-        self._calls = collections.defaultdict(dict)
+        self._matches: Dict = collections.defaultdict(lambda: collections.defaultdict(list))
+        self._calls: Dict = collections.defaultdict(dict)
 
     @property
-    def calls(self):
+    def calls(self) -> Dict:
         """
         Dictionary of JSON-PRC method calls.
         """
@@ -58,15 +68,15 @@ class PjRpcMocker:
 
     def add(
         self,
-        endpoint,
-        method_name,
-        result=common.UNSET,
-        error=common.UNSET,
-        id=None,
-        version='2.0',
-        once=False,
-        callback=None,
-    ):
+        endpoint: str,
+        method_name: str,
+        result: UnsetType = UNSET,
+        error: UnsetType = UNSET,
+        id: Optional[Union[int, str]] = None,
+        version: str = '2.0',
+        once: bool = False,
+        callback: Optional[Callable] = None,
+    ) -> None:
         """
         Appends response patch. If the same method patch already exists they will be used in a round-robin way.
 
@@ -85,15 +95,15 @@ class PjRpcMocker:
 
     def replace(
         self,
-        endpoint,
-        method_name,
-        result=common.UNSET,
-        error=common.UNSET,
-        id=None,
-        version='2.0',
-        once=False,
-        callback=None,
-        idx=0,
+        endpoint: str,
+        method_name: str,
+        result: UnsetType = UNSET,
+        error: UnsetType = UNSET,
+        id: Optional[Union[int, str]] = None,
+        version: str = '2.0',
+        once: bool = False,
+        callback: Optional[Callable] = None,
+        idx: int = 0,
     ):
         """
         Replaces a previously added response patch by a new one.
@@ -112,7 +122,7 @@ class PjRpcMocker:
         match = Match(endpoint, version, method_name, once, id=id, result=result, error=error, callback=callback)
         self._matches[endpoint][(version, method_name)][idx] = match
 
-    def remove(self, endpoint, method_name=None, version='2.0'):
+    def remove(self, endpoint: str, method_name: Optional[str] = None, version: str = '2.0'):
         """
         Removes a previously added response patch.
 
@@ -132,7 +142,7 @@ class PjRpcMocker:
 
         return result
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Removes all added matches and reset call statistics.
         """
@@ -157,7 +167,7 @@ class PjRpcMocker:
 
         return result
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop an active patcher.
         """
@@ -165,7 +175,7 @@ class PjRpcMocker:
         self.reset()
         self._patcher.stop()
 
-    def _cleanup_matches(self, endpoint, version='2.0', method_name=None):
+    def _cleanup_matches(self, endpoint: str, version: str = '2.0', method_name: Optional[str] = None) -> None:
         matches = self._matches[endpoint].get((version, method_name))
 
         if not matches:
@@ -173,16 +183,16 @@ class PjRpcMocker:
         if not self._matches[endpoint]:
             self._matches.pop(endpoint)
 
-    def _on_request(self, origin_self, data):
+    def _on_request(self, origin_self: Any, request_text: str) -> str:
         endpoint = origin_self._endpoint
         matches = self._matches.get(endpoint)
         if matches is None:
             if self._passthrough:
-                return self._patcher.temp_original(origin_self, data)
+                return self._patcher.temp_original(origin_self, request_text)
             else:
                 raise ConnectionRefusedError()
 
-        json_data = json.loads(data)
+        json_data = json.loads(request_text)
 
         if isinstance(json_data, (list, tuple)):
             response = pjrpc.BatchResponse()
@@ -202,7 +212,14 @@ class PjRpcMocker:
         else:
             return json.dumps(response.to_json())
 
-    def _match_request(self, endpoint, version, method_name, params, id):
+    def _match_request(
+        self,
+        endpoint: str,
+        version: str,
+        method_name: str,
+        params: Optional[Union[list, dict]],
+        id: Optional[Union[int, str]],
+    ) -> Response:
         matches = self._matches[endpoint].get((version, method_name))
         if matches is None:
             return pjrpc.Response(id=id, error=pjrpc.exc.MethodNotFoundError(data=method_name))
