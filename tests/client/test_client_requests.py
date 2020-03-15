@@ -303,9 +303,6 @@ def test_error():
     with pytest.raises(pjrpc.exceptions.InvalidRequestError):
         client.batch[('method', 'param')]
 
-    with pytest.raises(pjrpc.exceptions.IdentityError):
-        client.send(pjrpc.Request(method='method', id=2))
-
     responses.replace(
         responses.POST, test_url, status=200, json=[
             {

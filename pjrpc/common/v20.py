@@ -136,6 +136,9 @@ class Response:
         )
 
     def __eq__(self, other):
+        if not isinstance(other, Response):
+            return NotImplemented
+
         return (self.id, self.result, self.error) == (other.id, other.result, other.error)
 
     def to_json(self):
@@ -234,8 +237,10 @@ class Request:
     def __str__(self):
         if isinstance(self.params, list):
             params = ', '.join(map(str, self.params))
-        else:
+        elif isinstance(self.params, dict):
             params = ','.join(f"{k}={v}" for k, v in self.params.items())
+        else:
+            params = ''
 
         return f"{self.method}({params})"
 
@@ -245,6 +250,9 @@ class Request:
         )
 
     def __eq__(self, other):
+        if not isinstance(other, Request):
+            return NotImplemented
+
         return (self.method, self.params, self.id) == (other.method, other.params, other.id)
 
     def to_json(self):
@@ -411,6 +419,9 @@ class BatchResponse:
         return len(self._responses)
 
     def __eq__(self, other):
+        if not isinstance(other, BatchResponse):
+            return NotImplemented
+
         return all(
             it.starmap(
                 op.eq, zip(
@@ -514,6 +525,9 @@ class BatchRequest:
         return len(self._requests)
 
     def __eq__(self, other):
+        if not isinstance(other, BatchRequest):
+            return NotImplemented
+
         return all(
             it.starmap(
                 op.eq, zip(

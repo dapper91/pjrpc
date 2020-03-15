@@ -18,7 +18,7 @@ class Client(AbstractAsyncClient):
         self._endpoint = url
         self._session = session or client.ClientSession(**(session_args or {}))
 
-    async def _request(self, data, is_notification=False, **kwargs):
+    async def _request(self, request_text, is_notification=False, **kwargs):
         """
         Sends a JSON-RPC request.
 
@@ -32,12 +32,12 @@ class Client(AbstractAsyncClient):
             **kwargs,
         }
 
-        resp = await self._session.post(self._endpoint, data=data, **kwargs)
+        resp = await self._session.post(self._endpoint, data=request_text, **kwargs)
         resp.raise_for_status()
 
         response_text = await resp.text()
         if is_notification:
-            return
+            return None
 
         content_type = resp.headers.get('Content-Type', '')
         if response_text and content_type.split(';')[0] != 'application/json':

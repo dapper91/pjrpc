@@ -49,6 +49,13 @@ Backends
 .. automodule:: pjrpc.client.backend.aio_pika
     :members:
 
+Tracer
+~~~~~~
+
+.. automodule:: pjrpc.client.tracer
+    :members:
+
+
 Integrations
 ~~~~~~~~~~~~
 

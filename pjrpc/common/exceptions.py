@@ -111,6 +111,9 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
         )
 
     def __eq__(self, other):
+        if not isinstance(other, JsonRpcError):
+            return NotImplemented
+
         return (self.code, self.message, self.data) == (other.code, other.message, other.data)
 
     def to_json(self):
