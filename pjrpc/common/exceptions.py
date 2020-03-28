@@ -2,7 +2,9 @@
 Definition of package exceptions and JSON-RPC protocol errors.
 """
 
-from .common import UNSET
+from typing import Any, Dict, Optional, Type, Union
+
+from .common import UNSET, Json, UnsetType
 
 
 class BaseError(Exception):
@@ -31,10 +33,10 @@ class JsonRpcErrorMeta(type):
     inherited from a :py:class:`pjrpc.common.exceptions.JsonRpcError`.
     """
 
-    __errors_mapping__ = {}
+    __errors_mapping__: Dict[int, Type['JsonRpcError']] = {}
 
-    def __new__(mcs, name, bases, dct):
-        cls = super().__new__(mcs, name, bases, dct)
+    def __new__(mcs, name: str, bases: tuple, dct: dict) -> Type['JsonRpcError']:
+        cls: Type[JsonRpcError] = super().__new__(mcs, name, bases, dct)
         if hasattr(cls, 'code') and cls.code is not None:
             mcs.__errors_mapping__[cls.code] = cls
 
@@ -60,7 +62,7 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
     message = None
 
     @classmethod
-    def from_json(cls, json_data):
+    def from_json(cls, json_data: Json) -> 'JsonRpcError':
         """
         Deserializes an error from json data. If data format is not correct :py:class:`ValueError` is raised.
 
@@ -89,10 +91,10 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
             raise DeserializationError(f"required field {e} not found") from e
 
     @classmethod
-    def get_error_cls(cls, code, default):
+    def get_error_cls(cls, code: int, default: Any) -> Type['JsonRpcError']:
         return type(cls).__errors_mapping__.get(code, default)
 
-    def __init__(self, code=None, message=None, data=UNSET):
+    def __init__(self, code: Optional[int] = None, message: Optional[str] = None, data: Union[UnsetType, Any] = UNSET):
         assert code or self.code, "code is not provided"
         assert message or self.message, "message is not provided"
 
@@ -102,28 +104,28 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
 
         super().__init__(code, message)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "({code}) {message}".format(code=self.code, message=self.message)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "{class_name}(code={code}, message={message}, data={data})".format(
             class_name=self.__class__.__name__, code=repr(self.code), message=repr(self.message), data=repr(self.data),
         )
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, JsonRpcError):
             return NotImplemented
 
         return (self.code, self.message, self.data) == (other.code, other.message, other.data)
 
-    def to_json(self):
+    def to_json(self) -> Json:
         """
         Serializes the error to a dict.
 
         :returns: serialized error
         """
 
-        json = {
+        json: Dict[str, Json] = {
             'code': self.code,
             'message': self.message,
         }

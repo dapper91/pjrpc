@@ -2,7 +2,7 @@
 JSON-RPC server package.
 """
 
-from .dispatcher import AsyncDispatcher, Dispatcher, JSONEncoder, Method, MethodRegistry, View
+from .dispatcher import AsyncDispatcher, Dispatcher, JSONEncoder, Method, MethodRegistry, ViewMixin
 
 __all__ = [
     'AsyncDispatcher',
@@ -10,5 +10,5 @@ __all__ = [
     'JSONEncoder',
     'Method',
     'MethodRegistry',
-    'View',
+    'ViewMixin',
 ]

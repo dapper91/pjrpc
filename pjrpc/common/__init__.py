@@ -4,7 +4,7 @@ and agnostic to any transport protocol layer (http, socket, amqp) and server-sid
 """
 
 from . import generators
-from .common import UNSET, JSONEncoder
+from .common import UNSET, UnsetType, JSONEncoder
 from .v20 import Request, Response, BatchRequest, BatchResponse
 
 
@@ -14,6 +14,7 @@ __all__ = [
     'BatchRequest',
     'BatchResponse',
     'UNSET',
+    'UnsetType',
     'JSONEncoder',
     'generators',
 ]

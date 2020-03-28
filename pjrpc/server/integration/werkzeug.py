@@ -1,3 +1,5 @@
+from typing import Any, Dict, Callable
+
 import werkzeug
 from werkzeug import exceptions
 
@@ -12,28 +14,28 @@ class JsonRPC:
     :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
     """
 
-    def __init__(self, path='', **kwargs):
+    def __init__(self, path: str = '', **kwargs: Any):
         self._path = path
         self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
 
-    def __call__(self, environ, start_response):
+    def __call__(self, environ: Dict[str, Any], start_response: Callable):
         return self.wsgi_app(environ, start_response)
 
-    def wsgi_app(self, environ, start_response):
+    def wsgi_app(self, environ: Dict[str, Any], start_response: Callable):
         environ['app'] = self
         request = werkzeug.Request(environ)
         response = self._rpc_handle(request)
         return response(environ, start_response)
 
     @property
-    def dispatcher(self):
+    def dispatcher(self) -> pjrpc.server.Dispatcher:
         """
         JSON-RPC method dispatcher.
         """
 
         return self._dispatcher
 
-    def _rpc_handle(self, request):
+    def _rpc_handle(self, request: werkzeug.Request) -> werkzeug.Response:
         """
         Handles JSON-RPC request.
 

@@ -1,25 +1,26 @@
 import json
+from typing import Any, Union
 
 import pjrpc
 
 
-class Unset:
+class UnsetType:
     """
     `Sentinel <https://en.wikipedia.org/wiki/Sentinel_value>`_ object.
     Used to distinct unset (missing) values from ``None`` ones.
     """
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "UNSET"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return repr(self)
 
 
-UNSET = Unset()
+UNSET = UnsetType()
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -28,7 +29,7 @@ class JSONEncoder(json.JSONEncoder):
     All custom encoders should be inherited from it.
     """
 
-    def default(self, o):
+    def default(self, o: Any) -> Any:
         if isinstance(
             o, (
                 pjrpc.Response, pjrpc.Request,
@@ -39,3 +40,6 @@ class JSONEncoder(json.JSONEncoder):
             return o.to_json()
 
         return super().default(o)
+
+
+Json = Union['Json', str, int, float, dict, bool, list, tuple, set, None]

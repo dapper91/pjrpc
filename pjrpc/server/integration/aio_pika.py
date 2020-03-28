@@ -1,4 +1,5 @@
 import logging
+from typing import Any, Dict, Optional
 
 import aio_pika
 
@@ -17,28 +18,28 @@ class Executor:
     :param kwargs: dispatcher additional arguments
     """
 
-    def __init__(self, broker_url, queue_name, prefetch_count=0, **kwargs):
+    def __init__(self, broker_url: str, queue_name: str, prefetch_count: int = 0, **kwargs: Any):
         self._broker_url = broker_url
         self._queue_name = queue_name
         self._prefetch_count = prefetch_count
 
         self._connection = aio_pika.connection.Connection(broker_url)
-        self._channel = None
+        self._channel: Optional[aio_pika.Channel] = None
 
-        self._queue = None
-        self._consumer_tag = None
+        self._queue: Optional[aio_pika.Queue] = None
+        self._consumer_tag: Optional[str] = None
 
-        self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
+        self._dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
 
     @property
-    def dispatcher(self):
+    def dispatcher(self) -> pjrpc.server.AsyncDispatcher:
         """
         JSON-RPC method dispatcher.
         """
 
         return self._dispatcher
 
-    async def start(self, queue_args=None):
+    async def start(self, queue_args: Optional[Dict[str, Any]] = None) -> None:
         """
         Starts executor.
 
@@ -52,7 +53,7 @@ class Executor:
         await self._channel.set_qos(prefetch_count=self._prefetch_count)
         self._consumer_tag = await self._queue.consume(self._rpc_handle)
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """
         Stops executor.
         """
@@ -64,7 +65,7 @@ class Executor:
 
         await self._connection.close()
 
-    async def _rpc_handle(self, message):
+    async def _rpc_handle(self, message: aio_pika.IncomingMessage) -> None:
         """
         Handles JSON-RPC request.
 
@@ -73,7 +74,7 @@ class Executor:
 
         try:
             reply_to = message.reply_to
-            response_text = self._dispatcher.dispatch(message.body, context=message)
+            response_text = await self._dispatcher.dispatch(message.body, context=message)
 
             if response_text is not None:
                 if reply_to is None:

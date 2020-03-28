@@ -1,4 +1,5 @@
 import logging
+from typing import Any, Dict, Optional
 
 import kombu.mixins
 
@@ -27,15 +28,15 @@ class Client(AbstractClient):
 
     def __init__(
         self,
-        broker_url,
-        queue_name=None,
-        conn_args=None,
-        exchange_name=None,
-        exchange_args=None,
-        routing_key=None,
-        result_queue_name=None,
-        result_queue_args=None,
-        **kwargs,
+        broker_url: str,
+        queue_name: Optional[str] = None,
+        conn_args: Optional[Dict[str, Any]] = None,
+        exchange_name: Optional[str] = None,
+        exchange_args: Optional[Dict[str, Any]] = None,
+        routing_key: Optional[str] = None,
+        result_queue_name: Optional[str] = None,
+        result_queue_args: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
     ):
         assert queue_name or routing_key, "queue_name or routing_key must be provided"
 
@@ -52,18 +53,18 @@ class Client(AbstractClient):
         if result_queue_name:
             self._result_queue = kombu.Queue(result_queue_name, **(result_queue_args or {}))
 
-    def close(self):
+    def close(self) -> None:
         """
         Closes the current broker connection.
         """
 
         self._connection.close()
 
-    def _request(self, data, is_notification=False, **kwargs):
+    def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> Optional[str]:
         """
         Sends a JSON-RPC request.
 
-        :param data: request text
+        :param request_text: request text
         :param is_notification: is the request a notification
         :param kwargs: publish additional arguments
         :returns: response text
@@ -72,13 +73,13 @@ class Client(AbstractClient):
         if is_notification:
             with kombu.Producer(self._connection) as producer:
                 producer.publish(
-                    data,
+                    request_text,
                     exchange=self._exchange or '',
                     routing_key=self._routing_key,
                     content_type='application/json',
                     **kwargs,
                 )
-                return
+                return None
 
         request_id = kombu.uuid()
         result_queue = self._result_queue or kombu.Queue(
@@ -87,7 +88,7 @@ class Client(AbstractClient):
 
         with kombu.Producer(self._connection) as producer:
             producer.publish(
-                data,
+                request_text,
                 exchange=self._exchange or '',
                 routing_key=self._routing_key,
                 reply_to=result_queue.name,
@@ -98,7 +99,7 @@ class Client(AbstractClient):
 
         response = UNSET
 
-        def on_response(message):
+        def on_response(message: kombu.Message) -> None:
             nonlocal response
 
             try:
