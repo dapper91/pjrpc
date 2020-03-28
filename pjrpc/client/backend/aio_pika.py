@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid
+from typing import Any, Dict, Optional
 
 import aio_pika
 
@@ -27,35 +28,35 @@ class Client(AbstractAsyncClient):
 
     def __init__(
         self,
-        broker_url,
-        queue_name=None,
-        conn_args=None,
-        exchange_name=None,
-        exchange_args=None,
-        routing_key=None,
-        result_queue_name=None,
-        result_queue_args=None,
-        **kwargs,
+        broker_url: str,
+        queue_name: Optional[str] = None,
+        conn_args: Optional[Dict[str, Any]] = None,
+        exchange_name: Optional[str] = None,
+        exchange_args: Optional[Dict[str, Any]] = None,
+        routing_key: Optional[str] = None,
+        result_queue_name: Optional[str] = None,
+        result_queue_args: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
     ):
         assert queue_name or routing_key, "queue_name or routing_key must be provided"
 
         super().__init__(**kwargs)
         self._connection = aio_pika.connection.Connection(broker_url, **(conn_args or {}))
-        self._channel = None
+        self._channel: Optional[aio_pika.Channel] = None
 
         self._exchange_name = exchange_name
         self._exchange_args = exchange_args
-        self._exchange = None
+        self._exchange: Optional[aio_pika.Exchange] = None
 
         self._routing_key = routing_key or queue_name
         self._result_queue_name = result_queue_name
         self._result_queue_args = result_queue_args
-        self._result_queue = None
-        self._consumer_tag = None
+        self._result_queue: Optional[aio_pika.Queue] = None
+        self._consumer_tag: Optional[str] = None
 
         self._futures = {}
 
-    async def connect(self):
+    async def connect(self) -> None:
         """
         Opens a connection to the broker.
         """
@@ -76,7 +77,7 @@ class Client(AbstractAsyncClient):
             await self._result_queue.declare()
             self._consumer_tag = await self._result_queue.consume(self._on_result_message, no_ack=True)
 
-    async def close(self):
+    async def close(self) -> None:
         """
         Closes current broker connection.
         """
@@ -94,7 +95,7 @@ class Client(AbstractAsyncClient):
 
             future.set_exception(asyncio.CancelledError)
 
-    async def _on_result_message(self, message):
+    async def _on_result_message(self, message: aio_pika.IncomingMessage) -> None:
         correlation_id = message.correlation_id
         future = self._futures.pop(correlation_id, None)
 
@@ -109,11 +110,11 @@ class Client(AbstractAsyncClient):
         else:
             future.set_result(message.body.decode(message.content_encoding or 'utf8'))
 
-    async def _request(self, data, is_notification=False, **kwargs):
+    async def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> None:
         if is_notification:
             async with self._connection.channel() as channel:
                 message = aio_pika.message.Message(
-                    body=data.encode(),
+                    body=request_text.encode(),
                     content_encoding='utf8',
                     content_type='application/json',
                     **kwargs,
@@ -134,7 +135,7 @@ class Client(AbstractAsyncClient):
                 result_queue = self._result_queue
 
             message = aio_pika.message.Message(
-                body=data.encode(),
+                body=request_text.encode(),
                 correlation_id=request_id,
                 reply_to=result_queue.name,
                 content_encoding='utf8',

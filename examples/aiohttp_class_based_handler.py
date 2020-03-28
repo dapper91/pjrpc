@@ -9,7 +9,7 @@ methods = pjrpc.server.MethodRegistry()
 
 
 @methods.view(context='request', prefix='user')
-class UserView(pjrpc.server.View):
+class UserView(pjrpc.server.ViewMixin):
 
     def __init__(self, request: web.Request):
         super().__init__()

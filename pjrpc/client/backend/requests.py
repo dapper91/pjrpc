@@ -1,3 +1,4 @@
+from typing import Any, Optional
 import requests
 
 import pjrpc
@@ -13,12 +14,12 @@ class Client(AbstractClient):
     :param kwargs: parameters to be passed to :py:class:`pjrpc.client.AbstractClient`
     """
 
-    def __init__(self, url, session=None, **kwargs):
+    def __init__(self, url: str, session: Optional[requests.Session] = None, **kwargs: Any):
         super().__init__(**kwargs)
         self._endpoint = url
         self._session = session or requests.Session()
 
-    def _request(self, data, is_notification=False, **kwargs):
+    def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> Optional[str]:
         """
         Sends a JSON-RPC request.
 
@@ -32,10 +33,10 @@ class Client(AbstractClient):
             **kwargs,
         }
 
-        resp = self._session.post(self._endpoint, data=data, **kwargs)
+        resp = self._session.post(self._endpoint, data=request_text, **kwargs)
         resp.raise_for_status()
         if is_notification:
-            return
+            return None
 
         response_text = resp.text
         content_type = resp.headers.get('Content-Type', '')
@@ -44,16 +45,16 @@ class Client(AbstractClient):
 
         return response_text
 
-    def close(self):
+    def close(self) -> None:
         """
         Closes the current http session.
         """
 
         self._session.close()
 
-    def __enter__(self):
+    def __enter__(self) -> 'Client':
         self._session.__enter__()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self._session.__exit__(exc_type, exc_val, exc_tb)

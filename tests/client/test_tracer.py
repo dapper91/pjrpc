@@ -35,8 +35,6 @@ def test_request_tracing(mocker, req, resp, exc):
     class Tracer(client.Tracer):
         on_request_begin = mocker.Mock('on_request_begin')
         on_request_end = mocker.Mock('on_request_end')
-        on_batch_begin = mocker.Mock('on_batch_begin')
-        on_batch_end = mocker.Mock('on_batch_end')
         on_error = mocker.Mock('on_error')
 
     tracer = Tracer()
@@ -49,13 +47,12 @@ def test_request_tracing(mocker, req, resp, exc):
             cli.send(req, _trace_ctx=trace_ctx)
         tracer.on_error.assert_called_once_with(trace_ctx, req, exc)
 
-    elif isinstance(req, BatchRequest):
-        cli.batch.send(req, _trace_ctx=trace_ctx)
-        tracer.on_batch_begin.assert_called_once_with(trace_ctx, req)
-        tracer.on_batch_end.assert_called_once_with(trace_ctx, req, resp)
-
     else:
-        cli.send(req, _trace_ctx=trace_ctx)
+        if isinstance(req, BatchRequest):
+            cli.batch.send(req, _trace_ctx=trace_ctx)
+        else:
+            cli.send(req, _trace_ctx=trace_ctx)
+
         tracer.on_request_begin.assert_called_once_with(trace_ctx, req)
         tracer.on_request_end.assert_called_once_with(trace_ctx, req, resp)
 
@@ -90,8 +87,6 @@ async def test_async_request_tracing(mocker, req, resp, exc):
     class Tracer(client.Tracer):
         on_request_begin = mocker.Mock('on_request_begin')
         on_request_end = mocker.Mock('on_request_end')
-        on_batch_begin = mocker.Mock('on_batch_begin')
-        on_batch_end = mocker.Mock('on_batch_end')
         on_error = mocker.Mock('on_error')
 
     tracer = Tracer()
@@ -104,12 +99,11 @@ async def test_async_request_tracing(mocker, req, resp, exc):
             await cli.send(req, _trace_ctx=trace_ctx)
         tracer.on_error.assert_called_once_with(trace_ctx, req, exc)
 
-    elif isinstance(req, BatchRequest):
-        await cli.batch.send(req, _trace_ctx=trace_ctx)
-        tracer.on_batch_begin.assert_called_once_with(trace_ctx, req)
-        tracer.on_batch_end.assert_called_once_with(trace_ctx, req, resp)
-
     else:
-        await cli.send(req, _trace_ctx=trace_ctx)
+        if isinstance(req, BatchRequest):
+            await cli.batch.send(req, _trace_ctx=trace_ctx)
+        else:
+            await cli.send(req, _trace_ctx=trace_ctx)
+
         tracer.on_request_begin.assert_called_once_with(trace_ctx, req)
         tracer.on_request_end.assert_called_once_with(trace_ctx, req, resp)

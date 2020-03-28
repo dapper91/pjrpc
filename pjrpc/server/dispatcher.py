@@ -3,9 +3,10 @@ import collections
 import functools as ft
 import json
 import logging
+from typing import Any, Callable, Dict, Optional, Type, Iterator, Iterable, Union
 
 import pjrpc
-from pjrpc.common import v20, UNSET
+from pjrpc.common import v20, BatchRequest, BatchResponse, Request, Response, UNSET, UnsetType
 from . import validators
 
 logger = logging.getLogger(__package__)
@@ -22,13 +23,13 @@ class Method:
     :param context: context name
     """
 
-    def __init__(self, method, name=None, context=None):
+    def __init__(self, method: Callable, name: Optional[str] = None, context: Optional[Any] = None):
         self.method = method
         self.name = name or getattr(method, 'name', method.__name__)
         self.context = context
         self.validator, self.validator_args = getattr(method, '__pjrpc_meta__', (default_validator, {}))
 
-    def bind(self, params, context=None):
+    def bind(self, params: Optional[Union[list, dict]], context: Optional[Any] = None) -> Callable:
         method_params = self.validator.validate_method(
             self.method, params, exclude=(self.context,) if self.context else (), **self.validator_args
         )
@@ -48,12 +49,12 @@ class ViewMethod(Method):
     :param context: context name
     """
 
-    def __init__(self, view_cls, name, context=None):
+    def __init__(self, view_cls: Type['ViewMixin'], name: str, context: Optional[Any] = None):
         super().__init__(view_cls, name, context)
 
         self.view_cls = view_cls
 
-    def bind(self, params, context=None):
+    def bind(self, params: Optional[Union[list, dict]], context: Optional[Any] = None) -> Callable:
         view = self.view_cls(context) if self.context else self.view_cls()
         method = getattr(view, self.name)
 
@@ -62,9 +63,9 @@ class ViewMethod(Method):
         return ft.partial(method, **method_params)
 
 
-class View:
+class ViewMixin:
     """
-    Class based method handler.
+    Class based method handler mixin.
     """
 
     @classmethod
@@ -82,18 +83,18 @@ class MethodRegistry:
     :param prefix: method name prefix to be used for naming containing methods
     """
 
-    def __init__(self, prefix=None):
+    def __init__(self, prefix: Optional[str] = None):
         self._prefix = prefix
-        self._registry = {}
+        self._registry: Dict[str, Method] = {}
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         """
         Returns registry method iterator.
         """
 
         return iter(self._registry)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Method:
         """
         Returns a method from the registry by name.
 
@@ -104,7 +105,7 @@ class MethodRegistry:
 
         return self._registry[item]
 
-    def get(self, item):
+    def get(self, item: str) -> Optional[Method]:
         """
         Returns a method from the registry by name.
 
@@ -114,7 +115,9 @@ class MethodRegistry:
 
         return self._registry.get(item)
 
-    def add(self, maybe_method=None, name=None, context=None):
+    def add(
+        self, maybe_method: Optional[Callable] = None, name: Optional[str] = None, context: Optional[Any] = None,
+    ) -> Callable:
         """
         Decorator adding decorated method to the registry.
 
@@ -124,7 +127,7 @@ class MethodRegistry:
         :returns: decorated method or decorator
         """
 
-        def decorator(method):
+        def decorator(method: Callable) -> Callable:
             full_name = '.'.join(filter(None, (self._prefix, name or getattr(method, 'name', method.__name__))))
             self.add_methods(Method(method, full_name, context))
 
@@ -135,7 +138,7 @@ class MethodRegistry:
         else:
             return decorator(maybe_method)
 
-    def add_methods(self, *methods):
+    def add_methods(self, *methods: Union[Callable, Method]) -> None:
         """
         Adds methods to the registry.
 
@@ -149,7 +152,9 @@ class MethodRegistry:
             else:
                 self.add(method)
 
-    def view(self, maybe_view=None, context=None, prefix=None):
+    def view(
+        self, maybe_view: Optional[Type[ViewMixin]] = None, context: Optional[Any] = None, prefix: Optional[str] = None,
+    ) -> Union[ViewMixin, Callable]:
         """
         Methods view decorator.
 
@@ -159,7 +164,7 @@ class MethodRegistry:
         :return: decorator or decorated view
         """
 
-        def decorator(view):
+        def decorator(view: Type[ViewMixin]) -> Type[ViewMixin]:
             for method in view.__methods__():
                 full_name = '.'.join(filter(None, (self._prefix, prefix, method.__name__)))
                 self._add_method(full_name, ViewMethod(view, method.__name__, context))
@@ -173,7 +178,7 @@ class MethodRegistry:
         else:
             return decorator(maybe_view)
 
-    def merge(self, other):
+    def merge(self, other: 'MethodRegistry') -> None:
         """
         Merges two registries.
 
@@ -183,7 +188,7 @@ class MethodRegistry:
         for name in other:
             self._add_method(name, other[name])
 
-    def _add_method(self, name, method):
+    def _add_method(self, name: str, method: Method) -> None:
         if name in self._registry:
             logger.warning(f"method '{name}' already registered")
 
@@ -195,7 +200,7 @@ class JSONEncoder(pjrpc.JSONEncoder):
     Server JSON encoder. All custom server encoders should be inherited from it.
     """
 
-    def default(self, o):
+    def default(self, o: Any) -> Any:
         if isinstance(o, validators.base.ValidationError):
             return [err for err in o.args]
 
@@ -219,41 +224,40 @@ class Dispatcher:
     def __init__(
         self,
         *,
-        request_class=v20.Request,
-        response_class=v20.Response,
-        batch_request=v20.BatchRequest,
-        batch_response=v20.BatchResponse,
-        json_loader=json.loads,
-        json_dumper=json.dumps,
-        json_encoder=None,
-        json_decoder=None,
-        middlewares=(),
+        request_class: Type[Request] = v20.Request,
+        response_class: Type[Response] = v20.Response,
+        batch_request: Type[BatchRequest] = v20.BatchRequest,
+        batch_response: Type[BatchResponse] = v20.BatchResponse,
+        json_loader: Callable = json.loads,
+        json_dumper: Callable = json.dumps,
+        json_encoder: Type[JSONEncoder] = JSONEncoder,
+        json_decoder: Optional[Type[json.JSONDecoder]] = None,
+        middlewares: Iterable[Callable] = (),
     ):
         self._json_loader = json_loader
         self._json_dumper = json_dumper
-        self._json_encoder = json_encoder or JSONEncoder
+        self._json_encoder = json_encoder
         self._json_decoder = json_decoder
         self._request_class = request_class
         self._response_class = response_class
         self._batch_request = batch_request
         self._batch_response = batch_response
-        self._middlewares = middlewares
+        self._middlewares = list(middlewares)
 
         self._registry = MethodRegistry()
 
-    def add(self, method, name=None, context=None):
+    def add(self, method: Callable, name: Optional[str] = None, context: Optional[Any] = None) -> None:
         """
         Adds method to the registry.
 
         :param method: method
         :param name: method name
         :param context: application context name
-        :returns:
         """
 
         self._registry.add(method, name, context)
 
-    def add_methods(self, *methods):
+    def add_methods(self, *methods: Union[MethodRegistry, Method, Callable]) -> None:
         """
         Adds methods to the registry.
 
@@ -269,7 +273,7 @@ class Dispatcher:
             else:
                 self._registry.add(method)
 
-    def view(self, view):
+    def view(self, view: Type[ViewMixin]) -> None:
         """
         Adds class based view to the registry.
 
@@ -278,7 +282,7 @@ class Dispatcher:
 
         self._registry.view(view)
 
-    def dispatch(self, request_text, context=None):
+    def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[str]:
         """
         Deserializes request, dispatches it to the required method and serializes the result.
 
@@ -321,7 +325,7 @@ class Dispatcher:
 
             return response_text
 
-    def _handle_request(self, request, context):
+    def _handle_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
         try:
             handler = self._handle_rpc_request
 
@@ -343,14 +347,14 @@ class Dispatcher:
 
         return self._response_class(id=request.id, error=error)
 
-    def _handle_rpc_request(self, request, context):
+    def _handle_rpc_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
         result = self._handle_rpc_method(request.method, request.params, context)
         if request.id is None:
             return UNSET
 
         return self._response_class(id=request.id, result=result)
 
-    def _handle_rpc_method(self, method_name, params, context):
+    def _handle_rpc_method(self, method_name: str, params: Optional[Union[list, dict]], context: Optional[Any]) -> Any:
         method = self._registry.get(method_name)
         if method is None:
             raise pjrpc.exceptions.MethodNotFoundError(data=f"method '{method_name}' not found")
@@ -376,7 +380,7 @@ class AsyncDispatcher(Dispatcher):
     Asynchronous method dispatcher.
     """
 
-    async def dispatch(self, request_text, context=None):
+    async def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[str]:
         """
         Deserializes request, dispatches it to the required method and serializes the result.
 
@@ -419,7 +423,7 @@ class AsyncDispatcher(Dispatcher):
 
             return response_text
 
-    async def _handle_request(self, request, context):
+    async def _handle_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
         try:
             handler = self._handle_rpc_request
 
@@ -441,14 +445,16 @@ class AsyncDispatcher(Dispatcher):
 
         return self._response_class(id=request.id, error=error)
 
-    async def _handle_rpc_request(self, request, context):
+    async def _handle_rpc_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
         result = await self._handle_rpc_method(request.method, request.params, context)
         if request.id is None:
             return UNSET
 
         return self._response_class(id=request.id, result=result)
 
-    async def _handle_rpc_method(self, method_name, params, context):
+    async def _handle_rpc_method(
+        self, method_name: str, params: Optional[Union[list, dict]], context: Optional[Any],
+    ) -> Any:
         method = self._registry.get(method_name)
         if method is None:
             raise pjrpc.exceptions.MethodNotFoundError(data=f"method '{method_name}' not found")

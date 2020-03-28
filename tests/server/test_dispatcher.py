@@ -1,5 +1,5 @@
 import json
-from pjrpc.server import dispatcher, Method, View
+from pjrpc.server import dispatcher, Method, ViewMixin
 
 from tests.common import _
 
@@ -79,7 +79,7 @@ async def test_method_registry_view():
 
     context = object()
 
-    class MethodView(View):
+    class MethodView(ViewMixin):
 
         def __init__(self, ctx):
             assert ctx is context

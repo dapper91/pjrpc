@@ -11,7 +11,7 @@ methods = pjrpc.server.MethodRegistry()
 
 
 @methods.view(prefix='user')
-class UserView(pjrpc.server.View):
+class UserView(pjrpc.server.ViewMixin):
 
     def __init__(self):
         super().__init__()

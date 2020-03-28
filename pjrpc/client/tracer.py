@@ -1,6 +1,10 @@
 import logging
+from types import SimpleNamespace
+from typing import Union
 
-from .client import logger as client_logger
+from pjrpc import BatchRequest, Request, Response
+
+client_logger = logging.getLogger(__package__)
 
 
 class Tracer:
@@ -8,7 +12,7 @@ class Tracer:
     JSON-RPC client tracer.
     """
 
-    def on_request_begin(self, trace_context, request):
+    def on_request_begin(self, trace_context: SimpleNamespace, request: Request) -> None:
         """
         Handler called before JSON-RPC request begins.
 
@@ -16,7 +20,7 @@ class Tracer:
         :param request: JSON-RPC request
         """
 
-    def on_request_end(self, trace_context, request, response):
+    def on_request_end(self, trace_context: SimpleNamespace, request: Request, response: Response) -> None:
         """
         Handler called after JSON-RPC request ends.
 
@@ -25,24 +29,9 @@ class Tracer:
         :param response: JSON-RPC response
         """
 
-    def on_batch_begin(self, trace_context, batch_request):
-        """
-        Handler called before JSON-RPC batch request begins.
-
-        :param trace_context: request trace context
-        :param batch_request: JSON-RPC request
-        """
-
-    def on_batch_end(self, trace_context, batch_request, batch_response):
-        """
-        Handler called after JSON-RPC batch request ends.
-
-        :param trace_context: request trace context
-        :param batch_request: JSON-RPC request
-        :param batch_response: JSON-RPC response
-        """
-
-    def on_error(self, trace_context, request, error):
+    def on_error(
+        self, trace_context: SimpleNamespace, request: Union[Request, BatchRequest], error: BaseException,
+    ) -> None:
         """
         Handler called when JSON-RPC request failed.
 
@@ -57,21 +46,17 @@ class LoggingTracer(Tracer):
     JSON-RPC client logging tracer.
     """
 
-    def __init__(self, logger=client_logger, level=logging.DEBUG):
+    def __init__(self, logger: logging.Logger = client_logger, level: int = logging.DEBUG):
         self._logger = logger
         self._level = level
 
-    def on_request_begin(self, trace_context, request):
+    def on_request_begin(self, trace_context: SimpleNamespace, request: Request) -> None:
         self._logger.log(self._level, "sending request: %r", request)
 
-    def on_request_end(self, trace_context, request, response):
+    def on_request_end(self, trace_context: SimpleNamespace, request: Request, response: Response) -> None:
         self._logger.log(self._level, "received response: %r", response)
 
-    def on_batch_begin(self, trace_context, batch_request):
-        self._logger.log(self._level, "sending batch request: %r", batch_request)
-
-    def on_batch_end(self, trace_context, batch_request, batch_response):
-        self._logger.log(self._level, "received batch response: %r", batch_response)
-
-    def on_error(self, trace_context, request, error):
+    def on_error(
+        self, trace_context: SimpleNamespace, request: Union[Request, BatchRequest], error: BaseException,
+    ) -> None:
         self._logger.log(self._level, "request '%s' sending error: %r", request, error)

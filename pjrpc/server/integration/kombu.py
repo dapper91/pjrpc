@@ -3,6 +3,7 @@ kombu JSON-RPC server integration.
 """
 
 import logging
+from typing import Any, Dict, List, Optional
 
 import kombu.mixins
 
@@ -25,7 +26,14 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
     """
 
     def __init__(
-        self, broker_url, queue_name, conn_args=None, queue_args=None, publish_args=None, prefetch_count=0, **kwargs
+        self,
+        broker_url: str,
+        queue_name: str,
+        conn_args: Optional[Dict[str, Any]] = None,
+        queue_args: Optional[Dict[str, Any]] = None,
+        publish_args: Optional[Dict[str, Any]] = None,
+        prefetch_count: int = 0,
+        **kwargs: Any
     ):
         self.connection = kombu.Connection(broker_url, **(conn_args or {}))
 
@@ -36,14 +44,14 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
         self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
 
     @property
-    def dispatcher(self):
+    def dispatcher(self) -> pjrpc.server.Dispatcher:
         """
         JSON-RPC method dispatcher.
         """
 
         return self._dispatcher
 
-    def get_consumers(self, Consumer, channel):
+    def get_consumers(self, Consumer, channel) -> List[kombu.Consumer]:
         return [
             Consumer(
                 queues=[self._rpc_queue],
@@ -53,7 +61,7 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
             ),
         ]
 
-    def _rpc_handle(self, message):
+    def _rpc_handle(self, message: kombu.Message) -> None:
         """
         Handles JSON-RPC request.
 
