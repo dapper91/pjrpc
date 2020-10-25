@@ -7,6 +7,7 @@ import asyncio
 import collections
 import functools as ft
 import json
+import sys
 import unittest.mock
 from typing import Any, Callable, Dict, Optional, Union
 
@@ -15,6 +16,8 @@ import pytest
 import pjrpc
 from pjrpc import Response
 from pjrpc.common import UNSET, UnsetType
+
+IS_GE_PY38 = sys.version_info >= (3, 8)
 
 
 class Match:
@@ -205,7 +208,7 @@ class PjRpcMocker:
             request = pjrpc.Request.from_json(json_data)
             response = self._match_request(endpoint, request.version, request.method, request.params, request.id)
 
-        if self._async_resp:
+        if not IS_GE_PY38 and self._async_resp:
             async def wrapper():
                 return json.dumps(response.to_json())
             return wrapper()
