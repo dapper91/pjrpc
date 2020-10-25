@@ -10,7 +10,7 @@ requirements = [
 
 test_requirements = [
     'aioresponses~=0.0',
-    'pytest~=4.0',
+    'pytest~=6.0',
     'pytest-aiohttp~=0.0',
     'pytest-mock~=1.0',
     'responses~=0.0',
@@ -59,11 +59,11 @@ setup(
     install_requires=requirements,
     tests_require=test_requirements,
     extras_require={
-        'aiohttp': ['aiohttp~=3.0'],
+        'aiohttp': ['aiohttp~=3.0,<3.7'],
         'aio-pika': ['aio-pika~=6.0'],
         'flask': ['flask~=1.0'],
         'jsonschema': ['jsonschema~=3.0'],
-        'kombu': ['kombu~=4.0'],
+        'kombu': ['kombu~=5.0'],
         'pydantic': ['pydantic~=1.0'],
         'requests': ['requests~=2.0'],
     },
