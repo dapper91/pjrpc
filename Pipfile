@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-aiohttp = "~=3.0,<3.7"
+aiohttp = "~=3.0"
 aio-pika = "~=6.0"
 flask = "~=1.0"
 jsonschema = "~=3.0"
