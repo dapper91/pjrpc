@@ -2,8 +2,9 @@ import asyncio
 import collections
 import functools as ft
 import json
+import itertools as it
 import logging
-from typing import Any, Callable, Dict, Optional, Type, Iterator, Iterable, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Iterator, Iterable, Union
 
 import pjrpc
 from pjrpc.common import v20, BatchRequest, BatchResponse, Request, Response, UNSET, UnsetType
@@ -233,6 +234,7 @@ class Dispatcher:
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
         middlewares: Iterable[Callable] = (),
+        error_handlers: Dict[Union[None, int, Exception], List[Callable]] = {},
     ):
         self._json_loader = json_loader
         self._json_dumper = json_dumper
@@ -243,6 +245,7 @@ class Dispatcher:
         self._batch_request = batch_request
         self._batch_response = batch_response
         self._middlewares = list(middlewares)
+        self._error_handlers = error_handlers
 
         self._registry = MethodRegistry()
 
@@ -342,6 +345,9 @@ class Dispatcher:
             logger.exception("internal server error: %r", e)
             error = pjrpc.exceptions.InternalError()
 
+        for handler in it.chain(self._error_handlers.get(None, []), self._error_handlers.get(error.code, [])):
+            error = handler(request, context, error)
+
         if request.id is None:
             return UNSET
 
@@ -439,6 +445,9 @@ class AsyncDispatcher(Dispatcher):
         except Exception as e:
             logger.exception("internal server error: %r", e)
             error = pjrpc.exceptions.InternalError()
+
+        for handler in it.chain(self._error_handlers.get(None, []), self._error_handlers.get(error.code, [])):
+            error = await handler(request, context, error)
 
         if request.id is None:
             return UNSET
