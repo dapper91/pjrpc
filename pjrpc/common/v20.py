@@ -145,7 +145,10 @@ class Response:
         if not isinstance(other, Response):
             return NotImplemented
 
-        return (self.id, self.result, self.error) == (other.id, other.result, other.error)
+        if self.is_success:
+            return (self.id, self.result) == (other.id, other.result)
+        else:
+            return (self.id, self.error) == (other.id, other.error)
 
     def to_json(self) -> Json:
         """
