@@ -125,7 +125,7 @@ async def test_notify(Client, mocker):
     test_url = 'http://test.com/api'
 
     with mocker() as mock:
-        mock.mock('POST', test_url, status=200, content='')
+        mock.mock('POST', test_url, status=200, content=' ')
 
         client = Client(test_url)
 
@@ -270,7 +270,7 @@ async def test_batch(Client, mocker):
         ]
 
     with mocker() as mock:
-        mock.mock('POST', test_url, status=200, content='')
+        mock.mock('POST', test_url, status=200, content=' ')
         result = await client.batch.notify('method1', 1, 2).notify('method2', 2, 3).call()
         assert result is None
 
