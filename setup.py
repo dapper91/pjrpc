@@ -53,7 +53,9 @@ setup(
     author_email=about['__email__'],
     url=about['__url__'],
     license=about['__license__'],
-    keywords=['json-rpc', 'rpc', 'jsonrpc-client', 'jsonrpc-server', 'requests', 'aiohttp', 'flask'],
+    keywords=[
+        'json-rpc', 'rpc', 'jsonrpc-client', 'jsonrpc-server', 'requests', 'aiohttp', 'flask', 'httpx',
+    ],
     python_requires=">=3.5",
     packages=find_packages(),
     install_requires=requirements,
@@ -66,6 +68,7 @@ setup(
         'kombu': ['kombu~=5.0'],
         'pydantic': ['pydantic~=1.0'],
         'requests': ['requests~=2.0'],
+        'httpx': ['requests~=0.0'],
     },
     entry_points={"pytest11": ["pjrpc = pjrpc.client.integrations.pytest"]},
     classifiers=[
