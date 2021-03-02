@@ -47,6 +47,7 @@ Extra requirements
 - `kombu <https://kombu.readthedocs.io/en/stable/>`_
 - `pydantic <https://pydantic-docs.helpmanual.io/>`_
 - `requests <https://requests.readthedocs.io>`_
+- `httpx <https://www.python-httpx.org/>`_
 
 
 The User Guide
