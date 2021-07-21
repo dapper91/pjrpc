@@ -35,7 +35,7 @@ class Response:
 
         try:
             if not isinstance(json_data, dict):
-                raise DeserializationError(f"data must be of type dict")
+                raise DeserializationError("data must be of type dict")
 
             jsonrpc = json_data['jsonrpc']
             if jsonrpc != cls.version:
@@ -192,7 +192,7 @@ class Request:
 
         try:
             if not isinstance(json_data, dict):
-                raise DeserializationError(f"data must be of type dict")
+                raise DeserializationError("data must be of type dict")
 
             jsonrpc = json_data['jsonrpc']
             if jsonrpc != cls.version:
@@ -200,15 +200,15 @@ class Request:
 
             id = json_data.get('id')
             if id is not None and not isinstance(id, (int, str)):
-                raise DeserializationError(f"field 'id' must be of type integer or string")
+                raise DeserializationError("field 'id' must be of type integer or string")
 
             method = json_data['method']
             if not isinstance(method, str):
-                raise DeserializationError(f"field 'method' must be of type string")
+                raise DeserializationError("field 'method' must be of type string")
 
             params = json_data.get('params', [])
             if not isinstance(params, (list, dict)):
-                raise DeserializationError(f"field 'params' must be of type list or dict")
+                raise DeserializationError("field 'params' must be of type list or dict")
 
             return cls(method, params, id)
         except KeyError as e:
@@ -322,7 +322,7 @@ class BatchResponse:
                     return cls(error=error_cls.from_json(json_data['error']))
 
             if not isinstance(json_data, (list, tuple)):
-                raise DeserializationError(f"data must be of type list")
+                raise DeserializationError("data must be of type list")
 
         except KeyError as e:
             raise DeserializationError(f"required field {e} not found") from e
@@ -501,10 +501,10 @@ class BatchRequest:
         """
 
         if not isinstance(data, (list, tuple)):
-            raise DeserializationError(f"data must be of type list")
+            raise DeserializationError("data must be of type list")
 
         if len(data) == 0:
-            raise DeserializationError(f"request list is empty")
+            raise DeserializationError("request list is empty")
 
         return cls(*(Request.from_json(request) for request in data))
 
