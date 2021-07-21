@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.5.0
+    rev: v4.0.1
     hooks:
       - id: check-docstring-first
         stages:
@@ -27,7 +27,7 @@ repos:
         stages:
           - commit
   - repo: https://github.com/pre-commit/mirrors-autopep8
-    rev: v1.5
+    rev: v1.5.7
     hooks:
       - id: autopep8
         stages:
@@ -37,14 +37,14 @@ repos:
           - --max-line-length=120
           - --diff
   - repo: https://github.com/asottile/add-trailing-comma
-    rev: v1.5.0
+    rev: v2.1.0
     hooks:
       - id: add-trailing-comma
         stages:
           - commit
           - push
   - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.7.9
+    rev: 3.9.2
     hooks:
       - id: flake8
         stages:
