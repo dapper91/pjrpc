@@ -40,7 +40,7 @@ async def active_count_metric_middleware(request: pjrpc.Request, context: web.Re
 
 
 async def any_error_handler(
-    request: pjrpc.Request, context: web.Request, error: pjrpc.exceptions.JsonRpcError
+    request: pjrpc.Request, context: web.Request, error: pjrpc.exceptions.JsonRpcError,
 ) -> pjrpc.exceptions.JsonRpcError:
     method_error_count.labels(method=request.method, code=error.code).inc()
 
@@ -48,7 +48,7 @@ async def any_error_handler(
 
 
 async def validation_error_handler(
-    request: pjrpc.Request, context: web.Request, error: pjrpc.exceptions.JsonRpcError
+    request: pjrpc.Request, context: web.Request, error: pjrpc.exceptions.JsonRpcError,
 ) -> pjrpc.exceptions.JsonRpcError:
     print("validation error occurred")
 
