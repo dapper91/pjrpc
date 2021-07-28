@@ -1,5 +1,5 @@
 import json
-from pjrpc.server import dispatcher, Method, ViewMixin
+from pjrpc.server import dispatcher, validators, Method, ViewMixin
 
 from tests.common import _
 
@@ -74,7 +74,50 @@ def test_method_registry_merge():
     assert registry1['method2'].method is method2
 
 
+def test_method_registry_merge_prefix():
+    registry1 = dispatcher.MethodRegistry(prefix='prefix1')
+    registry2 = dispatcher.MethodRegistry(prefix='prefix2')
+
+    def test_method():
+        pass
+
+    registry1.add(test_method, name='method1', context='ctx1')
+    registry2.add(test_method, name='method2', context='ctx2')
+
+    assert list(registry1.items()) == [('prefix1.method1', Method(test_method, 'prefix1.method1', 'ctx1'))]
+    assert list(registry2.items()) == [('prefix2.method2', Method(test_method, 'prefix2.method2', 'ctx2'))]
+
+    registry2.merge(registry1)
+
+    assert list(registry2.items()) == [
+        ('prefix2.method2', Method(test_method, 'prefix2.method2', 'ctx2')),
+        ('prefix2.method1', Method(test_method, 'prefix2.method1', 'ctx1')),
+    ]
+
+
 async def test_method_registry_view():
+    registry = dispatcher.MethodRegistry()
+    validator = validators.BaseValidator()
+    validator_args = {'arg': 'value'}
+
+    class MethodView(ViewMixin):
+        @validator.validate(**validator_args)
+        def method1(self):
+            pass
+
+        @validator.validate(**validator_args)
+        async def method2(self, param1):
+            assert param1 == 'param1'
+
+    registry.view(MethodView, prefix='view')
+
+    assert registry['view.method1'].validator == validator
+    assert registry['view.method1'].validator_args == validator_args
+    assert registry['view.method2'].validator == validator
+    assert registry['view.method2'].validator_args == validator_args
+
+
+async def test_method_view_validation():
     registry = dispatcher.MethodRegistry()
 
     context = object()
