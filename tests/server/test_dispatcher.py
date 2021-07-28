@@ -74,6 +74,27 @@ def test_method_registry_merge():
     assert registry1['method2'].method is method2
 
 
+def test_method_registry_merge_prefix():
+    registry1 = dispatcher.MethodRegistry(prefix='prefix1')
+    registry2 = dispatcher.MethodRegistry(prefix='prefix2')
+
+    def test_method():
+        pass
+
+    registry1.add(test_method, name='method1', context='ctx1')
+    registry2.add(test_method, name='method2', context='ctx2')
+
+    assert list(registry1.items()) == [('prefix1.method1', Method(test_method, 'prefix1.method1', 'ctx1'))]
+    assert list(registry2.items()) == [('prefix2.method2', Method(test_method, 'prefix2.method2', 'ctx2'))]
+
+    registry2.merge(registry1)
+
+    assert list(registry2.items()) == [
+        ('prefix2.method2', Method(test_method, 'prefix2.method2', 'ctx2')),
+        ('prefix2.method1', Method(test_method, 'prefix2.method1', 'ctx1')),
+    ]
+
+
 async def test_method_registry_view():
     registry = dispatcher.MethodRegistry()
 

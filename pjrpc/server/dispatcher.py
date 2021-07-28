@@ -4,7 +4,7 @@ import functools as ft
 import json
 import itertools as it
 import logging
-from typing import Any, Callable, Dict, List, Optional, Type, Iterator, Iterable, Union
+from typing import Any, Callable, Dict, ItemsView, List, Optional, Type, Iterator, Iterable, Union
 
 import pjrpc
 from pjrpc.common import v20, BatchRequest, BatchResponse, Request, Response, UNSET, UnsetType
@@ -44,6 +44,18 @@ class Method:
 
         return ft.partial(self.method, **method_params)
 
+    def copy(self, **kwargs) -> 'Method':
+        cls_kwargs = dict(name=self.name, context=self.context)
+        cls_kwargs.update(kwargs)
+
+        return Method(method=self.method, **cls_kwargs)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, Method):
+            return NotImplemented
+
+        return (self.method, self.name, self.context) == (other.method, other.name, other.context)
+
 
 class ViewMethod(Method):
     """
@@ -66,6 +78,9 @@ class ViewMethod(Method):
         method_params = self.validator.validate_method(method, params, **self.validator_args)
 
         return ft.partial(method, **method_params)
+
+    def copy(self, **kwargs) -> 'Method':
+        return super().copy(view_cls=self.view_cls, method_name=self.method_name, **kwargs)
 
 
 class ViewMixin:
@@ -109,6 +124,9 @@ class MethodRegistry:
         """
 
         return self._registry[item]
+
+    def items(self) -> ItemsView[str, Method]:
+        return self._registry.items()
 
     def get(self, item: str) -> Optional[Method]:
         """
@@ -190,8 +208,13 @@ class MethodRegistry:
         :param other: registry to be merged in the current one
         """
 
-        for name in other:
-            self._add_method(name, other[name])
+        for name, method in other.items():
+            if other._prefix:
+                name = utils.remove_prefix(name, f'{other._prefix}.')
+            if self._prefix:
+                name = f'{self._prefix}.{name}'
+
+            self._add_method(name, method.copy(name=name))
 
     def _add_method(self, name: str, method: Method) -> None:
         if name in self._registry:
