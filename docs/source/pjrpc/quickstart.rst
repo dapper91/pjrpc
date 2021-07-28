@@ -7,7 +7,7 @@ Quick start
 Client requests
 _______________
 
-The way of using ``pjrpc`` clients is very simple and intuitive. Methods may be called by name, using proxy object
+``pjrpc`` client interface is very simple and intuitive. Methods may be called by name, using proxy object
 or by sending handmade :py:class:`pjrpc.common.Request` class object. Notification requests can be made using
 :py:meth:`pjrpc.client.AbstractClient.notify` method or by sending a :py:class:`pjrpc.common.Request` object without id.
 
