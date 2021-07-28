@@ -42,4 +42,4 @@ class JSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-Json = Union['Json', str, int, float, dict, bool, list, tuple, set, None]
+Json = Union[str, int, float, dict, bool, list, tuple, set, None]
