@@ -1,6 +1,14 @@
 Changelog
 =========
 
+1.2.2 (2021-07-28)
+------------------
+
+- pydantic validation schema bug fixed
+- method registry merge bug fixed
+- method view validation bug fixed
+- method metadata format changed
+
 
 1.2.1 (2021-03-02)
 ------------------
