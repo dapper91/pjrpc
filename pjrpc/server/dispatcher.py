@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Type, Iterator, Iterable
 
 import pjrpc
 from pjrpc.common import v20, BatchRequest, BatchResponse, Request, Response, UNSET, UnsetType
+from pjrpc.server import utils
 from . import validators
 
 logger = logging.getLogger(__package__)
@@ -28,7 +29,10 @@ class Method:
         self.method = method
         self.name = name or getattr(method, 'name', method.__name__)
         self.context = context
-        self.validator, self.validator_args = getattr(method, '__pjrpc_meta__', (default_validator, {}))
+
+        meta = utils.get_meta(method)
+
+        self.validator, self.validator_args = meta.get('validator', default_validator), meta.get('validator_args', {})
 
     def bind(self, params: Optional[Union[list, dict]], context: Optional[Any] = None) -> Callable:
         method_params = self.validator.validate_method(
