@@ -27,7 +27,7 @@ class Method:
 
     def __init__(self, method: Callable, name: Optional[str] = None, context: Optional[Any] = None):
         self.method = method
-        self.name = name or getattr(method, 'name', method.__name__)
+        self.name = name or method.__name__
         self.context = context
 
         meta = utils.get_meta(method)
@@ -66,14 +66,21 @@ class ViewMethod(Method):
     :param context: context name
     """
 
-    def __init__(self, view_cls: Type['ViewMixin'], name: str, context: Optional[Any] = None):
-        super().__init__(view_cls, name, context)
+    def __init__(
+        self,
+        view_cls: Type['ViewMixin'],
+        method_name: str,
+        name: Optional[str] = None,
+        context: Optional[Any] = None,
+    ):
+        super().__init__(getattr(view_cls, method_name), name or method_name, context)
 
         self.view_cls = view_cls
+        self.method_name = method_name
 
     def bind(self, params: Optional[Union[list, dict]], context: Optional[Any] = None) -> Callable:
         view = self.view_cls(context) if self.context else self.view_cls()
-        method = getattr(view, self.name)
+        method = getattr(view, self.method_name)
 
         method_params = self.validator.validate_method(method, params, **self.validator_args)
 
@@ -85,7 +92,7 @@ class ViewMethod(Method):
 
 class ViewMixin:
     """
-    Class based method handler mixin.
+    Simple class based method handler mixin. Exposes all public methods.
     """
 
     @classmethod
@@ -151,7 +158,7 @@ class MethodRegistry:
         """
 
         def decorator(method: Callable) -> Callable:
-            full_name = '.'.join(filter(None, (self._prefix, name or getattr(method, 'name', method.__name__))))
+            full_name = '.'.join(filter(None, (self._prefix, name or method.__name__)))
             self.add_methods(Method(method, full_name, context))
 
             return method
@@ -171,7 +178,7 @@ class MethodRegistry:
 
         for method in methods:
             if isinstance(method, Method):
-                self._add_method(method.name, method)
+                self._add_method(method)
             else:
                 self.add(method)
 
@@ -190,7 +197,7 @@ class MethodRegistry:
         def decorator(view: Type[ViewMixin]) -> Type[ViewMixin]:
             for method in view.__methods__():
                 full_name = '.'.join(filter(None, (self._prefix, prefix, method.__name__)))
-                self._add_method(full_name, ViewMethod(view, method.__name__, context))
+                self._add_method(ViewMethod(view, method.__name__, full_name, context))
 
             return view
 
@@ -214,13 +221,13 @@ class MethodRegistry:
             if self._prefix:
                 name = f'{self._prefix}.{name}'
 
-            self._add_method(name, method.copy(name=name))
+            self._add_method(method.copy(name=name))
 
-    def _add_method(self, name: str, method: Method) -> None:
-        if name in self._registry:
-            logger.warning(f"method '{name}' already registered")
+    def _add_method(self, method: Method) -> None:
+        if method.name in self._registry:
+            logger.warning(f"method '{method.name}' already registered")
 
-        self._registry[name] = method
+        self._registry[method.name] = method
 
 
 class JSONEncoder(pjrpc.JSONEncoder):

@@ -1,5 +1,5 @@
 import json
-from pjrpc.server import dispatcher, Method, ViewMixin
+from pjrpc.server import dispatcher, validators, Method, ViewMixin
 
 from tests.common import _
 
@@ -96,6 +96,28 @@ def test_method_registry_merge_prefix():
 
 
 async def test_method_registry_view():
+    registry = dispatcher.MethodRegistry()
+    validator = validators.BaseValidator()
+    validator_args = {'arg': 'value'}
+
+    class MethodView(ViewMixin):
+        @validator.validate(**validator_args)
+        def method1(self):
+            pass
+
+        @validator.validate(**validator_args)
+        async def method2(self, param1):
+            assert param1 == 'param1'
+
+    registry.view(MethodView, prefix='view')
+
+    assert registry['view.method1'].validator == validator
+    assert registry['view.method1'].validator_args == validator_args
+    assert registry['view.method2'].validator == validator
+    assert registry['view.method2'].validator_args == validator_args
+
+
+async def test_method_view_validation():
     registry = dispatcher.MethodRegistry()
 
     context = object()
