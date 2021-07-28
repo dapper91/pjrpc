@@ -4,10 +4,11 @@ import functools as ft
 import json
 import itertools as it
 import logging
-from typing import Any, Callable, Dict, List, Optional, Type, Iterator, Iterable, Union
+from typing import Any, Callable, Dict, ItemsView, List, Optional, Type, Iterator, Iterable, Union
 
 import pjrpc
 from pjrpc.common import v20, BatchRequest, BatchResponse, Request, Response, UNSET, UnsetType
+from pjrpc.server import utils
 from . import validators
 
 logger = logging.getLogger(__package__)
@@ -26,9 +27,12 @@ class Method:
 
     def __init__(self, method: Callable, name: Optional[str] = None, context: Optional[Any] = None):
         self.method = method
-        self.name = name or getattr(method, 'name', method.__name__)
+        self.name = name or method.__name__
         self.context = context
-        self.validator, self.validator_args = getattr(method, '__pjrpc_meta__', (default_validator, {}))
+
+        meta = utils.get_meta(method)
+
+        self.validator, self.validator_args = meta.get('validator', default_validator), meta.get('validator_args', {})
 
     def bind(self, params: Optional[Union[list, dict]], context: Optional[Any] = None) -> Callable:
         method_params = self.validator.validate_method(
@@ -40,6 +44,18 @@ class Method:
 
         return ft.partial(self.method, **method_params)
 
+    def copy(self, **kwargs) -> 'Method':
+        cls_kwargs = dict(name=self.name, context=self.context)
+        cls_kwargs.update(kwargs)
+
+        return Method(method=self.method, **cls_kwargs)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, Method):
+            return NotImplemented
+
+        return (self.method, self.name, self.context) == (other.method, other.name, other.context)
+
 
 class ViewMethod(Method):
     """
@@ -50,23 +66,33 @@ class ViewMethod(Method):
     :param context: context name
     """
 
-    def __init__(self, view_cls: Type['ViewMixin'], name: str, context: Optional[Any] = None):
-        super().__init__(view_cls, name, context)
+    def __init__(
+        self,
+        view_cls: Type['ViewMixin'],
+        method_name: str,
+        name: Optional[str] = None,
+        context: Optional[Any] = None,
+    ):
+        super().__init__(getattr(view_cls, method_name), name or method_name, context)
 
         self.view_cls = view_cls
+        self.method_name = method_name
 
     def bind(self, params: Optional[Union[list, dict]], context: Optional[Any] = None) -> Callable:
         view = self.view_cls(context) if self.context else self.view_cls()
-        method = getattr(view, self.name)
+        method = getattr(view, self.method_name)
 
         method_params = self.validator.validate_method(method, params, **self.validator_args)
 
         return ft.partial(method, **method_params)
 
+    def copy(self, **kwargs) -> 'Method':
+        return super().copy(view_cls=self.view_cls, method_name=self.method_name, **kwargs)
+
 
 class ViewMixin:
     """
-    Class based method handler mixin.
+    Simple class based method handler mixin. Exposes all public methods.
     """
 
     @classmethod
@@ -106,6 +132,9 @@ class MethodRegistry:
 
         return self._registry[item]
 
+    def items(self) -> ItemsView[str, Method]:
+        return self._registry.items()
+
     def get(self, item: str) -> Optional[Method]:
         """
         Returns a method from the registry by name.
@@ -129,7 +158,7 @@ class MethodRegistry:
         """
 
         def decorator(method: Callable) -> Callable:
-            full_name = '.'.join(filter(None, (self._prefix, name or getattr(method, 'name', method.__name__))))
+            full_name = '.'.join(filter(None, (self._prefix, name or method.__name__)))
             self.add_methods(Method(method, full_name, context))
 
             return method
@@ -149,7 +178,7 @@ class MethodRegistry:
 
         for method in methods:
             if isinstance(method, Method):
-                self._add_method(method.name, method)
+                self._add_method(method)
             else:
                 self.add(method)
 
@@ -168,7 +197,7 @@ class MethodRegistry:
         def decorator(view: Type[ViewMixin]) -> Type[ViewMixin]:
             for method in view.__methods__():
                 full_name = '.'.join(filter(None, (self._prefix, prefix, method.__name__)))
-                self._add_method(full_name, ViewMethod(view, method.__name__, context))
+                self._add_method(ViewMethod(view, method.__name__, full_name, context))
 
             return view
 
@@ -186,14 +215,19 @@ class MethodRegistry:
         :param other: registry to be merged in the current one
         """
 
-        for name in other:
-            self._add_method(name, other[name])
+        for name, method in other.items():
+            if other._prefix:
+                name = utils.remove_prefix(name, f'{other._prefix}.')
+            if self._prefix:
+                name = f'{self._prefix}.{name}'
 
-    def _add_method(self, name: str, method: Method) -> None:
-        if name in self._registry:
-            logger.warning(f"method '{name}' already registered")
+            self._add_method(method.copy(name=name))
 
-        self._registry[name] = method
+    def _add_method(self, method: Method) -> None:
+        if method.name in self._registry:
+            logger.warning(f"method '{method.name}' already registered")
+
+        self._registry[method.name] = method
 
 
 class JSONEncoder(pjrpc.JSONEncoder):

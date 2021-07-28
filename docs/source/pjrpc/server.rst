@@ -44,7 +44,11 @@ registry and run the server:
 Class-based view
 ----------------
 
-``pjrpc`` has a support of class-based method handlers:
+``pjrpc`` has a support of class-based method handlers.
+
+Class-based method view can be added to the registry using :py:meth:`pjrpc.server.MethodRegistry.view` decorator.
+Class should implement `__method__` method returning a list of methods to be exposed or inherit
+it from :py:class:`pjrpc.server.ViewMixin` which exposes all public ones.
 
 
 .. code-block:: python

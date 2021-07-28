@@ -27,6 +27,7 @@ Features:
 - intuitive api
 - extendability
 - synchronous and asynchronous client backed
+- synchronous and asynchronous server support
 - popular frameworks integration
 - builtin parameter validation
 - pytest integration
@@ -66,7 +67,7 @@ Quickstart
 Client requests
 _______________
 
-The way of using ``pjrpc`` clients is very simple and intuitive. Methods may be called by name, using proxy object
+``pjrpc`` client interface is very simple and intuitive. Methods may be called by name, using proxy object
 or by sending handmade ``pjrpc.common.Request`` class object. Notification requests can be made using
 ``pjrpc.client.AbstractClient.notify`` method or by sending a ``pjrpc.common.Request`` object without id.
 

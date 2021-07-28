@@ -2,6 +2,8 @@ import functools as ft
 import inspect
 from typing import Any, Callable, Dict, Iterable, Optional, Union
 
+from pjrpc.server import utils
+
 
 class ValidationError(Exception):
     """
@@ -23,8 +25,7 @@ class BaseValidator:
         """
 
         def decorator(method: Callable) -> Callable:
-            method.__pjrpc_meta__ = (self, kwargs)
-
+            utils.set_meta(method, validator=self, validator_args=kwargs)
             return method
 
         # maybe_method's type depends on the usage of the decorator.  It's a function
