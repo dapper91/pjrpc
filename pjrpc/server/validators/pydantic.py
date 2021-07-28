@@ -76,7 +76,7 @@ class PydanticValidator(base.BaseValidator):
             else:
                 field_definitions[param.name] = (
                     param.annotation if param.annotation is not inspect.Parameter.empty else ...,
-                    param.default if param.default is not inspect.Parameter.empty else None,
+                    param.default if param.default is not inspect.Parameter.empty else ...,
                 )
 
         return field_definitions
