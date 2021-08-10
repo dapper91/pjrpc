@@ -91,7 +91,7 @@ def test_method_registry_merge_prefix():
 
     assert list(registry2.items()) == [
         ('prefix2.method2', Method(test_method, 'prefix2.method2', 'ctx2')),
-        ('prefix2.method1', Method(test_method, 'prefix2.method1', 'ctx1')),
+        ('prefix2.prefix1.method1', Method(test_method, 'prefix2.prefix1.method1', 'ctx1')),
     ]
 
 
