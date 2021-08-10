@@ -80,7 +80,7 @@ intersphinx_mapping = {
 }
 
 autodoc_mock_imports = ['attrs']
-autodoc_typehints = 'none'
+autodoc_typehints = 'description'
 autodoc_member_order = 'bysource'
 
 
