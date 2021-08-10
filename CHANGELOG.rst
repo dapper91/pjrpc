@@ -1,6 +1,13 @@
 Changelog
 =========
 
+1.2.3 (2021-08-10)
+------------------
+
+- pydantic schema generation bug fixed
+- method registry merge implementation changed
+
+
 1.2.2 (2021-07-28)
 ------------------
 
