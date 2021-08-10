@@ -10,8 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
+import enum
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('..'))
 
 import pjrpc  # noqa
@@ -66,6 +68,8 @@ html_theme = 'alabaster'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+html_css_files = ['css/custom.css']
+
 # The master toctree document.
 master_doc = 'index'
 
@@ -76,5 +80,16 @@ intersphinx_mapping = {
 }
 
 autodoc_mock_imports = ['attrs']
-autodoc_typehints = 'none'
+autodoc_typehints = 'description'
 autodoc_member_order = 'bysource'
+
+
+def maybe_skip_member(app, what, name, obj, skip, options):
+    if isinstance(obj, enum.Enum):
+        return False
+
+    return None
+
+
+def setup(app):
+    app.connect('autodoc-skip-member', maybe_skip_member)
