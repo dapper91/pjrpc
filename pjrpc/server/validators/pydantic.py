@@ -65,17 +65,17 @@ class PydanticValidator(base.BaseValidator):
         for param in signature.parameters.values():
             if param.kind is inspect.Parameter.VAR_KEYWORD:
                 field_definitions[param.name] = (
-                    Optional[Dict[str, param.annotation]] if param.annotation is not inspect.Parameter.empty else ...,
+                    Optional[Dict[str, param.annotation]] if param.annotation is not inspect.Parameter.empty else Any,
                     param.default if param.default is not inspect.Parameter.empty else None,
                 )
             elif param.kind is inspect.Parameter.VAR_POSITIONAL:
                 field_definitions[param.name] = (
-                    Optional[List[param.annotation]] if param.annotation is not inspect.Parameter.empty else ...,
+                    Optional[List[param.annotation]] if param.annotation is not inspect.Parameter.empty else Any,
                     param.default if param.default is not inspect.Parameter.empty else None,
                 )
             else:
                 field_definitions[param.name] = (
-                    param.annotation if param.annotation is not inspect.Parameter.empty else ...,
+                    param.annotation if param.annotation is not inspect.Parameter.empty else Any,
                     param.default if param.default is not inspect.Parameter.empty else ...,
                 )
 

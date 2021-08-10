@@ -216,8 +216,6 @@ class MethodRegistry:
         """
 
         for name, method in other.items():
-            if other._prefix:
-                name = utils.remove_prefix(name, f'{other._prefix}.')
             if self._prefix:
                 name = f'{self._prefix}.{name}'
 
@@ -254,6 +252,8 @@ class Dispatcher:
     :param json_dumper: response json dumper
     :param json_encoder: response json encoder
     :param json_decoder: request json decoder
+    :param middlewares: request middlewares
+    :param error_handlers: request error handlers
     """
 
     def __init__(

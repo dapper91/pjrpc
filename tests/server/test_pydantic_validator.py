@@ -16,6 +16,8 @@ from pjrpc.server.validators import ValidationError
         ('param1: int = 1', {}),
         ('param1: int, param2: int = 2', {'param1': 1}),
         ('param1: int, *, param2: int = 2', {'param1': 1}),
+        ('param1, param2: int', [1, 2]),
+        ('param1, param2: int', ['param1', 2]),
     ], indirect=['dyn_method'],
 )
 def test_validation_success(dyn_method, params):
