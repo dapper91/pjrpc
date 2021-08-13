@@ -19,6 +19,12 @@ class UnsetType:
     def __str__(self) -> str:
         return repr(self)
 
+    def __copy__(self) -> 'UnsetType':
+        return self
+
+    def __deepcopy__(self, memo: dict) -> 'UnsetType':
+        return self
+
 
 UNSET = UnsetType()
 
