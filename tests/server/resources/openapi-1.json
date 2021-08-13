@@ -1,0 +1,815 @@
+{
+    "info": {
+        "title": "Test tittle",
+        "version": "1.0.0",
+        "description": "test api",
+        "contact": {
+            "name": "owner",
+            "email": "test@gmal.com"
+        },
+        "license": {
+            "name": "MIT"
+        }
+    },
+    "paths": {
+        "/test/path#method1": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "description": "JSON-RPC Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "result": {
+                                                    "title": "Result",
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "id",
+                                                "result"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "integer"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "data": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "examples": {
+                                    "example 1 summary": {
+                                        "value": {
+                                            "jsonrpc": "2.0",
+                                            "id": 1,
+                                            "result": 1
+                                        },
+                                        "summary": "example 1 summary",
+                                        "description": "example 1 description"
+                                    },
+                                    "test error": {
+                                        "value": {
+                                            "jsonrpc": "2.0",
+                                            "id": 1,
+                                            "error": {
+                                                "code": 2002,
+                                                "message": "test error"
+                                            }
+                                        },
+                                        "summary": "test error"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "jsonrpc": {
+                                        "type": "string",
+                                        "enum": [
+                                            "1.0",
+                                            "2.0"
+                                        ]
+                                    },
+                                    "id": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ]
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "properties": {
+                                            "param1": {
+                                                "title": "Param1",
+                                                "type": "integer"
+                                            },
+                                            "param2": {
+                                                "title": "Model",
+                                                "type": "object",
+                                                "properties": {
+                                                    "field1": {
+                                                        "title": "Field1",
+                                                        "type": "string"
+                                                    },
+                                                    "field2": {
+                                                        "title": "Field2",
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "field1",
+                                                    "field2"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "param1",
+                                            "param2"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "jsonrpc"
+                                ]
+                            },
+                            "examples": {
+                                "example 1 summary": {
+                                    "value": {
+                                        "jsonrpc": "2.0",
+                                        "id": 1,
+                                        "method": "method1",
+                                        "params": {
+                                            "param1": 1,
+                                            "param2": {
+                                                "field1": "field",
+                                                "field2": 2
+                                            }
+                                        }
+                                    },
+                                    "summary": "example 1 summary",
+                                    "description": "example 1 description"
+                                }
+                            }
+                        }
+                    },
+                    "required": true,
+                    "description": "JSON-RPC Request"
+                },
+                "tags": [
+                    "tag1",
+                    "tag2"
+                ],
+                "summary": "method1 summary",
+                "description": "method1 description",
+                "externalDocs": {
+                    "url": "method1 doc"
+                },
+                "deprecated": true,
+                "security": [
+                    {
+                        "basicAuth": []
+                    }
+                ]
+            }
+        },
+        "/test/path#method2": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "description": "JSON-RPC Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "result": {
+                                                    "title": "Model",
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "field1": {
+                                                            "title": "Field1",
+                                                            "type": "string"
+                                                        },
+                                                        "field2": {
+                                                            "title": "Field2",
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "field1",
+                                                        "field2"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "id",
+                                                "result"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "integer"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "data": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "jsonrpc": {
+                                        "type": "string",
+                                        "enum": [
+                                            "1.0",
+                                            "2.0"
+                                        ]
+                                    },
+                                    "id": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ]
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "properties": {
+                                            "param1": {
+                                                "title": "Param1",
+                                                "type": "integer"
+                                            },
+                                            "param2": {
+                                                "title": "Param2"
+                                            }
+                                        },
+                                        "required": [
+                                            "param1",
+                                            "param2"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "jsonrpc"
+                                ]
+                            }
+                        }
+                    },
+                    "required": true,
+                    "description": "JSON-RPC Request"
+                },
+                "tags": []
+            }
+        },
+        "/test/path#method3": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "description": "JSON-RPC Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "result": {
+                                                    "title": "Result",
+                                                    "type": "string",
+                                                    "nullable": "true"
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "id",
+                                                "result"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "integer"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "data": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "jsonrpc": {
+                                        "type": "string",
+                                        "enum": [
+                                            "1.0",
+                                            "2.0"
+                                        ]
+                                    },
+                                    "id": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ]
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "properties": {
+                                            "param1": {
+                                                "title": "Param1",
+                                                "type": "number"
+                                            }
+                                        },
+                                        "required": []
+                                    }
+                                },
+                                "required": [
+                                    "jsonrpc"
+                                ]
+                            }
+                        }
+                    },
+                    "required": true,
+                    "description": "JSON-RPC Request"
+                },
+                "tags": []
+            }
+        },
+        "/test/path#method4": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "description": "JSON-RPC Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "result": {
+                                                    "title": "Result",
+                                                    "type": "null"
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "id",
+                                                "result"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "integer"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "data": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "jsonrpc": {
+                                        "type": "string",
+                                        "enum": [
+                                            "1.0",
+                                            "2.0"
+                                        ]
+                                    },
+                                    "id": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ]
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "properties": {
+                                            "param1": {
+                                                "title": "Param1",
+                                                "default": 1,
+                                                "type": "integer"
+                                            }
+                                        },
+                                        "required": []
+                                    }
+                                },
+                                "required": [
+                                    "jsonrpc"
+                                ]
+                            }
+                        }
+                    },
+                    "required": true,
+                    "description": "JSON-RPC Request"
+                },
+                "tags": []
+            }
+        },
+        "/test/path#method5": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "description": "JSON-RPC Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "result": {}
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "id",
+                                                "result"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "integer"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "data": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "jsonrpc": {
+                                        "type": "string",
+                                        "enum": [
+                                            "1.0",
+                                            "2.0"
+                                        ]
+                                    },
+                                    "id": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ]
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "properties": {
+                                            "param1": {}
+                                        },
+                                        "required": []
+                                    }
+                                },
+                                "required": [
+                                    "jsonrpc"
+                                ]
+                            }
+                        }
+                    },
+                    "required": true,
+                    "description": "JSON-RPC Request"
+                },
+                "tags": []
+            }
+        }
+    },
+    "servers": [
+        {
+            "url": "http://test-server",
+            "description": "test server"
+        }
+    ],
+    "externalDocs": {
+        "url": "external-doc.com"
+    },
+    "tags": [
+        {
+            "name": "test-tag"
+        }
+    ],
+    "security": [
+        {
+            "basicAuth": []
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "basicAuth": {
+                "type": "http",
+                "scheme": "basic"
+            }
+        }
+    },
+    "openapi": "3.0.0"
+}

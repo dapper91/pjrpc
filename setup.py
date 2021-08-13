@@ -14,6 +14,7 @@ test_requirements = [
     'pytest-aiohttp~=0.0',
     'pytest-mock~=1.0',
     'responses~=0.0',
+    'openapi-ui-bundles~=0.0',
 ]
 
 with open('README.rst', 'r') as file:

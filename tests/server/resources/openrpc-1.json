@@ -1,0 +1,157 @@
+{
+    "info": {
+        "title": "Test tittle",
+        "version": "1.0.0",
+        "description": "test api",
+        "contact": {
+            "name": "owner",
+            "email": "test@gmal.com"
+        },
+        "license": {
+            "name": "MIT"
+        }
+    },
+    "methods": [
+        {
+            "name": "method1",
+            "params": [
+                {
+                    "name": "param1",
+                    "schema": {
+                        "type": "int"
+                    },
+                    "summary": "param1",
+                    "description": "param1",
+                    "required": true
+                },
+                {
+                    "name": "param2",
+                    "schema": {
+                        "type": "dict"
+                    },
+                    "summary": "param2",
+                    "description": "param2",
+                    "required": true
+                }
+            ],
+            "result": {
+                "name": "result",
+                "schema": {
+                    "type": "int"
+                },
+                "summary": "result",
+                "description": "result",
+                "required": true
+            },
+            "errors": [
+                {
+                    "code": 2001,
+                    "message": "test error"
+                },
+                {
+                    "code": 2002,
+                    "message": "test error"
+                }
+            ],
+            "examples": [
+                {
+                    "params": [
+                        {
+                            "value": 1,
+                            "name": "param1",
+                            "description": "param1 description"
+                        },
+                        {
+                            "value": {
+                                "field1": "field",
+                                "field2": 2
+                            },
+                            "name": "param2",
+                            "description": "param2 description"
+                        }
+                    ],
+                    "result": {
+                        "value": 1,
+                        "name": "result",
+                        "description": "result description"
+                    },
+                    "summary": "example 1 summary",
+                    "description": "example 1 description"
+                }
+            ],
+            "summary": "method1 summary",
+            "description": "method1 description",
+            "tags": [
+                {
+                    "name": "tag1"
+                },
+                {
+                    "name": "tag2"
+                }
+            ],
+            "deprecated": true
+        },
+        {
+            "name": "method2",
+            "params": [
+                {
+                    "name": "param1",
+                    "schema": {
+                        "type": null
+                    },
+                    "summary": "param1",
+                    "description": "param1",
+                    "required": true
+                },
+                {
+                    "name": "param2",
+                    "schema": {
+                        "type": null
+                    },
+                    "summary": "param2",
+                    "description": "param2",
+                    "required": true
+                }
+            ],
+            "result": {
+                "name": "result",
+                "schema": {
+                    "type": "dict"
+                },
+                "summary": "result",
+                "description": "result",
+                "required": true
+            },
+            "summary": "Method2.",
+            "description": null,
+            "deprecated": false
+        },
+        {
+            "name": "method3",
+            "params": [
+                {
+                    "name": "param1",
+                    "schema": {},
+                    "summary": "param1 summary",
+                    "description": "param1 description"
+                }
+            ],
+            "result": {
+                "name": "result",
+                "schema": {}
+            }
+        }
+    ],
+    "servers": [
+        {
+            "name": "test server",
+            "url": "http://test-server",
+            "summary": "test server summary",
+            "description": "test server description"
+        }
+    ],
+    "externalDocs": {
+        "url": "external-doc.com"
+    },
+    "openrpc": "1.0.0"
+}
