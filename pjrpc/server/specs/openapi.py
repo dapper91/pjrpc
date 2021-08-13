@@ -9,6 +9,9 @@ except ImportError:
 
 import copy
 import enum
+import functools as ft
+import pathlib
+import re
 from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
 
 from pjrpc.common import exceptions
@@ -646,4 +649,126 @@ class OpenAPI(Specification):
             dict_factory=lambda iterable: dict(
                 filter(lambda item: item[1] is not UNSET, iterable),
             ),
+        )
+
+
+class SwaggerUI(BaseUI):
+    """
+    Swagger UI.
+
+    :param config: documentation configurations
+                   (see https://github.com/swagger-api/swagger-ui/blob/master/docs/usage/configuration.md).
+    """
+
+    def __init__(self, **configs):
+        try:
+            import openapi_ui_bundles
+        except ImportError:
+            raise RuntimeError(
+                "openapi-ui-bundles package not found. "
+                "Please install pjrpc with extra requirement: pip install pjrpc[openapi-ui-bundles]",
+            )
+
+        self._bundle = openapi_ui_bundles
+        self._configs = configs
+
+    def get_static_folder(self) -> str:
+        return self._bundle.swagger_ui.static_path
+
+    @ft.lru_cache(maxsize=10)
+    def get_index_page(self, spec_url: str) -> str:
+        index_path = pathlib.Path(self.get_static_folder()) / 'index.html'
+        index_page = index_path.read_text()
+
+        config = dict(self._configs, **{'url': spec_url, 'dom_id': '#swagger-ui'})
+        config_str = ', '.join(f'{param}: "{value}"' for param, value in config.items())
+
+        return re.sub(
+            pattern=r'SwaggerUIBundle\({.*?}\)',
+            repl=f'SwaggerUIBundle({{ {config_str} }})',
+            string=index_page,
+            count=1,
+            flags=re.DOTALL,
+        )
+
+
+class RapiDoc(BaseUI):
+    """
+    RapiDoc UI.
+
+    :param config: documentation configurations (see https://mrin9.github.io/RapiDoc/api.html).
+                   Be aware that configuration parameters should be in snake case,
+                   for example: parameter `heading-text` should be passed as `heading_text`)
+    """
+
+    def __init__(self, **configs):
+        try:
+            import openapi_ui_bundles.rapidoc
+        except ImportError:
+            raise RuntimeError(
+                "openapi-ui-bundles package not found. "
+                "Please install pjrpc with extra requirement: pip install pjrpc[openapi-ui-bundles]",
+            )
+
+        self._bundle = openapi_ui_bundles.rapidoc
+        self._configs = configs
+
+    def get_static_folder(self) -> str:
+        return self._bundle.static_path
+
+    @ft.lru_cache(maxsize=10)
+    def get_index_page(self, spec_url: str) -> str:
+        index_path = pathlib.Path(self.get_static_folder()) / 'index.html'
+        index_page = index_path.read_text()
+
+        config = dict(self._configs, **{'spec_url': spec_url, 'id': 'thedoc'})
+        config_str = ' '.join(f'{param.replace("_", "-")}="{value}"' for param, value in config.items())
+
+        return re.sub(
+            pattern='<rapi-doc.*?>',
+            repl=f'<rapi-doc {config_str}>',
+            string=index_page,
+            count=1,
+            flags=re.DOTALL,
+        )
+
+
+class ReDoc(BaseUI):
+    """
+    ReDoc UI.
+
+    :param config: documentation configurations (see https://github.com/Redocly/redoc#configuration).
+                   Be aware that configuration parameters should be in snake case,
+                   for example: parameter `heading-text` should be passed as `heading_text`)
+    """
+
+    def __init__(self, **configs):
+        try:
+            import openapi_ui_bundles.redoc
+        except ImportError:
+            raise RuntimeError(
+                "openapi-ui-bundles package not found. "
+                "Please install pjrpc with extra requirement: pip install pjrpc[openapi-ui-bundles]",
+            )
+
+        self._bundle = openapi_ui_bundles.redoc
+        self._configs = configs
+
+    def get_static_folder(self) -> str:
+        return self._bundle.static_path
+
+    @ft.lru_cache(maxsize=10)
+    def get_index_page(self, spec_url: str) -> str:
+        index_path = pathlib.Path(self.get_static_folder()) / 'index.html'
+        index_page = index_path.read_text()
+
+        config = dict(self._configs, **{'spec_url': spec_url})
+        config_str = ' '.join(f'{param.replace("_", "-")}="{value}"' for param, value in config.items())
+
+        return re.sub(
+            pattern='<redoc.*?>',
+            repl=f'<redoc {config_str}>',
+            string=index_page,
+            count=1,
+            flags=re.DOTALL,
         )
