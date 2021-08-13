@@ -184,3 +184,24 @@ werkzeug server
 
 .. literalinclude:: ../../../examples/werkzeug_server.py
     :language: python
+
+
+flask OpenAPI specification
+---------------------------
+
+.. literalinclude:: ../../../examples/openapi_flask.py
+    :language: python
+
+
+aiohttp OpenAPI specification
+-----------------------------
+
+.. literalinclude:: ../../../examples/openapi_aiohttp.py
+    :language: python
+
+
+flask OpenRPC specification
+---------------------------
+
+.. literalinclude:: ../../../examples/openrpc_flask.py
+    :language: python
