@@ -3,13 +3,13 @@
 Installation
 ============
 
-This part of the documentation covers the installation of :py:mod:`pjrpc` library.
+This part of the documentation covers the installation of ``pjrpc`` library.
 
 
 Installation using pip
 ------------------------
 
-To install :py:mod:`pjrpc`, run:
+To install ``pjrpc``, run:
 
 .. code-block:: console
 

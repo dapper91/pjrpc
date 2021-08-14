@@ -12,6 +12,8 @@ pydantic = "~=1.0"
 requests = "~=2.0"
 kombu = "~=5.0"
 httpx = "~=0.0"
+docstring-parser = "~=0.0"
+openapi-ui-bundles = "~=0.0"
 
 [dev-packages]
 aioresponses = "~=0.0"

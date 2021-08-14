@@ -121,3 +121,35 @@ ________
 
 .. automodule:: pjrpc.server.validators.pydantic
     :members:
+
+
+Specification
+~~~~~~~~~~~~~
+
+.. automodule:: pjrpc.server.specs
+    :members:
+
+extractors
+__________
+
+.. automodule:: pjrpc.server.specs.extractors
+    :members:
+
+
+.. automodule:: pjrpc.server.specs.extractors.pydantic
+    :members:
+
+
+.. automodule:: pjrpc.server.specs.extractors.docstring
+    :members:
+
+schemas
+_______
+
+
+.. automodule:: pjrpc.server.specs.openapi
+    :members:
+
+
+.. automodule:: pjrpc.server.specs.openrpc
+    :members:
