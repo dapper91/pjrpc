@@ -19,7 +19,7 @@ def test_openapi_schema_generator(resources):
             contact=specs.Contact(name='owner', email='test@gmal.com'),
             license=specs.License(name='MIT'),
         ),
-        external_docs=specs.ExternalDocumentation(url='external-doc.com'),
+        external_docs=specs.ExternalDocumentation(url='http://external-doc.com'),
         servers=[
             specs.Server(
                 url='http://test-server',
@@ -43,16 +43,16 @@ def test_openapi_schema_generator(resources):
 
     class Model(pydantic.BaseModel):
         field1: str
-        field2: int
+        field2: Optional[int] = 1
 
     class TestError(pjrpc.common.exceptions.JsonRpcError):
         code = 2001
-        message = 'test error'
+        message = 'test error 1'
 
     @specs.annotate(
         errors=[
             TestError,
-            specs.Error(code=2002, message='test error'),
+            specs.Error(code=2002, message='test error 2'),
         ],
         examples=[
             specs.MethodExample(
@@ -69,39 +69,42 @@ def test_openapi_schema_generator(resources):
         tags=['tag1', 'tag2'],
         summary='method1 summary',
         description='method1 description',
-        external_docs=specs.ExternalDocumentation(url='method1 doc'),
+        external_docs=specs.ExternalDocumentation(url='http://doc.info#method1'),
         deprecated=True,
         security=[
             dict(basicAuth=[]),
         ],
     )
-    def method1(ctx, param1: int, param2: Model) -> int:
+    def method1(ctx, param1: int, param2: Model, param3) -> int:
         pass
 
     def method2(param1: int, param2) -> Model:
         pass
 
-    def method3(param1: Optional[float] = None) -> Optional[str]:
-        pass
-
-    def method4(param1: int = 1) -> None:
+    def method3(param1: Optional[float] = None, param2: int = 1) -> Optional[str]:
         pass
 
     @specs.annotate(
         params_schema={
             'param1': specs.Schema(
-                schema={},
-                required=False,
+                schema={'type': 'number'},
                 summary='param1 summary',
                 description='param1 description',
-                deprecated=True,
             ),
         },
         result_schema=specs.Schema(
-            schema={},
+            schema={'type': 'number'},
+            summary='result summary',
+            description='result description',
         ),
     )
-    def method5(*args, **kwargs):
+    def method4(param1: int) -> int:
+        pass
+
+    def method5(*args, **kwargs) -> None:
+        pass
+
+    def method6():
         pass
 
     method1 = Method(method1, 'method1', 'ctx')
@@ -109,8 +112,9 @@ def test_openapi_schema_generator(resources):
     method3 = Method(method3, 'method3')
     method4 = Method(method4, 'method4')
     method5 = Method(method5, 'method5')
+    method6 = Method(method6, 'method6')
 
-    actual_schema = spec.schema('/test/path', methods=[method1, method2, method3, method4, method5])
+    actual_schema = spec.schema('/test/path', methods=[method1, method2, method3, method4, method5, method6])
 
     assert actual_schema == resources('openapi-1.json', loader=json.loads)
 
