@@ -87,7 +87,6 @@ REQUEST_SCHEMA = {
         'params': {
             'type': 'object',
             'properties': {},
-            'required': [],
         },
     },
     'required': ['jsonrpc'],
@@ -565,13 +564,16 @@ class OpenAPI(Specification):
                 tags=self._schema_extractor.extract_tags(method.method),
                 examples=self._schema_extractor.extract_examples(method.method),
             )
-            method_spec = dict(extracted_spec, **{k: v for k, v in annotated_spec.items() if v is not UNSET})
+            method_spec = extracted_spec.copy()
+            method_spec.update((k, v) for k, v in annotated_spec.items() if v is not UNSET)
 
             request_schema = copy.deepcopy(REQUEST_SCHEMA)
+
             for param_name, param_schema in method_spec['params_schema'].items():
                 request_schema['properties']['params']['properties'][param_name] = param_schema.schema
                 if param_schema.required:
-                    request_schema['properties']['params']['required'].append(param_name)
+                    required_params = request_schema['properties']['params'].setdefault('required', [])
+                    required_params.append(param_name)
 
             response_schema = copy.deepcopy(RESPONSE_SCHEMA)
             response_schema['oneOf'][0]['properties']['result'] = method_spec['result_schema'].schema
@@ -636,10 +638,10 @@ class OpenAPI(Specification):
                         ),
                     },
                     tags=[tag.name for tag in method_spec.get('tags') or []],
-                    summary=method_spec.get('summary', UNSET),
-                    description=method_spec.get('description', UNSET),
+                    summary=method_spec['summary'],
+                    description=method_spec['description'],
+                    deprecated=method_spec['deprecated'],
                     externalDocs=method_spec.get('external_docs', UNSET),
-                    deprecated=method_spec.get('deprecated', UNSET),
                     security=method_spec.get('security', UNSET),
                 ),
             )
