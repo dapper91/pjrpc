@@ -1,6 +1,14 @@
 Changelog
 =========
 
+1.3.0 (2021-08-13)
+------------------
+
+- openapi specification generation implemented
+- openrpc specification generation implemented
+- web ui support added (SwaggerUI, RapiDoc, ReDoc)
+
+
 1.2.3 (2021-08-10)
 ------------------
 

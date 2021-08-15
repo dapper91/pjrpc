@@ -4,7 +4,7 @@ import functools as ft
 import json
 import itertools as it
 import logging
-from typing import Any, Callable, Dict, ItemsView, List, Optional, Type, Iterator, Iterable, Union
+from typing import Any, Callable, Dict, ItemsView, KeysView, List, Optional, Type, Iterator, Iterable, Union, ValuesView
 
 import pjrpc
 from pjrpc.common import v20, BatchRequest, BatchResponse, Request, Response, UNSET, UnsetType
@@ -30,7 +30,7 @@ class Method:
         self.name = name or method.__name__
         self.context = context
 
-        meta = utils.get_meta(method)
+        meta = utils.set_meta(method, method_name=self.name, context_name=context)
 
         self.validator, self.validator_args = meta.get('validator', default_validator), meta.get('validator_args', {})
 
@@ -134,6 +134,12 @@ class MethodRegistry:
 
     def items(self) -> ItemsView[str, Method]:
         return self._registry.items()
+
+    def keys(self) -> KeysView[str]:
+        return self._registry.keys()
+
+    def values(self) -> ValuesView[Method]:
+        return self._registry.values()
 
     def get(self, item: str) -> Optional[Method]:
         """
@@ -282,6 +288,10 @@ class Dispatcher:
         self._error_handlers = error_handlers
 
         self._registry = MethodRegistry()
+
+    @property
+    def registry(self) -> MethodRegistry:
+        return self._registry
 
     def add(self, method: Callable, name: Optional[str] = None, context: Optional[Any] = None) -> None:
         """

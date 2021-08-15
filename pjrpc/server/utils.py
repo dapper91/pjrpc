@@ -35,3 +35,26 @@ def remove_prefix(s: str, prefix: str) -> str:
         return s[len(prefix):]
     else:
         return s
+
+
+def remove_suffix(s: str, suffix: str) -> str:
+    """
+    Removes a suffix from a string.
+
+    :param s: string to be processed
+    :param suffix: suffix to be removed
+    :return: processed string
+    """
+
+    if suffix and s.endswith(suffix):
+        return s[0:-len(suffix)]
+    else:
+        return s
+
+
+def join_path(*paths) -> str:
+    result = ''
+    for path in paths:
+        result = f'{result.rstrip("/")}/{path.lstrip("/")}'
+
+    return result

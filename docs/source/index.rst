@@ -35,6 +35,9 @@ Features:
 - :doc:`popular frameworks integration <pjrpc/server>` (aiohttp, flask, kombu, aio_pika)
 - :doc:`builtin parameter validation <pjrpc/validation>`
 - :doc:`pytest integration <pjrpc/testing>`
+- :doc:`openapi schema generation support <pjrpc/specification>`
+- :doc:`openrpc schema generation support <pjrpc/specification>`
+- :doc:`web ui support (SwaggerUI, RapiDoc, ReDoc) <pjrpc/webui>`
 
 
 Extra requirements
@@ -48,6 +51,7 @@ Extra requirements
 - `pydantic <https://pydantic-docs.helpmanual.io/>`_
 - `requests <https://requests.readthedocs.io>`_
 - `httpx <https://www.python-httpx.org/>`_
+- `openapi-ui-bundles <https://github.com/dapper91/python-openapi-ui-bundles>`_
 
 
 The User Guide
@@ -65,6 +69,8 @@ The User Guide
    pjrpc/extending
    pjrpc/testing
    pjrpc/tracing
+   pjrpc/specification
+   pjrpc/webui
    pjrpc/examples
 
 
