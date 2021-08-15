@@ -18,43 +18,44 @@
                 {
                     "name": "param1",
                     "schema": {
-                        "type": "int"
+                        "type": "integer"
                     },
-                    "summary": "param1",
-                    "description": "param1",
+                    "summary": "param1 summary",
+                    "description": "param1 summary.\ndescription.",
                     "required": true
                 },
                 {
                     "name": "param2",
                     "schema": {
-                        "type": "dict"
+                        "type": "object"
                     },
-                    "summary": "param2",
-                    "description": "param2",
+                    "summary": "param2 summary",
+                    "description": "param2 summary.\ndescription.",
                     "required": true
                 }
             ],
             "result": {
                 "name": "result",
                 "schema": {
-                    "type": "int"
+                    "type": "integer"
                 },
-                "summary": "result",
-                "description": "result",
+                "summary": "result summary",
+                "description": "result summary.\ndescription.",
                 "required": true
             },
             "errors": [
                 {
                     "code": 2001,
-                    "message": "test error"
+                    "message": "test error 1"
                 },
                 {
                     "code": 2002,
-                    "message": "test error"
+                    "message": "test error 2"
                 }
             ],
             "examples": [
                 {
+                    "name": "Simple example",
                     "params": [
                         {
                             "value": 1,
@@ -97,33 +98,34 @@
                 {
                     "name": "param1",
                     "schema": {
-                        "type": null
+                        "type": "integer"
                     },
-                    "summary": "param1",
-                    "description": "param1",
-                    "required": true
+                    "summary": "param1 summary",
+                    "description": "param1 summary.",
+                    "required": false
                 },
                 {
                     "name": "param2",
                     "schema": {
-                        "type": null
+                        "type": "number"
                     },
-                    "summary": "param2",
-                    "description": "param2",
-                    "required": true
+                    "summary": "param2 summary",
+                    "description": "param2 summary.",
+                    "required": false
                 }
             ],
             "result": {
                 "name": "result",
                 "schema": {
-                    "type": "dict"
+                    "type": "string"
                 },
-                "summary": "result",
-                "description": "result",
+                "summary": "result summary",
+                "description": "result summary.",
                 "required": true
             },
+            "examples": [],
             "summary": "Method2.",
-            "description": null,
+            "description": "Description.",
             "deprecated": false
         },
         {
@@ -131,15 +133,42 @@
             "params": [
                 {
                     "name": "param1",
-                    "schema": {},
+                    "schema": {
+                        "type": "number"
+                    },
                     "summary": "param1 summary",
                     "description": "param1 description"
                 }
             ],
             "result": {
                 "name": "result",
-                "schema": {}
-            }
+                "schema": {
+                    "type": "number"
+                },
+                "summary": "result summary",
+                "description": "result description"
+            },
+            "examples": []
+        },
+        {
+            "name": "method4",
+            "params": [],
+            "result": {
+                "name": "result",
+                "schema": {},
+                "required": true
+            },
+            "examples": []
+        },
+        {
+            "name": "method5",
+            "params": [],
+            "result": {
+                "name": "result",
+                "schema": {},
+                "required": true
+            },
+            "examples": []
         }
     ],
     "servers": [
@@ -151,7 +180,7 @@
         }
     ],
     "externalDocs": {
-        "url": "external-doc.com"
+        "url": "http://external-doc.com"
     },
     "openrpc": "1.0.0"
 }
