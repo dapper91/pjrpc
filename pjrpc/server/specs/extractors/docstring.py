@@ -45,7 +45,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
         return result_schema
 
     def extract_errors_schema(self, method: Callable) -> Union[UnsetType, List[Error]]:
-        errors_schema = UNSET
+        errors_schema = []
 
         if method.__doc__:
             error_map = {
@@ -64,12 +64,12 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
                         ),
                     )
 
-        return errors_schema
+        return errors_schema or UNSET
 
     def extract_description(self, method: Callable) -> Union[UnsetType, str]:
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
-            description = doc.long_description
+            description = doc.long_description or UNSET
         else:
             description = UNSET
 
@@ -78,7 +78,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
     def extract_summary(self, method: Callable) -> Union[UnsetType, str]:
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
-            description = doc.short_description
+            description = doc.short_description or UNSET
         else:
             description = UNSET
 

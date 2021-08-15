@@ -145,9 +145,9 @@ class MethodExample:
     :param description: a verbose explanation of the example pairing
     """
 
+    name: str
     params: List[ExampleObject]
     result: ExampleObject
-    name: str = UNSET
     summary: str = UNSET
     description: str = UNSET
 
@@ -354,24 +354,40 @@ class OpenRPC(Specification):
                 description=self._schema_extractor.extract_description(method.method),
                 summary=self._schema_extractor.extract_summary(method.method),
                 tags=self._schema_extractor.extract_tags(method.method),
-                examples=self._schema_extractor.extract_examples(method.method),
+                examples=[
+                    MethodExample(
+                        name=example.summary,
+                        params=[
+                            ExampleObject(
+                                value=param_value,
+                                name=param_name,
+                            )
+                            for param_name, param_value in example.params.items()
+                        ],
+                        result=ExampleObject(
+                            name='result',
+                            value=example.result,
+                        ),
+                        summary=example.summary,
+                        description=example.description,
+                    )
+                    for example in self._schema_extractor.extract_examples(method.method) or []
+                ],
             )
-            method_spec = {
-                **{k: v for k, v in extracted_spec.items()},
-                **{k: v for k, v in annotated_spec.items() if v is not UNSET},
-            }
+            method_spec = extracted_spec.copy()
+            method_spec.update((k, v) for k, v in annotated_spec.items() if v is not UNSET)
 
             self.methods.append(
                 MethodInfo(
                     name=method_name,
                     params=method_spec['params_schema'],
                     result=method_spec['result_schema'],
-                    errors=method_spec.get('errors', UNSET),
-                    examples=method_spec.get('examples', UNSET),
-                    summary=method_spec.get('summary', UNSET),
-                    description=method_spec.get('description', UNSET),
-                    tags=method_spec.get('tags', UNSET),
-                    deprecated=method_spec.get('deprecated', UNSET),
+                    errors=method_spec['errors'],
+                    examples=method_spec['examples'],
+                    summary=method_spec['summary'],
+                    description=method_spec['description'],
+                    tags=method_spec['tags'],
+                    deprecated=method_spec['deprecated'],
                 ),
             )
 

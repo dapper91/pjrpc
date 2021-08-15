@@ -108,16 +108,27 @@
                                         "summary": "example 1 summary",
                                         "description": "example 1 description"
                                     },
-                                    "test error": {
+                                    "test error 1": {
+                                        "value": {
+                                            "jsonrpc": "2.0",
+                                            "id": 1,
+                                            "error": {
+                                                "code": 2001,
+                                                "message": "test error 1"
+                                            }
+                                        },
+                                        "summary": "test error 1"
+                                    },
+                                    "test error 2": {
                                         "value": {
                                             "jsonrpc": "2.0",
                                             "id": 1,
                                             "error": {
                                                 "code": 2002,
-                                                "message": "test error"
+                                                "message": "test error 2"
                                             }
                                         },
-                                        "summary": "test error"
+                                        "summary": "test error 2"
                                     }
                                 }
                             }
@@ -164,18 +175,22 @@
                                                     },
                                                     "field2": {
                                                         "title": "Field2",
+                                                        "default": 1,
                                                         "type": "integer"
                                                     }
                                                 },
                                                 "required": [
-                                                    "field1",
-                                                    "field2"
+                                                    "field1"
                                                 ]
+                                            },
+                                            "param3": {
+                                                "title": "Param3"
                                             }
                                         },
                                         "required": [
                                             "param1",
-                                            "param2"
+                                            "param2",
+                                            "param3"
                                         ]
                                     }
                                 },
@@ -213,7 +228,7 @@
                 "summary": "method1 summary",
                 "description": "method1 description",
                 "externalDocs": {
-                    "url": "method1 doc"
+                    "url": "http://doc.info#method1"
                 },
                 "deprecated": true,
                 "security": [
@@ -262,12 +277,12 @@
                                                         },
                                                         "field2": {
                                                             "title": "Field2",
+                                                            "default": 1,
                                                             "type": "integer"
                                                         }
                                                     },
                                                     "required": [
-                                                        "field1",
-                                                        "field2"
+                                                        "field1"
                                                     ]
                                                 }
                                             },
@@ -499,9 +514,13 @@
                                             "param1": {
                                                 "title": "Param1",
                                                 "type": "number"
+                                            },
+                                            "param2": {
+                                                "title": "Param2",
+                                                "default": 1,
+                                                "type": "integer"
                                             }
-                                        },
-                                        "required": []
+                                        }
                                     }
                                 },
                                 "required": [
@@ -517,6 +536,142 @@
             }
         },
         "/test/path#method4": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "description": "JSON-RPC Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "result": {
+                                                    "type": "number"
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "id",
+                                                "result"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "integer"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "data": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "error"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "jsonrpc": {
+                                        "type": "string",
+                                        "enum": [
+                                            "1.0",
+                                            "2.0"
+                                        ]
+                                    },
+                                    "id": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ]
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "properties": {
+                                            "param1": {
+                                                "type": "number"
+                                            }
+                                        },
+                                        "required": [
+                                            "param1"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "jsonrpc"
+                                ]
+                            }
+                        }
+                    },
+                    "required": true,
+                    "description": "JSON-RPC Request"
+                },
+                "tags": []
+            }
+        },
+        "/test/path#method5": {
             "post": {
                 "responses": {
                     "200": {
@@ -631,14 +786,7 @@
                                     },
                                     "params": {
                                         "type": "object",
-                                        "properties": {
-                                            "param1": {
-                                                "title": "Param1",
-                                                "default": 1,
-                                                "type": "integer"
-                                            }
-                                        },
-                                        "required": []
+                                        "properties": {}
                                     }
                                 },
                                 "required": [
@@ -653,7 +801,7 @@
                 "tags": []
             }
         },
-        "/test/path#method5": {
+        "/test/path#method6": {
             "post": {
                 "responses": {
                     "200": {
@@ -682,7 +830,10 @@
                                                         }
                                                     ]
                                                 },
-                                                "result": {}
+                                                "result": {
+                                                    "title": "Result",
+                                                    "nullable": "true"
+                                                }
                                             },
                                             "required": [
                                                 "jsonrpc",
@@ -765,10 +916,7 @@
                                     },
                                     "params": {
                                         "type": "object",
-                                        "properties": {
-                                            "param1": {}
-                                        },
-                                        "required": []
+                                        "properties": {}
                                     }
                                 },
                                 "required": [
@@ -791,7 +939,7 @@
         }
     ],
     "externalDocs": {
-        "url": "external-doc.com"
+        "url": "http://external-doc.com"
     },
     "tags": [
         {
