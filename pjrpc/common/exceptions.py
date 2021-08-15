@@ -69,7 +69,7 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
         :param json_data: json data the error to be deserialized from
 
         :returns: deserialized error
-        :raises: :py:class:`pjrpc.common.exception.DeserializationError` if format is incorrect
+        :raises: :py:class:`pjrpc.common.exceptions.DeserializationError` if format is incorrect
         """
 
         try:
