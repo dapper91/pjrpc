@@ -68,7 +68,7 @@ setup(
         'flask': ['flask~=1.0'],
         'jsonschema': ['jsonschema~=3.0'],
         'kombu': ['kombu~=5.0'],
-        'pydantic': ['pydantic~=1.0'],
+        'pydantic': ['pydantic~=1.8.0'],
         'requests': ['requests~=2.0'],
         'httpx': ['requests~=0.0'],
         'docstring-parser': ['docstring-parser~=0.0'],
