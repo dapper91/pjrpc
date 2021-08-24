@@ -41,9 +41,13 @@ def test_openapi_schema_generator(resources):
         schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
     )
 
+    class SubModel(pydantic.BaseModel):
+        field1: str
+
     class Model(pydantic.BaseModel):
         field1: str
         field2: Optional[int] = 1
+        field3: SubModel
 
     class TestError(pjrpc.common.exceptions.JsonRpcError):
         code = 2001

@@ -166,22 +166,7 @@
                                                 "type": "integer"
                                             },
                                             "param2": {
-                                                "title": "Model",
-                                                "type": "object",
-                                                "properties": {
-                                                    "field1": {
-                                                        "title": "Field1",
-                                                        "type": "string"
-                                                    },
-                                                    "field2": {
-                                                        "title": "Field2",
-                                                        "default": 1,
-                                                        "type": "integer"
-                                                    }
-                                                },
-                                                "required": [
-                                                    "field1"
-                                                ]
+                                                "$ref": "#/components/schemas/Model"
                                             },
                                             "param3": {
                                                 "title": "Param3"
@@ -268,22 +253,7 @@
                                                     ]
                                                 },
                                                 "result": {
-                                                    "title": "Model",
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "field1": {
-                                                            "title": "Field1",
-                                                            "type": "string"
-                                                        },
-                                                        "field2": {
-                                                            "title": "Field2",
-                                                            "default": 1,
-                                                            "type": "integer"
-                                                        }
-                                                    },
-                                                    "required": [
-                                                        "field1"
-                                                    ]
+                                                    "$ref": "#/components/schemas/Model"
                                                 }
                                             },
                                             "required": [
@@ -956,6 +926,43 @@
             "basicAuth": {
                 "type": "http",
                 "scheme": "basic"
+            }
+        },
+        "schemas": {
+            "SubModel": {
+                "title": "SubModel",
+                "type": "object",
+                "properties": {
+                    "field1": {
+                        "title": "Field1",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "field1"
+                ]
+            },
+            "Model": {
+                "title": "Model",
+                "type": "object",
+                "properties": {
+                    "field1": {
+                        "title": "Field1",
+                        "type": "string"
+                    },
+                    "field2": {
+                        "title": "Field2",
+                        "default": 1,
+                        "type": "integer"
+                    },
+                    "field3": {
+                        "$ref": "#/components/schemas/SubModel"
+                    }
+                },
+                "required": [
+                    "field1",
+                    "field3"
+                ]
             }
         }
     },
