@@ -182,5 +182,8 @@
     "externalDocs": {
         "url": "http://external-doc.com"
     },
-    "openrpc": "1.0.0"
+    "openrpc": "1.0.0",
+    "components": {
+        "schemas": {}
+    }
 }

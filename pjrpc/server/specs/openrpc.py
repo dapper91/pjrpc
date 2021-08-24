@@ -233,6 +233,17 @@ class MethodInfo:
     servers: List[Server] = UNSET
 
 
+@dc.dataclass(frozen=True)
+class Components:
+    """
+    Set of reusable objects for different aspects of the OpenRPC.
+
+    :param schemas: reusable Schema Objects
+    """
+
+    schemas: Dict[str, Any] = dc.field(default_factory=dict)
+
+
 def annotate(
     params_schema: List[ContentDescriptor] = UNSET,
     result_schema: ContentDescriptor = UNSET,
@@ -300,6 +311,7 @@ class OpenRPC(Specification):
     servers: List[Server] = UNSET
     externalDocs: ExternalDocumentation = UNSET
     openrpc: str = '1.0.0'
+    components: Components = UNSET
 
     def __init__(
         self,
@@ -317,6 +329,7 @@ class OpenRPC(Specification):
         self.externalDocs = external_docs
         self.openrpc = openrpc
         self.methods = []
+        self.components = Components()
 
         self._schema_extractor = schema_extractor
 
@@ -390,6 +403,13 @@ class OpenRPC(Specification):
                     deprecated=method_spec['deprecated'],
                 ),
             )
+
+            for param_schema in params_schema.values():
+                if param_schema.definitions:
+                    self.components.schemas.update(param_schema.definitions)
+
+            if result_schema.definitions:
+                self.components.schemas.update(result_schema.definitions)
 
         return dc.asdict(
             self,
