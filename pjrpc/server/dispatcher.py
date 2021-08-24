@@ -86,8 +86,11 @@ class ViewMethod(Method):
 
         return ft.partial(method, **method_params)
 
-    def copy(self, **kwargs) -> 'Method':
-        return super().copy(view_cls=self.view_cls, method_name=self.method_name, **kwargs)
+    def copy(self, **kwargs) -> 'ViewMethod':
+        cls_kwargs = dict(name=self.name, context=self.context)
+        cls_kwargs.update(kwargs)
+
+        return ViewMethod(view_cls=self.view_cls, method_name=self.method_name, **cls_kwargs)
 
 
 class ViewMixin:

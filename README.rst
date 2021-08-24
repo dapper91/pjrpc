@@ -2,6 +2,9 @@
 pjrpc
 =====
 
+.. image:: https://static.pepy.tech/personalized-badge/pjrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
+    :target: https://pepy.tech/project/pjrpc
+    :alt: Downloads/month
 .. image:: https://travis-ci.org/dapper91/pjrpc.svg?branch=master
     :target: https://travis-ci.org/dapper91/pjrpc
     :alt: Build status
@@ -24,6 +27,7 @@ that can be easily extended and integrated in your project without writing a lot
 
 Features:
 
+- framework agnostic
 - intuitive api
 - extendability
 - synchronous and asynchronous client backed
@@ -55,7 +59,7 @@ Extra requirements
 - `pydantic <https://pydantic-docs.helpmanual.io/>`_
 - `requests <https://requests.readthedocs.io>`_
 - `httpx <https://www.python-httpx.org/>`_
-- `openapi-ui-bundles <https://github.com/dapper91/openapi_ui_bundles>`_
+- `openapi-ui-bundles <https://github.com/dapper91/python-openapi-ui-bundles>`_
 
 
 Documentation
@@ -316,7 +320,7 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
         return {'id': user_id, **user.dict()}
 
 
-    class JSONEncoder(pjrpc.common.JSONEncoder):
+    class JSONEncoder(pjrpc.server.JSONEncoder):
 
         def default(self, o):
             if isinstance(o, uuid.UUID):

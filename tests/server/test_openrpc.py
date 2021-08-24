@@ -31,9 +31,13 @@ def test_openapi_schema_generator(resources):
         schema_extractor=extractors.docstring.DocstringSchemaExtractor(),
     )
 
+    class SubModel(pydantic.BaseModel):
+        field1: str
+
     class Model(pydantic.BaseModel):
         field1: str
         field2: int
+        field3: SubModel
 
     class TestError(pjrpc.common.exceptions.JsonRpcError):
         code = 2001
@@ -116,7 +120,7 @@ def test_openapi_schema_generator(resources):
             description='result description',
         ),
     )
-    def method3(param1: int) -> int:
+    def method3(param1: int) -> Model:
         pass
 
     def method4(*args, **kwargs) -> None:

@@ -53,7 +53,7 @@ that's it. ``pjrpc`` will be validating method parameters and returning informat
         return {'id': user_id, **user.dict()}
 
 
-    class JSONEncoder(pjrpc.common.JSONEncoder):
+    class JSONEncoder(pjrpc.server.JSONEncoder):
 
         def default(self, o):
             if isinstance(o, uuid.UUID):

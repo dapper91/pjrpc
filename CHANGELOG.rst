@@ -1,6 +1,15 @@
 Changelog
 =========
 
+1.3.1 (2021-08-24)
+------------------
+
+- pytest integration bug fixed
+- ViewMethod copy bug fixed
+- pydantic required version increased
+- openapi/openrpc specification definitions support implemented
+
+
 1.3.0 (2021-08-13)
 ------------------
 

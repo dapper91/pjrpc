@@ -73,7 +73,7 @@ Testing aiohttp server code is very straightforward:
 
     import pjrpc.server
     from pjrpc.server.integration import aiohttp
-    from pjrpc.client.backend import aiohttp as aiohttp_client
+    from pjrpc.client.backend import aiohttp as pjrpc_aiohttp_client
 
     methods = pjrpc.server.MethodRegistry()
 
@@ -86,7 +86,7 @@ Testing aiohttp server code is very straightforward:
 
     async def test_sum(aiohttp_client, loop):
         session = await aiohttp_client(jsonrpc_app.app)
-        client = aiohttp_client.Client('http://localhost/api/v1', session=session)
+        client = pjrpc_aiohttp_client.Client('http://localhost/api/v1', session=session)
 
         result = await client.sum(a=1, b=1)
         assert result == 2

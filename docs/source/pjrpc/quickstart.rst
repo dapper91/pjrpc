@@ -253,7 +253,7 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
         return {'id': user_id, **user.dict()}
 
 
-    class JSONEncoder(pjrpc.common.JSONEncoder):
+    class JSONEncoder(pjrpc.server.JSONEncoder):
 
         def default(self, o):
             if isinstance(o, uuid.UUID):
@@ -362,7 +362,7 @@ On the server side everything is also pretty straightforward:
         app.run(port=80)
 
 
-Open API specification
+OpenAPI specification
 ______________________
 
 ``pjrpc`` has built-in `OpenAPI <https://swagger.io/specification/>`_ and `OpenRPC <https://spec.open-rpc.org/#introduction>`_
@@ -620,18 +620,18 @@ Swagger UI:
 
 .. image:: ../_static/swagger-ui-screenshot.png
   :width: 1024
-  :alt: Open API full example
+  :alt: OpenAPI full example
 
 RapiDoc:
 ~~~~~~~~
 
 .. image:: ../_static/rapidoc-screenshot.png
   :width: 1024
-  :alt: Open API cli example
+  :alt: OpenAPI cli example
 
 ReDoc:
 ~~~~~~
 
 .. image:: ../_static/redoc-screenshot.png
   :width: 1024
-  :alt: Open API method example
+  :alt: OpenAPI method example

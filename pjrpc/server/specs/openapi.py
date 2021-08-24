@@ -289,15 +289,17 @@ class SecurityScheme:
         field.name = 'in'
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass(frozen=False)
 class Components:
     """
     Holds a set of reusable objects for different aspects of the OAS.
 
     :param securitySchemes: an object to hold reusable Security Scheme Objects
+    :param schemas: the definition of input and output data types
     """
 
     securitySchemes: Dict[str, SecurityScheme] = UNSET
+    schemas: Dict[str, Dict[str, Any]] = dc.field(default_factory=dict)
 
 
 @dc.dataclass(frozen=True)
@@ -571,12 +573,19 @@ class OpenAPI(Specification):
 
             for param_name, param_schema in method_spec['params_schema'].items():
                 request_schema['properties']['params']['properties'][param_name] = param_schema.schema
+
                 if param_schema.required:
                     required_params = request_schema['properties']['params'].setdefault('required', [])
                     required_params.append(param_name)
 
+                if param_schema.definitions:
+                    self.components.schemas.update(param_schema.definitions)
+
             response_schema = copy.deepcopy(RESPONSE_SCHEMA)
-            response_schema['oneOf'][0]['properties']['result'] = method_spec['result_schema'].schema
+            result_schema = method_spec['result_schema']
+            response_schema['oneOf'][0]['properties']['result'] = result_schema.schema
+            if result_schema.definitions:
+                self.components.schemas.update(result_schema.definitions)
 
             self.paths[f'{path}#{method.name}'] = Path(
                 post=Operation(
