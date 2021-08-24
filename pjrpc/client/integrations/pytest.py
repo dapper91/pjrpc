@@ -186,12 +186,12 @@ class PjRpcMocker:
         if not self._matches[endpoint]:
             self._matches.pop(endpoint)
 
-    def _on_request(self, origin_self: Any, request_text: str) -> str:
+    def _on_request(self, origin_self: Any, request_text: str, is_notification: bool = False, **kwargs: Any) -> str:
         endpoint = origin_self._endpoint
         matches = self._matches.get(endpoint)
         if matches is None:
             if self._passthrough:
-                return self._patcher.temp_original(origin_self, request_text)
+                return self._patcher.temp_original(origin_self, request_text, is_notification, **kwargs)
             else:
                 raise ConnectionRefusedError()
 
