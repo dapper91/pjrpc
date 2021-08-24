@@ -12,6 +12,9 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
     Pydantic method specification extractor.
     """
 
+    def __init__(self, ref_template: str = '#/components/schemas/{model}'):
+        self._ref_template = ref_template
+
     def extract_params_schema(self, method: Callable, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
         exclude = set(exclude)
         signature = inspect.signature(method)
@@ -28,11 +31,10 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
                 )
 
         params_model = pd.create_model('RequestModel', **field_definitions)
-        model_schema = params_model.schema(ref_template='{model}')
+        model_schema = params_model.schema(ref_template=self._ref_template)
 
         parameters_schema = {}
         for param_name, param_schema in model_schema['properties'].items():
-            param_schema = self._extract_field_schema(model_schema, field_name=param_name)
             required = param_name in model_schema.get('required', [])
 
             parameters_schema[param_name] = Schema(
@@ -41,6 +43,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
                 description=param_schema.get('description', UNSET),
                 deprecated=param_schema.get('deprecated', UNSET),
                 required=required,
+                definitions=model_schema.get('definitions'),
             )
 
         return parameters_schema
@@ -56,9 +59,9 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
             return_annotation = result.return_annotation
 
         result_model = pd.create_model('ResultModel', result=(return_annotation, pd.fields.Undefined))
-        model_schema = result_model.schema(ref_template='{model}')
+        model_schema = result_model.schema(ref_template=self._ref_template)
 
-        result_schema = self._extract_field_schema(model_schema, field_name='result')
+        result_schema = model_schema['properties']['result']
         required = 'result' in model_schema.get('required', [])
         if not required:
             result_schema['nullable'] = 'true'
@@ -69,6 +72,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
             description=result_schema.get('description', UNSET),
             deprecated=result_schema.get('deprecated', UNSET),
             required=required,
+            definitions=model_schema.get('definitions'),
         )
 
         return result_schema

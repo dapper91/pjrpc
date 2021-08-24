@@ -17,6 +17,7 @@ class Schema:
     summary: str = UNSET
     description: str = UNSET
     deprecated: bool = UNSET
+    definitions: Dict[str, Any] = UNSET
 
 
 @dc.dataclass(frozen=True)
