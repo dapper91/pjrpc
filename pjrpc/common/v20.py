@@ -30,7 +30,7 @@ class Response:
         :param json_data: data the response to be deserialized from
         :param error_cls: error class
         :returns: response object
-        :raises: :py:class:`pjrpc.common.exception.DeserializationError` if format is incorrect
+        :raises: :py:class:`pjrpc.common.exceptions.DeserializationError` if format is incorrect
         """
 
         try:
@@ -81,7 +81,7 @@ class Response:
     @property
     def error(self) -> Union[UnsetType, JsonRpcError]:
         """
-        Response error. If the response has succeeded returns :py:data:`pjrpc.common.UNSET`.
+        Response error. If the response has succeeded returns :py:data:`pjrpc.common.common.UNSET`.
         """
 
         return self._error
@@ -187,7 +187,7 @@ class Request:
 
         :param json_data: data the request to be deserialized from
         :returns: request object
-        :raises: :py:class:`pjrpc.common.exception.DeserializationError` if format is incorrect
+        :raises: :py:class:`pjrpc.common.exceptions.DeserializationError` if format is incorrect
         """
 
         try:
@@ -332,7 +332,7 @@ class BatchResponse:
     @property
     def error(self) -> Union[UnsetType, JsonRpcError]:
         """
-        Response error. If the response has succeeded returns :py:data:`pjrpc.common.UNSET`.
+        Response error. If the response has succeeded returns :py:data:`pjrpc.common.common.UNSET`.
         """
 
         return self._error

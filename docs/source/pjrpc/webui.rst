@@ -290,18 +290,18 @@ Swagger UI:
 
 .. image:: ../_static/swagger-ui-screenshot.png
   :width: 1024
-  :alt: Open API full example
+  :alt: OpenAPI full example
 
 RapiDoc:
 ~~~~~~~~
 
 .. image:: ../_static/rapidoc-screenshot.png
   :width: 1024
-  :alt: Open API cli example
+  :alt: OpenAPI cli example
 
 ReDoc:
 ~~~~~~
 
 .. image:: ../_static/redoc-screenshot.png
   :width: 1024
-  :alt: Open API method example
+  :alt: OpenAPI method example

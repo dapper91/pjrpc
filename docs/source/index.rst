@@ -7,6 +7,9 @@ Welcome to pjrpc's documentation!
 =================================
 
 
+.. image:: https://static.pepy.tech/personalized-badge/pjrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
+    :target: https://pepy.tech/project/pjrpc
+    :alt: Downloads/month
 .. image:: https://travis-ci.org/dapper91/pjrpc.svg?branch=master
     :target: https://travis-ci.org/dapper91/pjrpc
     :alt: Build status
@@ -29,6 +32,7 @@ that can be easily extended and integrated in your project without writing a lot
 
 Features:
 
+- :doc:`framework/library agnostic <pjrpc/examples>`
 - :doc:`intuitive interface <pjrpc/quickstart>`
 - :doc:`extensibility <pjrpc/extending>`
 - :doc:`synchronous and asynchronous client backends <pjrpc/client>`
