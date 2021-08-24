@@ -5,6 +5,7 @@ Changelog
 ------------------
 
 - pytest integration bug fixed
+- ViewMethod copy bug fixed
 
 
 1.3.0 (2021-08-13)
