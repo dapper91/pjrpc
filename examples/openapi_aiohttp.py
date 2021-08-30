@@ -149,11 +149,11 @@ def get_user(request: web.Request, user_id: uuid.UUID) -> UserOut:
     :raise NotFoundError: user not found
     """
 
-    user = request.config_dict['users'].get(user_id)
+    user = request.config_dict['users'].get(user_id.hex)
     if not user:
         raise NotFoundError()
 
-    return UserOut(**user.dict())
+    return UserOut(id=user_id, **user.dict())
 
 
 @specs.annotate(
@@ -180,7 +180,7 @@ def delete_user(request: web.Request, user_id: uuid.UUID) -> None:
     :raise NotFoundError: user not found
     """
 
-    user = request.config_dict['users'].pop(user_id, None)
+    user = request.config_dict['users'].pop(user_id.hex, None)
     if not user:
         raise NotFoundError()
 
