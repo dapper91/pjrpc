@@ -5,6 +5,7 @@ Changelog
 ------------------
 
 - starlette integration added
+- django integration added
 
 
 1.3.1 (2021-08-24)

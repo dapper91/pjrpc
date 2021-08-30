@@ -56,7 +56,7 @@ setup(
     keywords=[
         'json-rpc', 'rpc', 'jsonrpc-client', 'jsonrpc-server',
         'requests', 'aiohttp', 'flask', 'httpx', 'aio-pika', 'kombu',
-        'openapi', 'openrpc', 'starlette',
+        'openapi', 'openrpc', 'starlette', 'django',
     ],
     python_requires=">=3.6",
     packages=find_packages(),
@@ -74,6 +74,7 @@ setup(
         'docstring-parser': ['docstring-parser~=0.0'],
         'openapi-ui-bundles': ['openapi-ui-bundles~=0.0'],
         'starlette': ['starlette~=0.12.0', 'aiofiles~=0.7'],
+        'django': ['django~=3.0'],
     },
     entry_points={"pytest11": ["pjrpc = pjrpc.client.integrations.pytest"]},
     classifiers=[
