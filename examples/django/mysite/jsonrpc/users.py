@@ -1,42 +1,16 @@
 import uuid
-from typing import Any
+from collections import defaultdict
 
 import pydantic
-from aiohttp import helpers, web
+from django.http.request import HttpRequest
 
 import pjrpc.server.specs.extractors.pydantic
-from pjrpc.server.integration import aiohttp as integration
 from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.specs import extractors, openapi as specs
-
+from pjrpc.server.specs import openapi as specs
 
 methods = pjrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
-
-credentials = {"admin": "admin"}
-
-
-class JSONEncoder(pjrpc.JSONEncoder):
-    def default(self, o: Any) -> Any:
-        if isinstance(o, pydantic.BaseModel):
-            return o.dict()
-        if isinstance(o, uuid.UUID):
-            return str(o)
-
-        return super().default(o)
-
-
-class AuthenticatedJsonRPC(integration.Application):
-    async def _rpc_handle(self, http_request: web.Request) -> web.Response:
-        try:
-            auth = helpers.BasicAuth.decode(http_request.headers.get('Authorization', ''))
-        except ValueError:
-            raise web.HTTPUnauthorized
-
-        if credentials.get(auth.login) != auth.password:
-            raise web.HTTPUnauthorized
-
-        return await super()._rpc_handle(http_request=http_request)
+db = defaultdict(dict)
 
 
 class UserIn(pydantic.BaseModel):
@@ -99,7 +73,7 @@ class NotFoundError(pjrpc.exc.JsonRpcError):
 )
 @methods.add(context='request')
 @validator.validate
-def add_user(request: web.Request, user: UserIn) -> UserOut:
+def add_user(request: HttpRequest, user: UserIn) -> UserOut:
     """
     Creates a user.
 
@@ -109,12 +83,8 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
     :raise AlreadyExistsError: user already exists
     """
 
-    for existing_user in request.config_dict['users'].values():
-        if user.name == existing_user.name:
-            raise AlreadyExistsError()
-
     user_id = uuid.uuid4().hex
-    request.config_dict['users'][user_id] = user
+    db['users'][user_id] = user
 
     return UserOut(id=user_id, **user.dict())
 
@@ -139,7 +109,7 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
 )
 @methods.add(context='request')
 @validator.validate
-def get_user(request: web.Request, user_id: uuid.UUID) -> UserOut:
+def get_user(request: HttpRequest, user_id: uuid.UUID) -> UserOut:
     """
     Returns a user.
 
@@ -149,7 +119,7 @@ def get_user(request: web.Request, user_id: uuid.UUID) -> UserOut:
     :raise NotFoundError: user not found
     """
 
-    user = request.config_dict['users'].get(user_id.hex)
+    user = db['users'].get(user_id.hex)
     if not user:
         raise NotFoundError()
 
@@ -171,7 +141,7 @@ def get_user(request: web.Request, user_id: uuid.UUID) -> UserOut:
 )
 @methods.add(context='request')
 @validator.validate
-def delete_user(request: web.Request, user_id: uuid.UUID) -> None:
+def delete_user(request: HttpRequest, user_id: uuid.UUID) -> None:
     """
     Deletes a user.
 
@@ -180,41 +150,6 @@ def delete_user(request: web.Request, user_id: uuid.UUID) -> None:
     :raise NotFoundError: user not found
     """
 
-    user = request.config_dict['users'].pop(user_id.hex, None)
+    user = db['users'].pop(user_id.hex, None)
     if not user:
         raise NotFoundError()
-
-
-app = web.Application()
-app['users'] = {}
-
-jsonrpc_app = AuthenticatedJsonRPC(
-    '/api/v1',
-    json_encoder=JSONEncoder,
-    spec=specs.OpenAPI(
-        info=specs.Info(version="1.0.0", title="User storage"),
-        servers=[
-            specs.Server(
-                url='http://127.0.0.1:8080',
-            ),
-        ],
-        security_schemes=dict(
-            basicAuth=specs.SecurityScheme(
-                type=specs.SecuritySchemeType.HTTP,
-                scheme='basic',
-            ),
-        ),
-        security=[
-            dict(basicAuth=[]),
-        ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
-        ui=specs.SwaggerUI(),
-        # ui=specs.RapiDoc(),
-        # ui=specs.ReDoc(),
-    ),
-)
-jsonrpc_app.dispatcher.add_methods(methods)
-app.add_subapp('/myapp', jsonrpc_app.app)
-
-if __name__ == "__main__":
-    web.run_app(app, host='localhost', port=8080)

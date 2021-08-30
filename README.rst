@@ -60,6 +60,8 @@ Extra requirements
 - `requests <https://requests.readthedocs.io>`_
 - `httpx <https://www.python-httpx.org/>`_
 - `openapi-ui-bundles <https://github.com/dapper91/python-openapi-ui-bundles>`_
+- `starlette <https://www.starlette.io/>`_
+- `django <https://www.djangoproject.com>`_
 
 
 Documentation
