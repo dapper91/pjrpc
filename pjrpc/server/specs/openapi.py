@@ -12,7 +12,7 @@ import enum
 import functools as ft
 import pathlib
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple, Union
 
 from pjrpc.common import exceptions
 from pjrpc.server import utils, Method
@@ -620,10 +620,16 @@ class OpenAPI(Specification):
 
         self._schema_extractor = schema_extractor or extractors.BaseSchemaExtractor()
 
-    def schema(self, path: str, methods: Iterable[Method]) -> dict:
-        for method in methods:
-            path = path.rstrip('/')
+    def schema(self, path: str, methods: Iterable[Method] = (), methods_map: Dict[str, Iterable[Method]] = {}) -> dict:
+        methods_list: List[Tuple[str, Method]] = []
+        methods_list.extend((path, method) for method in methods)
+        methods_list.extend(
+            (utils.join_path(path, prefix), method)
+            for prefix, methods in methods_map.items()
+            for method in methods
+        )
 
+        for prefix, method in methods_list:
             method_meta = utils.get_meta(method.method)
             annotated_spec = method_meta.get('openapi_spec', {})
             extracted_spec: Dict[str, Any] = dict(
@@ -657,7 +663,7 @@ class OpenAPI(Specification):
             if result_schema.definitions:
                 self.components.schemas.update(result_schema.definitions)
 
-            self.paths[f'{path}#{method.name}'] = Path(
+            self.paths[f'{prefix}#{method.name}'] = Path(
                 post=Operation(
                     requestBody=RequestBody(
                         description='JSON-RPC Request',

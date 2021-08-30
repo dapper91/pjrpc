@@ -1,11 +1,8 @@
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 import flask
-import flask_httpauth
 import pydantic
-import flask_cors
-from werkzeug import security
 
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import flask as integration
@@ -14,25 +11,10 @@ from pjrpc.server.specs import extractors, openapi as specs
 
 
 app = flask.Flask('myapp')
-flask_cors.CORS(app, resources={"/myapp/api/v1/*": {"origins": "*"}})
 
-methods = pjrpc.server.MethodRegistry()
+user_methods = pjrpc.server.MethodRegistry()
+post_methods = pjrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
-
-auth = flask_httpauth.HTTPBasicAuth()
-credentials = {"admin": security.generate_password_hash("admin")}
-
-
-@auth.verify_password
-def verify_password(username: str, password: str) -> Optional[str]:
-    if username in credentials and security.check_password_hash(credentials.get(username), password):
-        return username
-
-
-class AuthenticatedJsonRPC(integration.JsonRPC):
-    @auth.login_required
-    def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
-        return super()._rpc_handle(dispatcher)
 
 
 class JSONEncoder(pjrpc.JSONEncoder):
@@ -72,15 +54,6 @@ class AlreadyExistsError(pjrpc.exc.JsonRpcError):
     message = "user already exists"
 
 
-class NotFoundError(pjrpc.exc.JsonRpcError):
-    """
-    User not found error.
-    """
-
-    code = 2002
-    message = "user not found"
-
-
 @specs.annotate(
     tags=['users'],
     errors=[AlreadyExistsError],
@@ -103,7 +76,7 @@ class NotFoundError(pjrpc.exc.JsonRpcError):
         ),
     ],
 )
-@methods.add
+@user_methods.add
 @validator.validate
 def add_user(user: UserIn) -> UserOut:
     """
@@ -114,81 +87,66 @@ def add_user(user: UserIn) -> UserOut:
     :raise AlreadyExistsError: user already exists
     """
 
-    for existing_user in flask.current_app.users_db.values():
-        if user.name == existing_user.name:
-            raise AlreadyExistsError()
-
     user_id = uuid.uuid4().hex
-    flask.current_app.users_db[user_id] = user
+    flask.current_app.db['users'][user_id] = user
 
     return UserOut(id=user_id, **user.dict())
 
 
+class PostIn(pydantic.BaseModel):
+    """
+    User registration data.
+    """
+
+    title: str
+    content: str
+
+
+class PostOut(PostIn):
+    """
+    Registered user data.
+    """
+
+    id: uuid.UUID
+
+
 @specs.annotate(
-    tags=['users'],
-    errors=[NotFoundError],
+    tags=['posts'],
+    errors=[AlreadyExistsError],
     examples=[
         specs.MethodExample(
-            summary='Simple example',
+            summary="Simple example",
             params=dict(
-                user_id='c47726c6-a232-45f1-944f-60b98966ff1b',
+                post={
+                    'title': 'Super post',
+                    'content': 'My first post',
+                },
             ),
             result={
-                 'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                 'name': 'Alex',
-                 'surname': 'Smith',
-                 'age': 25,
+                'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
+                'title': 'Super post',
+                'content': 'My first post',
             },
         ),
     ],
 )
-@methods.add
+@post_methods.add
 @validator.validate
-def get_user(user_id: uuid.UUID) -> UserOut:
+def add_post(post: PostIn) -> PostOut:
     """
-    Returns a user.
+    Creates a post.
 
-    :param object user_id: user id
-    :return object: registered user
-    :raise NotFoundError: user not found
-    """
-
-    user = flask.current_app.users_db.get(user_id.hex)
-    if not user:
-        raise NotFoundError()
-
-    return UserOut(id=user_id, **user.dict())
-
-
-@specs.annotate(
-    tags=['users'],
-    errors=[NotFoundError],
-    examples=[
-        specs.MethodExample(
-            summary='Simple example',
-            params=dict(
-                user_id='c47726c6-a232-45f1-944f-60b98966ff1b',
-            ),
-            result=None,
-        ),
-    ],
-)
-@methods.add
-@validator.validate
-def delete_user(user_id: uuid.UUID) -> None:
-    """
-    Deletes a user.
-
-    :param object user_id: user id
-    :raise NotFoundError: user not found
+    :param object post: post data
+    :return object: created post
     """
 
-    user = flask.current_app.users_db.pop(user_id.hex, None)
-    if not user:
-        raise NotFoundError()
+    post_id = uuid.uuid4().hex
+    flask.current_app.db['posts'][post_id] = post
+
+    return PostOut(id=post_id, **post.dict())
 
 
-json_rpc = AuthenticatedJsonRPC(
+json_rpc = integration.JsonRPC(
     '/api/v1',
     json_encoder=JSONEncoder,
     spec=specs.OpenAPI(
@@ -209,18 +167,13 @@ json_rpc = AuthenticatedJsonRPC(
         ],
         schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
         ui=specs.SwaggerUI(),
-        # ui=specs.RapiDoc(),
-        # ui=specs.ReDoc(),
     ),
 )
-json_rpc.dispatcher.add_methods(methods)
+app.db = {'users': {}, 'posts': {}}
 
-app.users_db = {}
-
-myapp = flask.Blueprint('myapp', __name__, url_prefix='/myapp')
-json_rpc.init_app(myapp)
-
-app.register_blueprint(myapp)
+json_rpc.add_endpoint('/users', json_encoder=JSONEncoder).add_methods(user_methods)
+json_rpc.add_endpoint('/posts', json_encoder=JSONEncoder).add_methods(post_methods)
+json_rpc.init_app(app)
 
 if __name__ == "__main__":
     app.run(port=8080)

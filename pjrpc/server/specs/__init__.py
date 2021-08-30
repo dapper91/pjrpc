@@ -1,7 +1,7 @@
 import abc
 import enum
 import json
-from typing import Any, Iterable, Optional
+from typing import Any, Dict, Iterable, Optional
 
 from pjrpc.server import Method
 
@@ -75,10 +75,12 @@ class Specification(abc.ABC):
         return self._ui_path
 
     @abc.abstractmethod
-    def schema(self, path: str, methods: Iterable[Method]) -> dict:
+    def schema(self, path: str, methods: Iterable[Method] = (), methods_map: Dict[str, Iterable[Method]] = {}) -> dict:
         """
         Returns specification schema.
 
         :param path: methods endpoint path
         :param methods: methods list the specification is generated for
+        :param methods_map: methods map the specification is generated for.
+                            Each item is a mapping from a prefix to methods on which the methods will be served
         """
