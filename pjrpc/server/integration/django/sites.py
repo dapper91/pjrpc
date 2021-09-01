@@ -68,8 +68,8 @@ class JsonRPCSite:
 
     @require_http_methods(['GET'])
     def _generate_spec(self, request: HttpRequest) -> HttpResponse:
-        spec_full_path = utils.remove_suffix(request.path, suffix=self._spec.path)
-        schema = self._spec.schema(path=spec_full_path, methods=self._dispatcher.registry.values())
+        endpoint_path = utils.remove_suffix(request.path, suffix=self._spec.path)
+        schema = self._spec.schema(path=endpoint_path, methods=self._dispatcher.registry.values())
 
         return HttpResponse(json.dumps(schema, indent=2, cls=specs.JSONEncoder), content_type='application/json')
 
