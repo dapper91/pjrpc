@@ -16,7 +16,7 @@ import pjrpc
 from pjrpc.server import specs, utils
 
 
-def async_partial(func: Callable, /, *bound_args, **bound_kwargs) -> Callable:
+def async_partial(func: Callable, *bound_args, **bound_kwargs) -> Callable:
     @ft.wraps(func)
     async def wrapped(*args, **kwargs):
         return await func(*bound_args, *args, **bound_kwargs, **kwargs)
