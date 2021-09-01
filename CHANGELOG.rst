@@ -6,6 +6,7 @@ Changelog
 
 - starlette integration added
 - django integration added
+- sub endpoints support implemented
 
 
 1.3.1 (2021-08-24)
