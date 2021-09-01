@@ -12,7 +12,7 @@ import enum
 import functools as ft
 import pathlib
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple, Union
 
 from pjrpc.common import exceptions
 from pjrpc.server import utils, Method
@@ -394,6 +394,72 @@ class RequestBody:
     description: str = UNSET
 
 
+class ParameterLocation(str, enum.Enum):
+    """
+    The location of the parameter.
+    """
+
+    QUERY = 'query'
+    HEADER = 'header'
+    PATH = 'path'
+    COOKIE = 'cookie'
+
+
+class StyleType(str, enum.Enum):
+    """
+    Describes how the parameter value will be serialized depending on the type of the parameter value.
+    """
+
+    MATRIX = 'matrix'  # path-style parameters defined by RFC6570
+    LABEL = 'label'  # label style parameters defined by RFC6570
+    FORM = 'form'  # form style parameters defined by RFC6570
+    SIMPLE = 'simple'  # simple style parameters defined by RFC6570
+    SPACE_DELIMITED = 'spaceDelimited'  # space separated array values
+    PIPE_DELIMITED = 'pipeDelimited'  # pipe separated array values
+    DEEP_OBJECT = 'deepObject'  # provides a simple way of rendering nested objects using form parameters
+
+
+@dc.dataclass(frozen=True)
+class Parameter:
+    """
+    Describes a single operation parameter.
+
+    :param name: the name of the parameter
+    :param location: the location of the parameter
+    :param description: a brief description of the parameter
+    :param required: determines whether this parameter is mandatory
+    :param deprecated: a parameter is deprecated and SHOULD be transitioned out of usage
+    :param allowEmptyValue: the ability to pass empty-valued parameters
+    :param style: describes how the parameter value will be serialized depending on the type of the parameter value
+    :param explode: when this is true, parameter values of type array or object generate separate parameters
+                    for each value of the array or key-value pair of the map
+    :param allowReserved: determines whether the parameter value SHOULD allow reserved characters,
+                          as defined by RFC3986 :/?#[]@!$&'()*+,;= to be included without percent-encoding
+    :param schema: the schema defining the type used for the parameter.
+    :param examples: examples of the parameter's potential value
+    :param content: a map containing the representations for the parameter
+    """
+
+    name: str
+    location: ParameterLocation  # `in` field
+    description: str = UNSET
+    required: bool = UNSET
+    deprecated: bool = UNSET
+    allowEmptyValue: bool = UNSET
+    style: StyleType = UNSET
+    explode: bool = UNSET
+    allowReserved: bool = UNSET
+    schema: Dict[str, Any] = UNSET
+    examples:  Dict[str, ExampleObject] = UNSET
+    content: Dict[str, MediaType] = UNSET
+
+    def __post_init__(self):
+        # `in` field name is not allowed in python
+        self.__dict__['in'] = self.__dict__.pop('location')
+        field = self.__dataclass_fields__['in'] = self.__dataclass_fields__.pop('location')  # noqa
+        field.name = 'in'
+
+
 @dc.dataclass(frozen=True)
 class Operation:
     """
@@ -419,6 +485,7 @@ class Operation:
     deprecated: bool = UNSET
     servers: List[Server] = UNSET
     security: List[Dict[str, List[str]]] = UNSET
+    parameters: List[Parameter] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -455,6 +522,7 @@ def annotate(
     external_docs: ExternalDocumentation = UNSET,
     deprecated: bool = UNSET,
     security: List[Dict[str, List[str]]] = UNSET,
+    parameters: List[Parameter] = UNSET,
 ):
     """
     Adds Open Api specification annotation to the method.
@@ -469,6 +537,7 @@ def annotate(
     :param external_docs: an external resource for extended documentation
     :param deprecated: declares this method to be deprecated
     :param security: a declaration of which security mechanisms can be used for the method
+    :param parameters: a list of parameters that are applicable for the method
     """
 
     def decorator(method: Callable) -> Callable:
@@ -488,6 +557,7 @@ def annotate(
                 external_docs=external_docs,
                 deprecated=deprecated,
                 security=security,
+                parameters=parameters,
             ),
         )
 
@@ -550,10 +620,16 @@ class OpenAPI(Specification):
 
         self._schema_extractor = schema_extractor or extractors.BaseSchemaExtractor()
 
-    def schema(self, path: str, methods: Iterable[Method]) -> dict:
-        for method in methods:
-            path = path.rstrip('/')
+    def schema(self, path: str, methods: Iterable[Method] = (), methods_map: Dict[str, Iterable[Method]] = {}) -> dict:
+        methods_list: List[Tuple[str, Method]] = []
+        methods_list.extend((path, method) for method in methods)
+        methods_list.extend(
+            (utils.join_path(path, prefix), method)
+            for prefix, methods in methods_map.items()
+            for method in methods
+        )
 
+        for prefix, method in methods_list:
             method_meta = utils.get_meta(method.method)
             annotated_spec = method_meta.get('openapi_spec', {})
             extracted_spec: Dict[str, Any] = dict(
@@ -587,7 +663,7 @@ class OpenAPI(Specification):
             if result_schema.definitions:
                 self.components.schemas.update(result_schema.definitions)
 
-            self.paths[f'{path}#{method.name}'] = Path(
+            self.paths[f'{prefix}#{method.name}'] = Path(
                 post=Operation(
                     requestBody=RequestBody(
                         description='JSON-RPC Request',
@@ -652,6 +728,7 @@ class OpenAPI(Specification):
                     deprecated=method_spec['deprecated'],
                     externalDocs=method_spec.get('external_docs', UNSET),
                     security=method_spec.get('security', UNSET),
+                    parameters=method_spec.get('parameters', UNSET),
                 ),
             )
 

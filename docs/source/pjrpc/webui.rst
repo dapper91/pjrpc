@@ -86,8 +86,8 @@ using flask web framework:
 
     class AuthenticatedJsonRPC(integration.JsonRPC):
         @auth.login_required
-        def _rpc_handle(self) -> flask.Response:
-            return super()._rpc_handle()
+        def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
+            return super()._rpc_handle(dispatcher)
 
 
     class JSONEncoder(pjrpc.JSONEncoder):

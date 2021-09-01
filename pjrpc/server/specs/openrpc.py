@@ -8,6 +8,7 @@ try:
 except ImportError:
     raise AssertionError("python 3.7 or later is required")
 
+import itertools as it
 from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
 
 from pjrpc.common import exceptions, UNSET
@@ -333,10 +334,9 @@ class OpenRPC(Specification):
 
         self._schema_extractor = schema_extractor
 
-    def schema(self, path: str, methods: Iterable[Method]) -> dict:
-        for method in methods:
+    def schema(self, path: str, methods: Iterable[Method] = (), methods_map: Dict[str, Iterable[Method]] = {}) -> dict:
+        for method in it.chain(methods, methods_map.get('', [])):
             method_name = method.name
-            path = path.rstrip('/')
 
             method_meta = utils.get_meta(method.method)
             annotated_spec = method_meta.get('openrpc_spec', {})

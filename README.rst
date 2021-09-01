@@ -60,6 +60,8 @@ Extra requirements
 - `requests <https://requests.readthedocs.io>`_
 - `httpx <https://www.python-httpx.org/>`_
 - `openapi-ui-bundles <https://github.com/dapper91/python-openapi-ui-bundles>`_
+- `starlette <https://www.starlette.io/>`_
+- `django <https://www.djangoproject.com>`_
 
 
 Documentation
@@ -484,8 +486,8 @@ and Swagger UI web tool with basic auth:
 
     class AuthenticatedJsonRPC(integration.JsonRPC):
         @auth.login_required
-        def _rpc_handle(self) -> flask.Response:
-            return super()._rpc_handle()
+        def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
+            return super()._rpc_handle(dispatcher)
 
 
     class JSONEncoder(pjrpc.JSONEncoder):

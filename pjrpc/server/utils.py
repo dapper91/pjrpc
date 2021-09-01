@@ -52,9 +52,10 @@ def remove_suffix(s: str, suffix: str) -> str:
         return s
 
 
-def join_path(*paths) -> str:
-    result = ''
+def join_path(path, *paths) -> str:
+    result = path
     for path in paths:
-        result = f'{result.rstrip("/")}/{path.lstrip("/")}'
+        if path:
+            result = f'{result.rstrip("/")}/{path.lstrip("/")}'
 
     return result

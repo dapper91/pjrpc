@@ -150,11 +150,11 @@ def get_user(user_id: uuid.UUID) -> UserOut:
     :raise NotFoundError: user not found
     """
 
-    user = flask.current_app.users_db.get(user_id)
+    user = flask.current_app.users_db.get(user_id.hex)
     if not user:
         raise NotFoundError()
 
-    return UserOut(**user.dict())
+    return UserOut(id=user_id, **user.dict())
 
 
 @specs.annotate(
@@ -189,7 +189,7 @@ def delete_user(user_id: uuid.UUID) -> None:
     :raise NotFoundError: user not found
     """
 
-    user = flask.current_app.users_db.pop(user_id, None)
+    user = flask.current_app.users_db.pop(user_id.hex, None)
     if not user:
         raise NotFoundError()
 
