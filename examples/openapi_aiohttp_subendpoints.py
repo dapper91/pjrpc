@@ -2,15 +2,15 @@ import uuid
 from typing import Any
 
 import pydantic
-from aiohttp import helpers, web
+from aiohttp import web
 
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import aiohttp as integration
 from pjrpc.server.validators import pydantic as validators
 from pjrpc.server.specs import extractors, openapi as specs
 
-
-methods = pjrpc.server.MethodRegistry()
+user_methods = pjrpc.server.MethodRegistry()
+post_methods = pjrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
 
 credentials = {"admin": "admin"}
@@ -24,19 +24,6 @@ class JSONEncoder(pjrpc.JSONEncoder):
             return str(o)
 
         return super().default(o)
-
-
-class AuthenticatedJsonRPC(integration.Application):
-    async def _rpc_handle(self, http_request: web.Request, dispatcher: pjrpc.server.Dispatcher) -> web.Response:
-        try:
-            auth = helpers.BasicAuth.decode(http_request.headers.get('Authorization', ''))
-        except ValueError:
-            raise web.HTTPUnauthorized
-
-        if credentials.get(auth.login) != auth.password:
-            raise web.HTTPUnauthorized
-
-        return await super()._rpc_handle(http_request=http_request, dispatcher=dispatcher)
 
 
 class UserIn(pydantic.BaseModel):
@@ -66,15 +53,6 @@ class AlreadyExistsError(pjrpc.exc.JsonRpcError):
     message = "user already exists"
 
 
-class NotFoundError(pjrpc.exc.JsonRpcError):
-    """
-    User not found error.
-    """
-
-    code = 2002
-    message = "user not found"
-
-
 @specs.annotate(
     tags=['users'],
     errors=[AlreadyExistsError],
@@ -97,7 +75,7 @@ class NotFoundError(pjrpc.exc.JsonRpcError):
         ),
     ],
 )
-@methods.add(context='request')
+@user_methods.add(context='request')
 @validator.validate
 def add_user(request: web.Request, user: UserIn) -> UserOut:
     """
@@ -109,86 +87,67 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
     :raise AlreadyExistsError: user already exists
     """
 
-    for existing_user in request.config_dict['users'].values():
-        if user.name == existing_user.name:
-            raise AlreadyExistsError()
-
     user_id = uuid.uuid4().hex
     request.config_dict['users'][user_id] = user
 
     return UserOut(id=user_id, **user.dict())
 
 
+class PostIn(pydantic.BaseModel):
+    """
+    User registration data.
+    """
+
+    title: str
+    content: str
+
+
+class PostOut(PostIn):
+    """
+    Registered user data.
+    """
+
+    id: uuid.UUID
+
+
 @specs.annotate(
-    tags=['users'],
-    errors=[NotFoundError],
+    tags=['posts'],
+    errors=[AlreadyExistsError],
     examples=[
         specs.MethodExample(
-            summary='Simple example',
+            summary="Simple example",
             params=dict(
-                user_id='c47726c6-a232-45f1-944f-60b98966ff1b',
+                post={
+                    'title': 'Super post',
+                    'content': 'My first post',
+                },
             ),
             result={
-                 'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                 'name': 'Alex',
-                 'surname': 'Smith',
-                 'age': 25,
+                'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
+                'title': 'Super post',
+                'content': 'My first post',
             },
         ),
     ],
 )
-@methods.add(context='request')
+@post_methods.add(context='request')
 @validator.validate
-def get_user(request: web.Request, user_id: uuid.UUID) -> UserOut:
+def add_post(request: web.Request, post: PostIn) -> PostOut:
     """
-    Returns a user.
+    Creates a post.
 
     :param request: http request
-    :param object user_id: user id
-    :return object: registered user
-    :raise NotFoundError: user not found
+    :param object post: post data
+    :return object: created post
     """
 
-    user = request.config_dict['users'].get(user_id.hex)
-    if not user:
-        raise NotFoundError()
+    post_id = uuid.uuid4().hex
+    request.config_dict['posts'][post_id] = post
 
-    return UserOut(id=user_id, **user.dict())
-
-
-@specs.annotate(
-    tags=['users'],
-    errors=[NotFoundError],
-    examples=[
-        specs.MethodExample(
-            summary='Simple example',
-            params=dict(
-                user_id='c47726c6-a232-45f1-944f-60b98966ff1b',
-            ),
-            result=None,
-        ),
-    ],
-)
-@methods.add(context='request')
-@validator.validate
-def delete_user(request: web.Request, user_id: uuid.UUID) -> None:
-    """
-    Deletes a user.
-
-    :param request: http request
-    :param object user_id: user id
-    :raise NotFoundError: user not found
-    """
-
-    user = request.config_dict['users'].pop(user_id.hex, None)
-    if not user:
-        raise NotFoundError()
+    return PostOut(id=post_id, **post.dict())
 
 
-app = web.Application()
-app['users'] = {}
-
-jsonrpc_app = AuthenticatedJsonRPC(
+jsonrpc_app = integration.Application(
     '/api/v1',
     json_encoder=JSONEncoder,
     spec=specs.OpenAPI(
@@ -213,8 +172,13 @@ jsonrpc_app = AuthenticatedJsonRPC(
         # ui=specs.ReDoc(),
     ),
 )
-jsonrpc_app.dispatcher.add_methods(methods)
-app.add_subapp('/myapp', jsonrpc_app.app)
+
+jsonrpc_app.app['users'] = {}
+jsonrpc_app.app['posts'] = {}
+
+jsonrpc_app.add_endpoint('/users', json_encoder=JSONEncoder).add_methods(user_methods)
+jsonrpc_app.add_endpoint('/posts', json_encoder=JSONEncoder).add_methods(post_methods)
+
 
 if __name__ == "__main__":
-    web.run_app(app, host='localhost', port=8080)
+    web.run_app(jsonrpc_app.app, host='localhost', port=8080)

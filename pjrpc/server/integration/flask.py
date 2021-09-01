@@ -3,7 +3,8 @@ Flask JSON-RPC extension.
 """
 
 import json
-from typing import Any, Optional, Union
+import functools as ft
+from typing import Any, Dict, Optional, Union
 
 import flask
 from flask import current_app
@@ -23,13 +24,15 @@ class JsonRPC:
     """
 
     def __init__(self, path: str, spec: Optional[specs.Specification] = None, **kwargs: Any):
-        self._path = path
+        self._path = path.rstrip('/')
         self._spec = spec
 
         kwargs.setdefault('json_loader', flask.json.loads)
         kwargs.setdefault('json_dumper', flask.json.dumps)
 
         self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
+        self._endpoints: Dict[str, pjrpc.server.Dispatcher] = {'': self._dispatcher}
+        self._blueprints: Dict[str, flask.Blueprint] = {}
 
     @property
     def dispatcher(self) -> pjrpc.server.Dispatcher:
@@ -39,6 +42,37 @@ class JsonRPC:
 
         return self._dispatcher
 
+    @property
+    def endpoints(self) -> Dict[str, pjrpc.server.Dispatcher]:
+        """
+        JSON-RPC application registered endpoints.
+        """
+
+        return self._endpoints
+
+    def add_endpoint(
+        self,
+        prefix: str,
+        blueprint: Optional[flask.Blueprint] = None,
+        **kwargs: Any,
+    ) -> pjrpc.server.Dispatcher:
+        """
+        Adds additional endpoint.
+
+        :param prefix: endpoint prefix
+        :param blueprint: flask blueprint the endpoint will be served on
+        :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
+        :return: dispatcher
+        """
+
+        prefix = prefix.rstrip('/')
+        dispatcher = pjrpc.server.Dispatcher(**kwargs)
+
+        self._endpoints[prefix] = dispatcher
+        self._blueprints[prefix] = blueprint
+
+        return dispatcher
+
     def init_app(self, app: Union[flask.Flask, flask.Blueprint]) -> None:
         """
         Initializes flask application with JSON-RPC extension.
@@ -46,7 +80,18 @@ class JsonRPC:
         :param app: flask application instance
         """
 
-        app.add_url_rule(self._path, methods=['POST'], view_func=self._rpc_handle)
+        for prefix, dispatcher in self._endpoints.items():
+            path = utils.join_path(self._path, prefix)
+            blueprint = self._blueprints.get(prefix)
+
+            (blueprint or app).add_url_rule(
+                path,
+                methods=['POST'],
+                view_func=ft.partial(self._rpc_handle, dispatcher=dispatcher),
+                endpoint=path.replace('/', '_'),
+            )
+            if blueprint:
+                app.register_blueprint(blueprint)
 
         if self._spec:
             app.add_url_rule(
@@ -62,8 +107,9 @@ class JsonRPC:
                 app.add_url_rule(f'{path}/<path:filename>', methods=['GET'], view_func=self._ui_static)
 
     def _generate_spec(self) -> flask.Response:
-        spec_full_path = utils.remove_suffix(flask.request.path, suffix=self._spec.path)
-        schema = self._spec.schema(path=spec_full_path, methods=self._dispatcher.registry.values())
+        endpoint_path = utils.remove_suffix(flask.request.path, suffix=self._spec.path)
+        methods = {path: dispatcher.registry.values() for path, dispatcher in self._endpoints.items()}
+        schema = self._spec.schema(path=endpoint_path, methods_map=methods)
 
         return current_app.response_class(
             json.dumps(schema, indent=2, cls=specs.JSONEncoder),
@@ -82,7 +128,7 @@ class JsonRPC:
     def _ui_static(self, filename: str) -> flask.Response:
         return flask.send_from_directory(self._spec.ui.get_static_folder(), filename)
 
-    def _rpc_handle(self) -> flask.Response:
+    def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
         """
         Handles JSON-RPC request.
 
@@ -98,7 +144,7 @@ class JsonRPC:
         except UnicodeDecodeError as e:
             raise exceptions.BadRequest() from e
 
-        response_text = self._dispatcher.dispatch(request_text)
+        response_text = dispatcher.dispatch(request_text)
         if response_text is None:
             return current_app.response_class()
         else:

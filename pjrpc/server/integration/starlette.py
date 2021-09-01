@@ -2,8 +2,10 @@
 aiohttp JSON-RPC server integration.
 """
 
+import functools as ft
 import json
-from typing import Any, Optional
+from typing import Any, Callable, Dict, Optional
+
 from starlette import exceptions, routing
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -12,6 +14,14 @@ from starlette.staticfiles import StaticFiles
 
 import pjrpc
 from pjrpc.server import specs, utils
+
+
+def async_partial(func: Callable, /, *bound_args, **bound_kwargs) -> Callable:
+    @ft.wraps(func)
+    async def wrapped(*args, **kwargs):
+        return await func(*bound_args, *args, **bound_kwargs, **kwargs)
+
+    return wrapped
 
 
 class Application:
@@ -34,8 +44,9 @@ class Application:
         self._spec = spec
         self._app = app or Starlette()
         self._dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
+        self._endpoints: Dict[str, pjrpc.server.AsyncDispatcher] = {'': self._dispatcher}
 
-        self._app.add_route(self._path, self._rpc_handle, methods=['POST'])
+        self._app.add_route(self._path, async_partial(self._rpc_handle, dispatcher=self._dispatcher), methods=['POST'])
 
         if self._spec:
             self._app.add_route(utils.join_path(self._path, self._spec.path), self._generate_spec, methods=['GET'])
@@ -65,9 +76,39 @@ class Application:
 
         return self._dispatcher
 
+    @property
+    def endpoints(self) -> Dict[str, pjrpc.server.Dispatcher]:
+        """
+        JSON-RPC application registered endpoints.
+        """
+
+        return self._endpoints
+
+    def add_endpoint(self, prefix: str, **kwargs: Any) -> pjrpc.server.Dispatcher:
+        """
+        Adds additional endpoint.
+
+        :param prefix: endpoint prefix
+        :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
+        :return: dispatcher
+        """
+
+        dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
+        self._endpoints[prefix] = dispatcher
+
+        self._app.add_route(
+            utils.join_path(self._path, prefix),
+            async_partial(self._rpc_handle, dispatcher=self._dispatcher),
+            methods=['POST'],
+        )
+
+        return dispatcher
+
     async def _generate_spec(self, request: Request) -> Response:
-        spec_full_path = utils.remove_suffix(request.url.path, suffix=self._spec.path)
-        schema = self._spec.schema(path=spec_full_path, methods=self._dispatcher.registry.values())
+        endpoint_path = utils.remove_suffix(request.url.path, suffix=self._spec.path)
+
+        methods = {path: dispatcher.registry.values() for path, dispatcher in self._endpoints.items()}
+        schema = self._spec.schema(path=endpoint_path, methods_map=methods)
 
         return Response(
             content=json.dumps(schema, indent=2, cls=specs.JSONEncoder),
@@ -83,7 +124,7 @@ class Application:
             media_type='text/html',
         )
 
-    async def _rpc_handle(self, http_request: Request) -> Response:
+    async def _rpc_handle(self, http_request: Request, dispatcher: pjrpc.server.AsyncDispatcher) -> Response:
         """
         Handles JSON-RPC request.
 
@@ -100,7 +141,7 @@ class Application:
         except UnicodeDecodeError as e:
             raise exceptions.HTTPException(400) from e
 
-        response_text = await self._dispatcher.dispatch(request_text, context=http_request)
+        response_text = await dispatcher.dispatch(request_text, context=http_request)
         if response_text is None:
             return Response()
         else:
