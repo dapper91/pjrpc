@@ -287,9 +287,8 @@ class SecurityScheme:
 
     def __post_init__(self):
         # `in` field name is not allowed in python
-        self.__dict__['in'] = self.__dict__.pop('location')
-        field = self.__dataclass_fields__['in'] = self.__dataclass_fields__.pop('location')  # noqa
-        field.name = 'in'
+        self.__dict__['in'] = self.__dict__['location']
+        self.__dataclass_fields__['location'].name = 'in'  # noqa
 
 
 @dc.dataclass(frozen=False)
@@ -458,9 +457,8 @@ class Parameter:
 
     def __post_init__(self):
         # `in` field name is not allowed in python
-        self.__dict__['in'] = self.__dict__.pop('location')
-        field = self.__dataclass_fields__['in'] = self.__dataclass_fields__.pop('location')  # noqa
-        field.name = 'in'
+        self.__dict__['in'] = self.__dict__['location']
+        self.__dataclass_fields__['location'].name = 'in'  # noqa
 
 
 @dc.dataclass(frozen=True)
