@@ -84,12 +84,15 @@ REQUEST_SCHEMA = {
                 {'type': 'number'},
             ],
         },
+        'method': {
+            'type': 'string',
+        },
         'params': {
             'type': 'object',
             'properties': {},
         },
     },
-    'required': ['jsonrpc'],
+    'required': ['jsonrpc', 'method'],
 }
 
 JSONRPC_HTTP_CODE = '200'
@@ -646,6 +649,7 @@ class OpenAPI(Specification):
             method_spec.update((k, v) for k, v in annotated_spec.items() if v is not UNSET)
 
             request_schema = copy.deepcopy(REQUEST_SCHEMA)
+            request_schema['properties']['method']['enum'] = [method.name]
 
             for param_name, param_schema in method_spec['params_schema'].items():
                 request_schema['properties']['params']['properties'][param_name] = param_schema.schema
