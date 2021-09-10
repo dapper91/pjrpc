@@ -2,6 +2,12 @@ Changelog
 =========
 
 
+1.3.4 (2021-09-11)
+------------------
+
+- openapi dataclass alias setting bug fixed.
+
+
 1.3.3 (2021-09-10)
 ------------------
 
