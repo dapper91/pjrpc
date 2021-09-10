@@ -158,6 +158,12 @@
                                             }
                                         ]
                                     },
+                                    "method": {
+                                        "type": "string",
+                                        "enum": [
+                                            "method1"
+                                        ]
+                                    },
                                     "params": {
                                         "type": "object",
                                         "properties": {
@@ -180,7 +186,8 @@
                                     }
                                 },
                                 "required": [
-                                    "jsonrpc"
+                                    "jsonrpc",
+                                    "method"
                                 ]
                             },
                             "examples": {
@@ -335,6 +342,12 @@
                                             }
                                         ]
                                     },
+                                    "method": {
+                                        "type": "string",
+                                        "enum": [
+                                            "method2"
+                                        ]
+                                    },
                                     "params": {
                                         "type": "object",
                                         "properties": {
@@ -353,7 +366,8 @@
                                     }
                                 },
                                 "required": [
-                                    "jsonrpc"
+                                    "jsonrpc",
+                                    "method"
                                 ]
                             }
                         }
@@ -478,6 +492,12 @@
                                             }
                                         ]
                                     },
+                                    "method": {
+                                        "type": "string",
+                                        "enum": [
+                                            "method3"
+                                        ]
+                                    },
                                     "params": {
                                         "type": "object",
                                         "properties": {
@@ -494,7 +514,8 @@
                                     }
                                 },
                                 "required": [
-                                    "jsonrpc"
+                                    "jsonrpc",
+                                    "method"
                                 ]
                             }
                         }
@@ -617,6 +638,12 @@
                                             }
                                         ]
                                     },
+                                    "method": {
+                                        "type": "string",
+                                        "enum": [
+                                            "method4"
+                                        ]
+                                    },
                                     "params": {
                                         "type": "object",
                                         "properties": {
@@ -630,7 +657,8 @@
                                     }
                                 },
                                 "required": [
-                                    "jsonrpc"
+                                    "jsonrpc",
+                                    "method"
                                 ]
                             }
                         }
@@ -754,13 +782,20 @@
                                             }
                                         ]
                                     },
+                                    "method": {
+                                        "type": "string",
+                                        "enum": [
+                                            "method5"
+                                        ]
+                                    },
                                     "params": {
                                         "type": "object",
                                         "properties": {}
                                     }
                                 },
                                 "required": [
-                                    "jsonrpc"
+                                    "jsonrpc",
+                                    "method"
                                 ]
                             }
                         }
@@ -884,13 +919,20 @@
                                             }
                                         ]
                                     },
+                                    "method": {
+                                        "type": "string",
+                                        "enum": [
+                                            "method6"
+                                        ]
+                                    },
                                     "params": {
                                         "type": "object",
                                         "properties": {}
                                     }
                                 },
                                 "required": [
-                                    "jsonrpc"
+                                    "jsonrpc",
+                                    "method"
                                 ]
                             }
                         }
