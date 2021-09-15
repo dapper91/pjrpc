@@ -19,7 +19,7 @@ from pjrpc.server import utils, Method
 
 from pjrpc.common import UNSET
 from . import extractors
-from .extractors import Schema
+from .extractors import Schema, ErrorExample
 from . import BaseUI, Specification
 
 
@@ -521,6 +521,7 @@ def annotate(
     result_schema: Schema = UNSET,
     errors: List[Union[Error, Type[exceptions.JsonRpcError]]] = UNSET,
     examples: List[MethodExample] = UNSET,
+    error_examples: List[ErrorExample] = UNSET,
     tags: List[str] = UNSET,
     summary: str = UNSET,
     description: str = UNSET,
@@ -536,6 +537,7 @@ def annotate(
     :param result_schema: method result JSON schema
     :param errors: method errors
     :param examples: method usage examples
+    :param error_examples: method error examples
     :param tags: a list of tags for method documentation control
     :param summary: a short summary of what the method does
     :param description: a verbose explanation of the method behavior
@@ -556,6 +558,7 @@ def annotate(
                     for error in errors
                 ] if errors else UNSET,
                 examples=examples,
+                error_examples=error_examples,
                 tags=[Tag(name=tag) for tag in tags] if tags else UNSET,
                 summary=summary,
                 description=description,
@@ -636,6 +639,7 @@ class OpenAPI(Specification):
 
         for prefix, method in methods_list:
             method_meta = utils.get_meta(method.method)
+
             annotated_spec = method_meta.get('openapi_spec', {})
             extracted_spec: Dict[str, Any] = dict(
                 params_schema=self._schema_extractor.extract_params_schema(method.method, exclude=[method.context]),
@@ -646,6 +650,9 @@ class OpenAPI(Specification):
                 summary=self._schema_extractor.extract_summary(method.method),
                 tags=self._schema_extractor.extract_tags(method.method),
                 examples=self._schema_extractor.extract_examples(method.method),
+                error_examples=self._schema_extractor.extract_error_examples(
+                    method.method, annotated_spec.get('errors') or [],
+                ),
             )
             method_spec = extracted_spec.copy()
             method_spec.update((k, v) for k, v in annotated_spec.items() if v is not UNSET)
@@ -711,17 +718,28 @@ class OpenAPI(Specification):
                                             ) for i, example in enumerate(method_spec.get('examples') or [])
                                         },
                                         **{
-                                            error.message or f'Error#{i}': ExampleObject(
-                                                summary=error.message,
+                                            example.message or f'Error#{i}': ExampleObject(
+                                                summary=example.summary,
+                                                description=example.description,
                                                 value=dict(
                                                     jsonrpc='2.0',
                                                     id=1,
                                                     error=dict(
-                                                        code=error.code,
-                                                        message=error.message,
+                                                        code=example.code,
+                                                        message=example.message,
+                                                        data=example.data,
                                                     ),
                                                 ),
-                                            ) for i, error in enumerate(method_spec.get('errors') or [])
+                                            ) for i, example in enumerate(
+                                                utils.unique(
+                                                    [
+                                                        ErrorExample(code=error.code, message=error.message)
+                                                        for error in method_spec.get('errors') or []
+                                                    ],
+                                                    method_spec.get('error_examples') or [],
+                                                    key=lambda item: item.code,
+                                                ),
+                                            )
                                         },
                                     } or UNSET,
                                 ),

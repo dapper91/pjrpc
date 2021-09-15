@@ -70,6 +70,9 @@ def test_openapi_schema_generator(resources):
                 description='example 1 description',
             ),
         ],
+        error_examples=[
+            specs.ErrorExample(code=2002, message='test error 2', summary='test error 2 summary'),
+        ],
         tags=['tag1', 'tag2'],
         summary='method1 summary',
         description='method1 description',

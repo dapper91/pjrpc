@@ -1,9 +1,10 @@
 import dataclasses as dc
 import inspect
 import itertools as it
-from typing import Any, Callable, Dict, Iterable, List, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 
 from pjrpc.common import UNSET, UnsetType
+from pjrpc.common.exceptions import JsonRpcError
 
 
 @dc.dataclass(frozen=True)
@@ -29,6 +30,19 @@ class Example:
     params: Dict[str, Any]
     result: Any
     version: str = '2.0'
+    summary: str = UNSET
+    description: str = UNSET
+
+
+@dc.dataclass(frozen=True)
+class ErrorExample:
+    """
+    Method error example.
+    """
+
+    code: int
+    message: str
+    data: Optional[Any] = UNSET
     summary: str = UNSET
     description: str = UNSET
 
@@ -120,6 +134,20 @@ class BaseSchemaExtractor:
         """
 
         return UNSET
+
+    def extract_error_examples(
+        self,
+        method: Callable,
+        errors: Optional[Iterable[JsonRpcError]] = None,
+    ) -> Union[UnsetType, List[ErrorExample]]:
+        """
+        Extracts method error examples.
+        """
+
+        return [
+            ErrorExample(code=error.code, message=error.message, summary=error.message)
+            for error in errors
+        ] if errors else UNSET
 
     def extract_deprecation_status(self, method: Callable) -> Union[UnsetType, bool]:
         """
