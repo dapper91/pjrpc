@@ -341,7 +341,7 @@ class Dispatcher:
         :return: response text representation
         """
 
-        logger.debug("request received: %s", request_text)
+        logger.getChild('request').debug("request received: %s", request_text)
 
         try:
             request_json = self._json_loader(request_text, cls=self._json_decoder)
@@ -371,7 +371,7 @@ class Dispatcher:
 
         if response is not UNSET:
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
-            logger.debug("response sent: %s", response_text)
+            logger.getChild('response').debug("response sent: %s", response_text)
 
             return response_text
 
@@ -442,7 +442,7 @@ class AsyncDispatcher(Dispatcher):
         :return: response text representation
         """
 
-        logger.debug("request received: %s", request_text)
+        logger.getChild('request').debug("request received: %s", request_text)
 
         try:
             request_json = self._json_loader(request_text, cls=self._json_decoder)
@@ -472,7 +472,7 @@ class AsyncDispatcher(Dispatcher):
 
         if response is not UNSET:
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
-            logger.debug("response sent: %s", response_text)
+            logger.getChild('response').debug("response sent: %s", response_text)
 
             return response_text
 
