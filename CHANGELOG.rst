@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.4.0 (2021-09-15)
+------------------
+
+- request and response loggers separated.
+
 
 1.3.4 (2021-09-11)
 ------------------
