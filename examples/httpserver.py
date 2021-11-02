@@ -17,7 +17,7 @@ class JsonRpcHandler(http.server.BaseHTTPRequestHandler):
         """
 
         content_type = self.headers.get('Content-Type')
-        if content_type != 'application/json':
+        if content_type not in pjrpc.common.REQUEST_CONTENT_TYPES:
             self.send_response(http.HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
             return
 
@@ -33,7 +33,7 @@ class JsonRpcHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(http.HTTPStatus.OK)
         else:
             self.send_response(http.HTTPStatus.OK)
-            self.send_header("Content-type", "application/json")
+            self.send_header("Content-type", pjrpc.common.DEFAULT_CONTENT_TYPE)
             self.end_headers()
 
             self.wfile.write(response_text.encode())

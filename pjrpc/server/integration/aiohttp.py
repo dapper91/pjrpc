@@ -127,7 +127,7 @@ class Application:
         :returns: :py:class:`aiohttp.web.Request`
         """
 
-        if http_request.content_type != 'application/json':
+        if http_request.content_type not in pjrpc.common.REQUEST_CONTENT_TYPES:
             raise web.HTTPUnsupportedMediaType()
 
         try:

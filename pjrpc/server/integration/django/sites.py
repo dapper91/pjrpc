@@ -90,7 +90,7 @@ class JsonRPCSite:
         :returns: http response
         """
 
-        if request.content_type != 'application/json':
+        if request.content_type not in pjrpc.common.REQUEST_CONTENT_TYPES:
             return HttpResponse(status=415)
 
         try:
@@ -102,7 +102,7 @@ class JsonRPCSite:
         if response_text is None:
             return HttpResponse()
         else:
-            return HttpResponse(response_text, content_type='application/json')
+            return HttpResponse(response_text, content_type=pjrpc.common.DEFAULT_CONTENT_TYPE)
 
 
 class JsonRPCSites(django.utils.functional.LazyObject):

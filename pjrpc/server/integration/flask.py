@@ -113,7 +113,7 @@ class JsonRPC:
 
         return current_app.response_class(
             json.dumps(schema, indent=2, cls=specs.JSONEncoder),
-            mimetype=current_app.config["JSONIFY_MIMETYPE"],
+            mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE,
         )
 
     def _ui_index_page(self) -> flask.Response:
@@ -148,4 +148,4 @@ class JsonRPC:
         if response_text is None:
             return current_app.response_class()
         else:
-            return current_app.response_class(response_text, mimetype=current_app.config["JSONIFY_MIMETYPE"])
+            return current_app.response_class(response_text, mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE)
