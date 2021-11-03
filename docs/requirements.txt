@@ -5,3 +5,4 @@ jsonschema~=3.0
 pydantic~=1.0
 requests~=2.0
 kombu~=4.0
+sphinx~=3.0
