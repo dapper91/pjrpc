@@ -56,7 +56,7 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
             Consumer(
                 queues=[self._rpc_queue],
                 on_message=self._rpc_handle,
-                accept={'application/json'},
+                accept={pjrpc.common.DEFAULT_CONTENT_TYPE},
                 prefetch_count=self._prefetch_count,
             ),
         ]
@@ -80,7 +80,7 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
                         response_text,
                         routing_key=reply_to,
                         correlation_id=message.properties.get('correlation_id'),
-                        content_type='application/json',
+                        content_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
                         content_encoding='utf8',
                         **(self._publish_args or {})
                     )

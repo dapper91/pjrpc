@@ -86,7 +86,7 @@ class Executor:
                                 body=response_text.encode(),
                                 reply_to=reply_to,
                                 correlation_id=message.correlation_id,
-                                content_type='application/json',
+                                content_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
                             ),
                             routing_key=reply_to,
                         )

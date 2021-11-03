@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.3.5 (2021-11-03)
+------------------
+
+- request and response loggers separated.
+- alternative json-rpc content types support added.
+
 
 1.3.4 (2021-09-11)
 ------------------

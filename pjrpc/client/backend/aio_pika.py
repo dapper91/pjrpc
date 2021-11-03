@@ -103,7 +103,7 @@ class Client(AbstractAsyncClient):
             logger.warning("unexpected or outdated message received: %r", message)
             return
 
-        if message.content_type != 'application/json':
+        if message.content_type not in pjrpc.common.RESPONSE_CONTENT_TYPES:
             future.set_exception(
                 pjrpc.exc.DeserializationError(f"unexpected response content type: {message.content_type}"),
             )
@@ -116,7 +116,7 @@ class Client(AbstractAsyncClient):
                 message = aio_pika.message.Message(
                     body=request_text.encode(),
                     content_encoding='utf8',
-                    content_type='application/json',
+                    content_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
                     **kwargs,
                 )
                 exchange = self._exchange or channel.default_exchange
@@ -139,7 +139,7 @@ class Client(AbstractAsyncClient):
                 correlation_id=request_id,
                 reply_to=result_queue.name,
                 content_encoding='utf8',
-                content_type='application/json',
+                content_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
                 **kwargs,
             )
 

@@ -29,7 +29,7 @@ class Client(AbstractClient):
         """
 
         kwargs = {
-            'headers': {'Content-Type': 'application/json'},
+            'headers': {'Content-Type': pjrpc.common.DEFAULT_CONTENT_TYPE},
             **kwargs,
         }
 
@@ -40,7 +40,7 @@ class Client(AbstractClient):
 
         response_text = resp.text
         content_type = resp.headers.get('Content-Type', '')
-        if response_text and content_type.split(';')[0] != 'application/json':
+        if response_text and content_type.split(';')[0] not in pjrpc.common.RESPONSE_CONTENT_TYPES:
             raise pjrpc.exc.DeserializationError(f"unexpected response content type: {content_type}")
 
         return response_text
