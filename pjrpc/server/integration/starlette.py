@@ -132,7 +132,7 @@ class Application:
         :returns: :py:class:`aiohttp.web.Request`
         """
 
-        if http_request.headers['Content-Type'] != 'application/json':
+        if http_request.headers['Content-Type'] not in pjrpc.common.REQUEST_CONTENT_TYPES:
             raise exceptions.HTTPException(415)
 
         try:
@@ -145,4 +145,4 @@ class Application:
         if response_text is None:
             return Response()
         else:
-            return Response(content=response_text, media_type='application/json')
+            return Response(content=response_text, media_type=pjrpc.common.DEFAULT_CONTENT_TYPE)

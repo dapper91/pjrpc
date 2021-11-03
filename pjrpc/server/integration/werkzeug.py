@@ -42,7 +42,7 @@ class JsonRPC:
         :returns: werkzeug response
         """
 
-        if request.content_type != 'application/json':
+        if request.content_type not in pjrpc.common.REQUEST_CONTENT_TYPES:
             raise exceptions.UnsupportedMediaType()
 
         try:
@@ -54,4 +54,4 @@ class JsonRPC:
         if response_text is None:
             return werkzeug.Response()
         else:
-            return werkzeug.Response(response_text, mimetype='application/json')
+            return werkzeug.Response(response_text, mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE)

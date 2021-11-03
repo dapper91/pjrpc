@@ -76,7 +76,7 @@ class Client(AbstractClient):
                     request_text,
                     exchange=self._exchange or '',
                     routing_key=self._routing_key,
-                    content_type='application/json',
+                    content_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
                     **kwargs,
                 )
                 return None
@@ -93,7 +93,7 @@ class Client(AbstractClient):
                 routing_key=self._routing_key,
                 reply_to=result_queue.name,
                 correlation_id=request_id,
-                content_type='application/json',
+                content_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
                 **kwargs,
             )
 
@@ -107,7 +107,7 @@ class Client(AbstractClient):
                     logger.warning("unexpected message received: %r", message)
                     return
 
-                if message.content_type != 'application/json':
+                if message.content_type not in pjrpc.common.RESPONSE_CONTENT_TYPES:
                     raise pjrpc.exc.DeserializationError(f"unexpected response content type: {message.content_type}")
                 else:
                     response = message.body
