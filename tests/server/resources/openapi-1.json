@@ -77,21 +77,39 @@
                                                     ]
                                                 },
                                                 "error": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "code": {
-                                                            "type": "integer"
+                                                    "oneOf": [
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "code": {
+                                                                    "type": "integer",
+                                                                    "enum": [
+                                                                        2001
+                                                                    ]
+                                                                },
+                                                                "message": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [],
+                                                            "title": "test error 1"
                                                         },
-                                                        "message": {
-                                                            "type": "string"
-                                                        },
-                                                        "data": {
-                                                            "type": "object"
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "code": {
+                                                                    "type": "integer",
+                                                                    "enum": [
+                                                                        2002
+                                                                    ]
+                                                                },
+                                                                "message": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [],
+                                                            "title": "test error 2"
                                                         }
-                                                    },
-                                                    "required": [
-                                                        "code",
-                                                        "message"
                                                     ]
                                                 }
                                             },

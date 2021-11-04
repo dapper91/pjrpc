@@ -12,14 +12,14 @@ import enum
 import functools as ft
 import pathlib
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
 
 from pjrpc.common import exceptions
 from pjrpc.server import utils, Method
 
 from pjrpc.common import UNSET
 from . import extractors
-from .extractors import Schema, ErrorExample
+from .extractors import Schema, ErrorExample, Error
 from . import BaseUI, Specification
 
 
@@ -101,6 +101,15 @@ REQUEST_SCHEMA = {
 
 JSONRPC_HTTP_CODE = '200'
 JSONRPC_MEDIATYPE = 'application/json'
+
+
+def drop_unset(obj: Any):
+    if isinstance(obj, dict):
+        return dict((drop_unset(k), drop_unset(v)) for k, v in obj.items() if k is not UNSET and v is not UNSET)
+    if isinstance(obj, (tuple, list, set)):
+        return list(drop_unset(v) for v in obj if v is not UNSET)
+
+    return obj
 
 
 @dc.dataclass(frozen=True)
@@ -309,21 +318,6 @@ class Components:
 
 
 @dc.dataclass(frozen=True)
-class Error:
-    """
-    Defines an application level error.
-
-    :param code: a Number that indicates the error type that occurred
-    :param message: a String providing a short description of the error
-    :param data: a Primitive or Structured value that contains additional information about the error
-    """
-
-    code: int
-    message: str
-    data: Dict[str, Any] = UNSET
-
-
-@dc.dataclass(frozen=True)
 class MethodExample:
     """
     Method usage example.
@@ -519,7 +513,8 @@ class Path:
 def annotate(
     params_schema: Dict[str, Schema] = UNSET,
     result_schema: Schema = UNSET,
-    errors: List[Union[Error, Type[exceptions.JsonRpcError]]] = UNSET,
+    errors_schema: List[Error] = UNSET,
+    errors: List[Type[exceptions.JsonRpcError]] = UNSET,
     examples: List[MethodExample] = UNSET,
     error_examples: List[ErrorExample] = UNSET,
     tags: List[str] = UNSET,
@@ -535,6 +530,7 @@ def annotate(
 
     :param params_schema: method parameters JSON schema
     :param result_schema: method result JSON schema
+    :param errors_schema: method errors schema
     :param errors: method errors
     :param examples: method usage examples
     :param error_examples: method error examples
@@ -553,10 +549,8 @@ def annotate(
             openapi_spec=dict(
                 params_schema=params_schema,
                 result_schema=result_schema,
-                errors=[
-                    error if isinstance(error, Error) else Error(code=error.code, message=error.message)
-                    for error in errors
-                ] if errors else UNSET,
+                errors_schema=errors_schema,
+                errors=errors,
                 examples=examples,
                 error_examples=error_examples,
                 tags=[Tag(name=tag) for tag in tags] if tags else UNSET,
@@ -644,8 +638,10 @@ class OpenAPI(Specification):
             extracted_spec: Dict[str, Any] = dict(
                 params_schema=self._schema_extractor.extract_params_schema(method.method, exclude=[method.context]),
                 result_schema=self._schema_extractor.extract_result_schema(method.method),
+                errors_schema=self._schema_extractor.extract_errors_schema(
+                    method.method, annotated_spec.get('errors') or [],
+                ),
                 deprecated=self._schema_extractor.extract_deprecation_status(method.method),
-                errors=self._schema_extractor.extract_errors_schema(method.method),
                 description=self._schema_extractor.extract_description(method.method),
                 summary=self._schema_extractor.extract_summary(method.method),
                 tags=self._schema_extractor.extract_tags(method.method),
@@ -675,6 +671,33 @@ class OpenAPI(Specification):
             response_schema['oneOf'][0]['properties']['result'] = result_schema.schema
             if result_schema.definitions:
                 self.components.schemas.update(result_schema.definitions)
+
+            if method_spec['errors_schema']:
+                errors_schema = []
+                response_schema['oneOf'][1]['properties']['error'] = {'oneOf': errors_schema}
+
+                for schema in utils.unique(
+                    [
+                        Error(code=error.code, message=error.message)
+                        for error in method_spec.get('errors') or []
+                    ],
+                    method_spec['errors_schema'],
+                    key=lambda item: item.code,
+                ):
+                    errors_schema.append({
+                        'type': 'object',
+                        'properties': {
+                            'code': {'type': 'integer', 'enum': [schema.code]},
+                            'message': {'type': 'string'},
+                            'data': schema.data,
+                        },
+                        'required': ['code', 'message'] + ['data'] if schema.data_required else [],
+                        'deprecated': schema.deprecated,
+                        'title': schema.title or schema.message,
+                        'description': schema.description,
+                    })
+                    if schema.definitions:
+                        self.components.schemas.update(schema.definitions)
 
             self.paths[f'{prefix}#{method.name}'] = Path(
                 post=Operation(
@@ -756,12 +779,7 @@ class OpenAPI(Specification):
                 ),
             )
 
-        return dc.asdict(
-            self,
-            dict_factory=lambda iterable: dict(
-                filter(lambda item: item[1] is not UNSET, iterable),
-            ),
-        )
+        return drop_unset(dc.asdict(self))
 
 
 class SwaggerUI(BaseUI):

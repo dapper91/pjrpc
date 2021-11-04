@@ -67,6 +67,11 @@ class Error:
     code: int
     message: str
     data: Dict[str, Any] = UNSET
+    data_required: bool = UNSET
+    title: str = UNSET
+    description: str = UNSET
+    deprecated: bool = UNSET
+    definitions: Dict[str, Any] = UNSET
 
 
 class BaseSchemaExtractor:
@@ -114,7 +119,11 @@ class BaseSchemaExtractor:
 
         return summary
 
-    def extract_errors_schema(self, method: Callable) -> Union[UnsetType, List[Error]]:
+    def extract_errors_schema(
+        self,
+        method: Callable,
+        errors: Optional[Iterable[JsonRpcError]] = None,
+    ) -> Union[UnsetType, List[Error]]:
         """
         Extracts method errors schema.
         """

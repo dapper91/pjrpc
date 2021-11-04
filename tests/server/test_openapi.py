@@ -56,6 +56,8 @@ def test_openapi_schema_generator(resources):
     @specs.annotate(
         errors=[
             TestError,
+        ],
+        errors_schema=[
             specs.Error(code=2002, message='test error 2'),
         ],
         examples=[
