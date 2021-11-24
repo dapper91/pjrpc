@@ -474,15 +474,15 @@ Swagger UI web tool with basic auth:
                 summary="Simple example",
                 params=dict(
                     user={
-                        'name': 'Alex',
-                        'surname': 'Smith',
+                        'name': 'John',
+                        'surname': 'Doe',
                         'age': 25,
                     },
                 ),
                 result={
                     'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                    'name': 'Alex',
-                    'surname': 'Smith',
+                    'name': 'John',
+                    'surname': 'Doe',
                     'age': 25,
                 },
             ),
@@ -520,8 +520,8 @@ Swagger UI web tool with basic auth:
                 ),
                 result={
                      'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                     'name': 'Alex',
-                     'surname': 'Smith',
+                     'name': 'John',
+                     'surname': 'Doe',
                      'age': 25,
                 },
             ),
