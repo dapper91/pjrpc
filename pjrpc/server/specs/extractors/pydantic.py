@@ -1,6 +1,7 @@
 import inspect
 from typing import Any, Callable, Dict, Iterable, Optional
 
+import docstring_parser
 import pydantic as pd
 
 from pjrpc.common import UNSET
@@ -12,12 +13,19 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
     Pydantic method specification extractor.
     """
 
-    def __init__(self, ref_template: str = '#/components/schemas/{model}'):
+    def __init__(self, ref_template: str = '#/components/schemas/{model}', use_docstring: bool = False):
         self._ref_template = ref_template
+        self._use_docstring = use_docstring
 
     def extract_params_schema(self, method: Callable, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
         exclude = set(exclude)
         signature = inspect.signature(method)
+
+        if self._use_docstring and method.__doc__:
+            doc = docstring_parser.parse(method.__doc__)
+            param_description = {param.arg_name: param.description for param in doc.params}
+        else:
+            param_description = {}
 
         field_definitions = {}
         for param in signature.parameters.values():
@@ -27,7 +35,10 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
             if param.kind in [inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY]:
                 field_definitions[param.name] = (
                     param.annotation if param.annotation is not inspect.Parameter.empty else Any,
-                    param.default if param.default is not inspect.Parameter.empty else ...,
+                    pd.Field(
+                        default=param.default if param.default is not inspect.Parameter.empty else ...,
+                        description=param_description.get(param.name),
+                    ),
                 )
 
         params_model = pd.create_model('RequestModel', **field_definitions)
