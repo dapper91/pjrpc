@@ -83,15 +83,15 @@ class NotFoundError(pjrpc.exc.JsonRpcError):
             summary="Simple example",
             params=dict(
                 user={
-                    'name': 'Alex',
-                    'surname': 'Smith',
+                    'name': 'John',
+                    'surname': 'Doe',
                     'age': 25,
                 },
             ),
             result={
                 'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                'name': 'Alex',
-                'surname': 'Smith',
+                'name': 'John',
+                'surname': 'Doe',
                 'age': 25,
             },
         ),
@@ -130,8 +130,8 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
             ),
             result={
                  'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                 'name': 'Alex',
-                 'surname': 'Smith',
+                 'name': 'John',
+                 'surname': 'Doe',
                  'age': 25,
             },
         ),
