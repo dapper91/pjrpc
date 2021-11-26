@@ -544,15 +544,15 @@ and Swagger UI web tool with basic auth:
                 summary="Simple example",
                 params=dict(
                     user={
-                        'name': 'Alex',
-                        'surname': 'Smith',
+                        'name': 'John',
+                        'surname': 'Doe',
                         'age': 25,
                     },
                 ),
                 result={
                     'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                    'name': 'Alex',
-                    'surname': 'Smith',
+                    'name': 'John',
+                    'surname': 'Doe',
                     'age': 25,
                 },
             ),
@@ -589,10 +589,10 @@ and Swagger UI web tool with basic auth:
                     user_id='c47726c6-a232-45f1-944f-60b98966ff1b',
                 ),
                 result={
-                     'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                     'name': 'Alex',
-                     'surname': 'Smith',
-                     'age': 25,
+                    'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
+                    'name': 'John',
+                    'surname': 'Doe',
+                    'age': 25,
                 },
             ),
         ],
@@ -608,11 +608,11 @@ and Swagger UI web tool with basic auth:
         :raise NotFoundError: user not found
         """
 
-        user = flask.current_app.users_db.get(user_id)
+        user = flask.current_app.users_db.get(user_id.hex)
         if not user:
             raise NotFoundError()
 
-        return UserOut(**user.dict())
+        return UserOut(id=user_id, **user.dict())
 
 
     @specs.annotate(
@@ -638,7 +638,7 @@ and Swagger UI web tool with basic auth:
         :raise NotFoundError: user not found
         """
 
-        user = flask.current_app.users_db.pop(user_id, None)
+        user = flask.current_app.users_db.pop(user_id.hex, None)
         if not user:
             raise NotFoundError()
 
@@ -660,7 +660,7 @@ and Swagger UI web tool with basic auth:
                 ),
             ),
             security=[
-                dict(basicAuth=[])
+                dict(basicAuth=[]),
             ],
             schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
             ui=specs.SwaggerUI(),
