@@ -39,6 +39,8 @@ RESULT_SCHEMA = {
         'result': {},
     },
     'required': ['jsonrpc', 'id', 'result'],
+    'title': 'Success',
+    'description': 'JSON-RPC success',
 }
 
 ERROR_SCHEMA = {
@@ -65,6 +67,8 @@ ERROR_SCHEMA = {
         },
     },
     'required': ['jsonrpc', 'error'],
+    'title': 'Error',
+    'description': 'JSON-RPC error',
 }
 
 RESPONSE_SCHEMA = {
