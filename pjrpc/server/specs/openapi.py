@@ -75,6 +75,9 @@ RESPONSE_SCHEMA = {
     'oneOf': [RESULT_SCHEMA, ERROR_SCHEMA],
 }
 
+RESULT_SCHEMA_IDX = 0
+ERROR_SCHEMA_IDX = 1
+
 REQUEST_SCHEMA = {
     'type': 'object',
     'properties': {
@@ -633,8 +636,8 @@ class OpenAPI(Specification):
 
         for prefix, method in methods_list:
             method_meta = utils.get_meta(method.method)
-
             annotated_spec = method_meta.get('openapi_spec', {})
+
             extracted_spec: Dict[str, Any] = dict(
                 params_schema=self._schema_extractor.extract_params_schema(method.method, exclude=[method.context]),
                 result_schema=self._schema_extractor.extract_result_schema(method.method),
@@ -650,54 +653,61 @@ class OpenAPI(Specification):
                     method.method, annotated_spec.get('errors') or [],
                 ),
             )
-            method_spec = extracted_spec.copy()
+            method_spec = extracted_spec
             method_spec.update((k, v) for k, v in annotated_spec.items() if v is not UNSET)
 
-            request_schema = copy.deepcopy(REQUEST_SCHEMA)
-            request_schema['properties']['method']['enum'] = [method.name]
+            request_schema = self._build_request_schema(method.name, method_spec)
+            response_schema = self._build_response_schema(method_spec)
 
-            for param_name, param_schema in method_spec['params_schema'].items():
-                request_schema['properties']['params']['properties'][param_name] = param_schema.schema
+            request_examples = {
+                example.summary or f'Example#{i}': ExampleObject(
+                    summary=example.summary,
+                    description=example.description,
+                    value=dict(
+                        jsonrpc=example.version,
+                        id=1,
+                        method=method.name,
+                        params=example.params,
+                    ),
+                ) for i, example in enumerate(method_spec.get('examples') or [])
+            }
 
-                if param_schema.required:
-                    required_params = request_schema['properties']['params'].setdefault('required', [])
-                    required_params.append(param_name)
+            response_success_examples = {
+                example.summary or f'Example#{i}': ExampleObject(
+                    summary=example.summary,
+                    description=example.description,
+                    value=dict(
+                        jsonrpc=example.version,
+                        id=1,
+                        result=example.result,
+                    ),
+                ) for i, example in enumerate(method_spec.get('examples') or [])
+            }
 
-                if param_schema.definitions:
-                    self.components.schemas.update(param_schema.definitions)
-
-            response_schema = copy.deepcopy(RESPONSE_SCHEMA)
-            result_schema = method_spec['result_schema']
-            response_schema['oneOf'][0]['properties']['result'] = result_schema.schema
-            if result_schema.definitions:
-                self.components.schemas.update(result_schema.definitions)
-
-            if method_spec['errors_schema']:
-                errors_schema = []
-                response_schema['oneOf'][1]['properties']['error'] = {'oneOf': errors_schema}
-
-                for schema in utils.unique(
-                    [
-                        Error(code=error.code, message=error.message)
-                        for error in method_spec.get('errors') or []
-                    ],
-                    method_spec['errors_schema'],
-                    key=lambda item: item.code,
-                ):
-                    errors_schema.append({
-                        'type': 'object',
-                        'properties': {
-                            'code': {'type': 'integer', 'enum': [schema.code]},
-                            'message': {'type': 'string'},
-                            'data': schema.data,
-                        },
-                        'required': ['code', 'message'] + ['data'] if schema.data_required else [],
-                        'deprecated': schema.deprecated,
-                        'title': schema.title or schema.message,
-                        'description': schema.description,
-                    })
-                    if schema.definitions:
-                        self.components.schemas.update(schema.definitions)
+            response_error_examples = {
+                example.message or f'Error#{i}': ExampleObject(
+                    summary=example.summary,
+                    description=example.description,
+                    value=dict(
+                        jsonrpc='2.0',
+                        id=1,
+                        error=dict(
+                            code=example.code,
+                            message=example.message,
+                            data=example.data,
+                        ),
+                    ),
+                ) for i, example in enumerate(
+                    utils.unique(
+                        [
+                            ErrorExample(code=error.code, message=error.message)
+                            for error in method_spec.get('errors') or []
+                        ],
+                        method_spec.get('error_examples') or [],
+                        key=lambda item: item.code,
+                    ),
+                )
+            }
 
             self.paths[f'{prefix}#{method.name}'] = Path(
                 post=Operation(
@@ -706,18 +716,7 @@ class OpenAPI(Specification):
                         content={
                             JSONRPC_MEDIATYPE: MediaType(
                                 schema=request_schema,
-                                examples={
-                                    example.summary or f'Example#{i}': ExampleObject(
-                                        summary=example.summary,
-                                        description=example.description,
-                                        value=dict(
-                                            jsonrpc=example.version,
-                                            id=1,
-                                            method=method.name,
-                                            params=example.params,
-                                        ),
-                                    ) for i, example in enumerate(method_spec.get('examples') or [])
-                                } or UNSET,
+                                examples=request_examples or UNSET,
                             ),
                         },
                         required=True,
@@ -728,43 +727,7 @@ class OpenAPI(Specification):
                             content={
                                 JSONRPC_MEDIATYPE: MediaType(
                                     schema=response_schema,
-                                    examples={
-                                        **{
-                                            example.summary or f'Example#{i}': ExampleObject(
-                                                summary=example.summary,
-                                                description=example.description,
-                                                value=dict(
-                                                    jsonrpc=example.version,
-                                                    id=1,
-                                                    result=example.result,
-                                                ),
-                                            ) for i, example in enumerate(method_spec.get('examples') or [])
-                                        },
-                                        **{
-                                            example.message or f'Error#{i}': ExampleObject(
-                                                summary=example.summary,
-                                                description=example.description,
-                                                value=dict(
-                                                    jsonrpc='2.0',
-                                                    id=1,
-                                                    error=dict(
-                                                        code=example.code,
-                                                        message=example.message,
-                                                        data=example.data,
-                                                    ),
-                                                ),
-                                            ) for i, example in enumerate(
-                                                utils.unique(
-                                                    [
-                                                        ErrorExample(code=error.code, message=error.message)
-                                                        for error in method_spec.get('errors') or []
-                                                    ],
-                                                    method_spec.get('error_examples') or [],
-                                                    key=lambda item: item.code,
-                                                ),
-                                            )
-                                        },
-                                    } or UNSET,
+                                    examples={**response_success_examples, **response_error_examples} or UNSET,
                                 ),
                             },
                         ),
@@ -780,6 +743,59 @@ class OpenAPI(Specification):
             )
 
         return drop_unset(dc.asdict(self))
+
+    def _build_request_schema(self, method_name: str, method_spec: Dict[str, Any]) -> Dict[str, Any]:
+        request_schema = copy.deepcopy(REQUEST_SCHEMA)
+        request_schema['properties']['method']['enum'] = [method_name]
+
+        for param_name, param_schema in method_spec['params_schema'].items():
+            request_schema['properties']['params']['properties'][param_name] = param_schema.schema.copy()
+
+            if param_schema.required:
+                required_params = request_schema['properties']['params'].setdefault('required', [])
+                required_params.append(param_name)
+
+            if param_schema.definitions:
+                self.components.schemas.update(param_schema.definitions)
+
+        return request_schema
+
+    def _build_response_schema(self, method_spec: Dict[str, Any]) -> Dict[str, Any]:
+        response_schema = copy.deepcopy(RESPONSE_SCHEMA)
+        result_schema = method_spec['result_schema']
+
+        response_schema['oneOf'][RESULT_SCHEMA_IDX]['properties']['result'] = result_schema.schema
+        if result_schema.definitions:
+            self.components.schemas.update(result_schema.definitions)
+
+        if method_spec['errors_schema']:
+            errors_schema = []
+            response_schema['oneOf'][ERROR_SCHEMA_IDX]['properties']['error'] = {'oneOf': errors_schema}
+
+            for schema in utils.unique(
+                [
+                    Error(code=error.code, message=error.message)
+                    for error in method_spec.get('errors') or []
+                ],
+                method_spec['errors_schema'],
+                key=lambda item: item.code,
+            ):
+                errors_schema.append({
+                    'type': 'object',
+                    'properties': {
+                        'code': {'type': 'integer', 'enum': [schema.code]},
+                        'message': {'type': 'string'},
+                        'data': schema.data,
+                    },
+                    'required': ['code', 'message'] + ['data'] if schema.data_required else [],
+                    'deprecated': schema.deprecated,
+                    'title': schema.title or schema.message,
+                    'description': schema.description,
+                })
+                if schema.definitions:
+                    self.components.schemas.update(schema.definitions)
+
+        return response_schema
 
 
 class SwaggerUI(BaseUI):
