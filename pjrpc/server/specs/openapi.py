@@ -583,6 +583,8 @@ class OpenAPI(Specification):
     :param tags: a list of tags used by the specification with additional metadata
     :param security: a declaration of which security mechanisms can be used across the API
     :param schema_extractor: method specification extractor
+    :param schema_extractors: method specification extractors. Extractors results will be merged in reverse order
+                              (former extractor rewrites the result of the later one)
     :param path: specification url path
     :param security_schemes: an object to hold reusable Security Scheme Objects
     :param ui: web ui instance
@@ -609,6 +611,7 @@ class OpenAPI(Specification):
         security_schemes: Dict[str, SecurityScheme] = UNSET,
         openapi: str = '3.0.0',
         schema_extractor: Optional[extractors.BaseSchemaExtractor] = None,
+        schema_extractors: Iterable[extractors.BaseSchemaExtractor] = (),
         ui: Optional[BaseUI] = None,
         ui_path: str = '/ui/',
     ):
@@ -623,7 +626,7 @@ class OpenAPI(Specification):
         self.paths: Dict[str, Path] = {}
         self.components = Components(securitySchemes=security_schemes)
 
-        self._schema_extractor = schema_extractor or extractors.BaseSchemaExtractor()
+        self._schema_extractors = list(schema_extractors) or [schema_extractor or extractors.BaseSchemaExtractor()]
 
     def schema(self, path: str, methods: Iterable[Method] = (), methods_map: Dict[str, Iterable[Method]] = {}) -> dict:
         methods_list: List[Tuple[str, Method]] = []
@@ -638,24 +641,42 @@ class OpenAPI(Specification):
             method_meta = utils.get_meta(method.method)
             annotated_spec = method_meta.get('openapi_spec', {})
 
-            extracted_spec: Dict[str, Any] = dict(
-                params_schema=self._schema_extractor.extract_params_schema(method.method, exclude=[method.context]),
-                result_schema=self._schema_extractor.extract_result_schema(method.method),
-                errors_schema=self._schema_extractor.extract_errors_schema(
-                    method.method, annotated_spec.get('errors') or [],
+            specs: List[Dict[str, Any]] = [
+                dict(
+                    params_schema=annotated_spec.get('params_schema', UNSET),
+                    result_schema=annotated_spec.get('result_schema', UNSET),
+                    errors_schema=annotated_spec.get('errors_schema', UNSET),
+                    deprecated=annotated_spec.get('deprecated', UNSET),
+                    description=annotated_spec.get('description', UNSET),
+                    summary=annotated_spec.get('summary', UNSET),
+                    tags=annotated_spec.get('tags', UNSET),
+                    examples=annotated_spec.get('examples', UNSET),
+                    error_examples=annotated_spec.get('error_examples', UNSET),
+                    external_docs=annotated_spec.get('external_docs', UNSET),
+                    security=annotated_spec.get('security', UNSET),
+                    parameters=annotated_spec.get('parameters', UNSET),
                 ),
-                deprecated=self._schema_extractor.extract_deprecation_status(method.method),
-                description=self._schema_extractor.extract_description(method.method),
-                summary=self._schema_extractor.extract_summary(method.method),
-                tags=self._schema_extractor.extract_tags(method.method),
-                examples=self._schema_extractor.extract_examples(method.method),
-                error_examples=self._schema_extractor.extract_error_examples(
-                    method.method, annotated_spec.get('errors') or [],
-                ),
-            )
-            method_spec = extracted_spec
-            method_spec.update((k, v) for k, v in annotated_spec.items() if v is not UNSET)
+            ]
+            for schema_extractor in self._schema_extractors:
+                specs.append(
+                    dict(
+                        params_schema=schema_extractor.extract_params_schema(method.method, exclude=[method.context]),
+                        result_schema=schema_extractor.extract_result_schema(method.method),
+                        errors_schema=schema_extractor.extract_errors_schema(
+                            method.method, annotated_spec.get('errors') or [],
+                        ),
+                        deprecated=schema_extractor.extract_deprecation_status(method.method),
+                        description=schema_extractor.extract_description(method.method),
+                        summary=schema_extractor.extract_summary(method.method),
+                        tags=schema_extractor.extract_tags(method.method),
+                        examples=schema_extractor.extract_examples(method.method),
+                        error_examples=schema_extractor.extract_error_examples(
+                            method.method, annotated_spec.get('errors') or [],
+                        ),
+                    ),
+                )
 
+            method_spec = self._merge_specs(specs)
             request_schema = self._build_request_schema(method.name, method_spec)
             response_schema = self._build_response_schema(method_spec)
 
@@ -743,6 +764,78 @@ class OpenAPI(Specification):
             )
 
         return drop_unset(dc.asdict(self))
+
+    def _merge_specs(self, specs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        specs = reversed(specs)
+        result = next(specs, {})
+
+        for spec in specs:
+            if spec.get('errors_schema', UNSET) is not UNSET:
+                schema = {schema.code: schema for schema in result.get('errors_schema') or []}
+                schema.update({schema.code: schema for schema in spec['errors_schema']})
+                result['errors_schema'] = list(schema.values())
+
+            if spec.get('result_schema', UNSET) is not UNSET:
+                if result.get('result_schema', UNSET) is UNSET:
+                    result['result_schema'] = spec['result_schema']
+                else:
+                    cur_schema = result['result_schema']
+                    new_schema = spec['result_schema']
+                    result['result_schema'] = Schema(
+                        new_schema.schema or cur_schema.schema,
+                        new_schema.required if new_schema.required is not UNSET else cur_schema.required,
+                        new_schema.summary or cur_schema.summary,
+                        new_schema.description or cur_schema.description,
+                        new_schema.deprecated if new_schema.deprecated is not UNSET else cur_schema.deprecated,
+                        new_schema.definitions or cur_schema.definitions,
+                    )
+
+            if spec.get('params_schema', UNSET) is not UNSET:
+                if result.get('params_schema', UNSET) is UNSET:
+                    result['params_schema'] = spec['params_schema']
+                else:
+                    for param, schema1 in spec['params_schema'].items():
+                        schema2 = result['params_schema'].get(param)
+                        if schema2 is None:
+                            result['params_schema'][param] = schema1
+                        else:
+                            result['params_schema'][param] = Schema(
+                                schema1.schema or schema2.schema,
+                                schema1.required if schema1.required is not UNSET else schema2.required,
+                                schema1.summary or schema2.summary,
+                                schema1.description or schema2.description,
+                                schema1.deprecated if schema1.deprecated is not UNSET else schema2.deprecated,
+                                schema1.definitions or schema2.definitions,
+                            )
+
+            if spec.get('summary', UNSET) is not UNSET:
+                result['summary'] = spec['summary']
+
+            if spec.get('description', UNSET) is not UNSET:
+                result['description'] = spec['description']
+
+            if spec.get('tags', UNSET) is not UNSET:
+                result['tags'] = spec['tags'] + (result.get('tags') or [])
+
+            if spec.get('deprecated', UNSET) is not UNSET:
+                result['deprecated'] = spec['deprecated']
+
+            if spec.get('examples', UNSET) is not UNSET:
+                result['examples'] = spec['examples'] + (result.get('examples') or [])
+
+            if spec.get('error_examples', UNSET) is not UNSET:
+                result['error_examples'] = spec['error_examples'] + (result.get('error_examples') or [])
+
+            if spec.get('external_docs', UNSET) is not UNSET:
+                result['external_docs'] = spec['external_docs']
+
+            if spec.get('security', UNSET) is not UNSET:
+                result['security'] = spec['security'] + (result.get('security') or [])
+
+            if spec.get('parameters', UNSET) is not UNSET:
+                result['parameters'] = spec['parameters'] + (result.get('parameters') or [])
+
+        return result
 
     def _build_request_schema(self, method_name: str, method_spec: Dict[str, Any]) -> Dict[str, Any]:
         request_schema = copy.deepcopy(REQUEST_SCHEMA)
