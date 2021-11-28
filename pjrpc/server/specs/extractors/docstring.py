@@ -1,9 +1,9 @@
-from typing import Callable, Dict, Iterable, List, Union
+from typing import Callable, Dict, Iterable, List, Optional, Union
 
 import docstring_parser
 
 from pjrpc.common import exceptions, UNSET, UnsetType
-from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Example, Schema, Tag
+from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Example, Schema, Tag, JsonRpcError
 
 
 class DocstringSchemaExtractor(BaseSchemaExtractor):
@@ -35,16 +35,21 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
 
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
-            result_schema = Schema(
-                schema={'type': doc.returns.type_name},
-                required=True,
-                summary=doc.returns.description.split('.')[0],
-                description=doc.returns.description,
-            )
+            if doc and doc.returns:
+                result_schema = Schema(
+                    schema={'type': doc.returns.type_name},
+                    required=True,
+                    summary=doc.returns.description.split('.')[0],
+                    description=doc.returns.description,
+                )
 
         return result_schema
 
-    def extract_errors_schema(self, method: Callable) -> Union[UnsetType, List[Error]]:
+    def extract_errors_schema(
+        self,
+        method: Callable,
+        errors: Optional[Iterable[JsonRpcError]] = None,
+    ) -> Union[UnsetType, List[Error]]:
         errors_schema = []
 
         if method.__doc__:
