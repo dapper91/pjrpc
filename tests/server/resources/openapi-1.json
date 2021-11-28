@@ -681,7 +681,9 @@
                                         "type": "object",
                                         "properties": {
                                             "param1": {
-                                                "type": "number"
+                                                "type": "number",
+                                                "title": "param1 summary",
+                                                "description": "param1 description"
                                             }
                                         },
                                         "required": [

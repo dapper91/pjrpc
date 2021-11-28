@@ -749,7 +749,12 @@ class OpenAPI(Specification):
         request_schema['properties']['method']['enum'] = [method_name]
 
         for param_name, param_schema in method_spec['params_schema'].items():
-            request_schema['properties']['params']['properties'][param_name] = param_schema.schema.copy()
+            schema = request_schema['properties']['params']['properties'][param_name] = param_schema.schema.copy()
+            schema.update({
+                'title': param_schema.summary,
+                'description': param_schema.description,
+                'deprecated': param_schema.deprecated,
+            })
 
             if param_schema.required:
                 required_params = request_schema['properties']['params'].setdefault('required', [])
