@@ -4,6 +4,7 @@ from typing import Any
 import flask
 import pydantic
 
+import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import flask as integration
 from pjrpc.server.validators import pydantic as validators
@@ -165,7 +166,10 @@ json_rpc = integration.JsonRPC(
         security=[
             dict(basicAuth=[]),
         ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
+        schema_extractors=[
+            extractors.docstring.DocstringSchemaExtractor(),
+            extractors.pydantic.PydanticSchemaExtractor(),
+        ],
         ui=specs.SwaggerUI(),
     ),
 )
