@@ -4,6 +4,7 @@ from typing import Optional
 import pydantic
 
 import pjrpc.common.exceptions
+import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server import Method
 from pjrpc.server.specs import openapi as specs
@@ -38,7 +39,10 @@ def test_openapi_schema_generator(resources):
         security=[
             dict(basicAuth=[]),
         ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
+        schema_extractors=[
+            extractors.docstring.DocstringSchemaExtractor(),
+            extractors.pydantic.PydanticSchemaExtractor(),
+        ],
     )
 
     class SubModel(pydantic.BaseModel):
@@ -56,6 +60,8 @@ def test_openapi_schema_generator(resources):
     @specs.annotate(
         errors=[
             TestError,
+        ],
+        errors_schema=[
             specs.Error(code=2002, message='test error 2'),
         ],
         examples=[
@@ -69,6 +75,9 @@ def test_openapi_schema_generator(resources):
                 summary='example 1 summary',
                 description='example 1 description',
             ),
+        ],
+        error_examples=[
+            specs.ErrorExample(code=2002, message='test error 2', summary='test error 2 summary'),
         ],
         tags=['tag1', 'tag2'],
         summary='method1 summary',
@@ -111,14 +120,24 @@ def test_openapi_schema_generator(resources):
     def method6():
         pass
 
+    def method7(param1):
+        """
+        Method 7.
+
+        Method 7 description.
+
+        :param param1: param1 summary. param1 description.
+        """
+
     method1 = Method(method1, 'method1', 'ctx')
     method2 = Method(method2, 'method2')
     method3 = Method(method3, 'method3')
     method4 = Method(method4, 'method4')
     method5 = Method(method5, 'method5')
     method6 = Method(method6, 'method6')
+    method7 = Method(method7, 'method7')
 
-    actual_schema = spec.schema('/test/path', methods=[method1, method2, method3, method4, method5, method6])
+    actual_schema = spec.schema('/test/path', methods=[method1, method2, method3, method4, method5, method6, method7])
 
     assert actual_schema == resources('openapi-1.json', loader=json.loads)
 

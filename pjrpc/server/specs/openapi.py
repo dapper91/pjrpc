@@ -12,14 +12,14 @@ import enum
 import functools as ft
 import pathlib
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
 
 from pjrpc.common import exceptions
 from pjrpc.server import utils, Method
 
 from pjrpc.common import UNSET
 from . import extractors
-from .extractors import Schema
+from .extractors import Schema, ErrorExample, Error
 from . import BaseUI, Specification
 
 
@@ -75,6 +75,9 @@ RESPONSE_SCHEMA = {
     'oneOf': [RESULT_SCHEMA, ERROR_SCHEMA],
 }
 
+RESULT_SCHEMA_IDX = 0
+ERROR_SCHEMA_IDX = 1
+
 REQUEST_SCHEMA = {
     'type': 'object',
     'properties': {
@@ -101,6 +104,15 @@ REQUEST_SCHEMA = {
 
 JSONRPC_HTTP_CODE = '200'
 JSONRPC_MEDIATYPE = 'application/json'
+
+
+def drop_unset(obj: Any):
+    if isinstance(obj, dict):
+        return dict((drop_unset(k), drop_unset(v)) for k, v in obj.items() if k is not UNSET and v is not UNSET)
+    if isinstance(obj, (tuple, list, set)):
+        return list(drop_unset(v) for v in obj if v is not UNSET)
+
+    return obj
 
 
 @dc.dataclass(frozen=True)
@@ -309,21 +321,6 @@ class Components:
 
 
 @dc.dataclass(frozen=True)
-class Error:
-    """
-    Defines an application level error.
-
-    :param code: a Number that indicates the error type that occurred
-    :param message: a String providing a short description of the error
-    :param data: a Primitive or Structured value that contains additional information about the error
-    """
-
-    code: int
-    message: str
-    data: Dict[str, Any] = UNSET
-
-
-@dc.dataclass(frozen=True)
 class MethodExample:
     """
     Method usage example.
@@ -519,8 +516,10 @@ class Path:
 def annotate(
     params_schema: Dict[str, Schema] = UNSET,
     result_schema: Schema = UNSET,
-    errors: List[Union[Error, Type[exceptions.JsonRpcError]]] = UNSET,
+    errors_schema: List[Error] = UNSET,
+    errors: List[Type[exceptions.JsonRpcError]] = UNSET,
     examples: List[MethodExample] = UNSET,
+    error_examples: List[ErrorExample] = UNSET,
     tags: List[str] = UNSET,
     summary: str = UNSET,
     description: str = UNSET,
@@ -534,8 +533,10 @@ def annotate(
 
     :param params_schema: method parameters JSON schema
     :param result_schema: method result JSON schema
+    :param errors_schema: method errors schema
     :param errors: method errors
     :param examples: method usage examples
+    :param error_examples: method error examples
     :param tags: a list of tags for method documentation control
     :param summary: a short summary of what the method does
     :param description: a verbose explanation of the method behavior
@@ -551,11 +552,10 @@ def annotate(
             openapi_spec=dict(
                 params_schema=params_schema,
                 result_schema=result_schema,
-                errors=[
-                    error if isinstance(error, Error) else Error(code=error.code, message=error.message)
-                    for error in errors
-                ] if errors else UNSET,
+                errors_schema=errors_schema,
+                errors=errors,
                 examples=examples,
+                error_examples=error_examples,
                 tags=[Tag(name=tag) for tag in tags] if tags else UNSET,
                 summary=summary,
                 description=description,
@@ -583,6 +583,8 @@ class OpenAPI(Specification):
     :param tags: a list of tags used by the specification with additional metadata
     :param security: a declaration of which security mechanisms can be used across the API
     :param schema_extractor: method specification extractor
+    :param schema_extractors: method specification extractors. Extractors results will be merged in reverse order
+                              (former extractor rewrites the result of the later one)
     :param path: specification url path
     :param security_schemes: an object to hold reusable Security Scheme Objects
     :param ui: web ui instance
@@ -609,6 +611,7 @@ class OpenAPI(Specification):
         security_schemes: Dict[str, SecurityScheme] = UNSET,
         openapi: str = '3.0.0',
         schema_extractor: Optional[extractors.BaseSchemaExtractor] = None,
+        schema_extractors: Iterable[extractors.BaseSchemaExtractor] = (),
         ui: Optional[BaseUI] = None,
         ui_path: str = '/ui/',
     ):
@@ -623,7 +626,7 @@ class OpenAPI(Specification):
         self.paths: Dict[str, Path] = {}
         self.components = Components(securitySchemes=security_schemes)
 
-        self._schema_extractor = schema_extractor or extractors.BaseSchemaExtractor()
+        self._schema_extractors = list(schema_extractors) or [schema_extractor or extractors.BaseSchemaExtractor()]
 
     def schema(self, path: str, methods: Iterable[Method] = (), methods_map: Dict[str, Iterable[Method]] = {}) -> dict:
         methods_list: List[Tuple[str, Method]] = []
@@ -637,37 +640,95 @@ class OpenAPI(Specification):
         for prefix, method in methods_list:
             method_meta = utils.get_meta(method.method)
             annotated_spec = method_meta.get('openapi_spec', {})
-            extracted_spec: Dict[str, Any] = dict(
-                params_schema=self._schema_extractor.extract_params_schema(method.method, exclude=[method.context]),
-                result_schema=self._schema_extractor.extract_result_schema(method.method),
-                deprecated=self._schema_extractor.extract_deprecation_status(method.method),
-                errors=self._schema_extractor.extract_errors_schema(method.method),
-                description=self._schema_extractor.extract_description(method.method),
-                summary=self._schema_extractor.extract_summary(method.method),
-                tags=self._schema_extractor.extract_tags(method.method),
-                examples=self._schema_extractor.extract_examples(method.method),
-            )
-            method_spec = extracted_spec.copy()
-            method_spec.update((k, v) for k, v in annotated_spec.items() if v is not UNSET)
 
-            request_schema = copy.deepcopy(REQUEST_SCHEMA)
-            request_schema['properties']['method']['enum'] = [method.name]
+            specs: List[Dict[str, Any]] = [
+                dict(
+                    params_schema=annotated_spec.get('params_schema', UNSET),
+                    result_schema=annotated_spec.get('result_schema', UNSET),
+                    errors_schema=annotated_spec.get('errors_schema', UNSET),
+                    deprecated=annotated_spec.get('deprecated', UNSET),
+                    description=annotated_spec.get('description', UNSET),
+                    summary=annotated_spec.get('summary', UNSET),
+                    tags=annotated_spec.get('tags', UNSET),
+                    examples=annotated_spec.get('examples', UNSET),
+                    error_examples=annotated_spec.get('error_examples', UNSET),
+                    external_docs=annotated_spec.get('external_docs', UNSET),
+                    security=annotated_spec.get('security', UNSET),
+                    parameters=annotated_spec.get('parameters', UNSET),
+                ),
+            ]
+            for schema_extractor in self._schema_extractors:
+                specs.append(
+                    dict(
+                        params_schema=schema_extractor.extract_params_schema(method.method, exclude=[method.context]),
+                        result_schema=schema_extractor.extract_result_schema(method.method),
+                        errors_schema=schema_extractor.extract_errors_schema(
+                            method.method, annotated_spec.get('errors') or [],
+                        ),
+                        deprecated=schema_extractor.extract_deprecation_status(method.method),
+                        description=schema_extractor.extract_description(method.method),
+                        summary=schema_extractor.extract_summary(method.method),
+                        tags=schema_extractor.extract_tags(method.method),
+                        examples=schema_extractor.extract_examples(method.method),
+                        error_examples=schema_extractor.extract_error_examples(
+                            method.method, annotated_spec.get('errors') or [],
+                        ),
+                    ),
+                )
 
-            for param_name, param_schema in method_spec['params_schema'].items():
-                request_schema['properties']['params']['properties'][param_name] = param_schema.schema
+            method_spec = self._merge_specs(specs)
+            request_schema = self._build_request_schema(method.name, method_spec)
+            response_schema = self._build_response_schema(method_spec)
 
-                if param_schema.required:
-                    required_params = request_schema['properties']['params'].setdefault('required', [])
-                    required_params.append(param_name)
+            request_examples = {
+                example.summary or f'Example#{i}': ExampleObject(
+                    summary=example.summary,
+                    description=example.description,
+                    value=dict(
+                        jsonrpc=example.version,
+                        id=1,
+                        method=method.name,
+                        params=example.params,
+                    ),
+                ) for i, example in enumerate(method_spec.get('examples') or [])
+            }
 
-                if param_schema.definitions:
-                    self.components.schemas.update(param_schema.definitions)
+            response_success_examples = {
+                example.summary or f'Example#{i}': ExampleObject(
+                    summary=example.summary,
+                    description=example.description,
+                    value=dict(
+                        jsonrpc=example.version,
+                        id=1,
+                        result=example.result,
+                    ),
+                ) for i, example in enumerate(method_spec.get('examples') or [])
+            }
 
-            response_schema = copy.deepcopy(RESPONSE_SCHEMA)
-            result_schema = method_spec['result_schema']
-            response_schema['oneOf'][0]['properties']['result'] = result_schema.schema
-            if result_schema.definitions:
-                self.components.schemas.update(result_schema.definitions)
+            response_error_examples = {
+                example.message or f'Error#{i}': ExampleObject(
+                    summary=example.summary,
+                    description=example.description,
+                    value=dict(
+                        jsonrpc='2.0',
+                        id=1,
+                        error=dict(
+                            code=example.code,
+                            message=example.message,
+                            data=example.data,
+                        ),
+                    ),
+                ) for i, example in enumerate(
+                    utils.unique(
+                        [
+                            ErrorExample(code=error.code, message=error.message)
+                            for error in method_spec.get('errors') or []
+                        ],
+                        method_spec.get('error_examples') or [],
+                        key=lambda item: item.code,
+                    ),
+                )
+            }
 
             self.paths[f'{prefix}#{method.name}'] = Path(
                 post=Operation(
@@ -676,18 +737,7 @@ class OpenAPI(Specification):
                         content={
                             JSONRPC_MEDIATYPE: MediaType(
                                 schema=request_schema,
-                                examples={
-                                    example.summary or f'Example#{i}': ExampleObject(
-                                        summary=example.summary,
-                                        description=example.description,
-                                        value=dict(
-                                            jsonrpc=example.version,
-                                            id=1,
-                                            method=method.name,
-                                            params=example.params,
-                                        ),
-                                    ) for i, example in enumerate(method_spec.get('examples') or [])
-                                } or UNSET,
+                                examples=request_examples or UNSET,
                             ),
                         },
                         required=True,
@@ -698,32 +748,7 @@ class OpenAPI(Specification):
                             content={
                                 JSONRPC_MEDIATYPE: MediaType(
                                     schema=response_schema,
-                                    examples={
-                                        **{
-                                            example.summary or f'Example#{i}': ExampleObject(
-                                                summary=example.summary,
-                                                description=example.description,
-                                                value=dict(
-                                                    jsonrpc=example.version,
-                                                    id=1,
-                                                    result=example.result,
-                                                ),
-                                            ) for i, example in enumerate(method_spec.get('examples') or [])
-                                        },
-                                        **{
-                                            error.message or f'Error#{i}': ExampleObject(
-                                                summary=error.message,
-                                                value=dict(
-                                                    jsonrpc='2.0',
-                                                    id=1,
-                                                    error=dict(
-                                                        code=error.code,
-                                                        message=error.message,
-                                                    ),
-                                                ),
-                                            ) for i, error in enumerate(method_spec.get('errors') or [])
-                                        },
-                                    } or UNSET,
+                                    examples={**response_success_examples, **response_error_examples} or UNSET,
                                 ),
                             },
                         ),
@@ -738,12 +763,137 @@ class OpenAPI(Specification):
                 ),
             )
 
-        return dc.asdict(
-            self,
-            dict_factory=lambda iterable: dict(
-                filter(lambda item: item[1] is not UNSET, iterable),
-            ),
-        )
+        return drop_unset(dc.asdict(self))
+
+    def _merge_specs(self, specs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        specs = reversed(specs)
+        result = next(specs, {})
+
+        for spec in specs:
+            if spec.get('errors_schema', UNSET) is not UNSET:
+                schema = {schema.code: schema for schema in result.get('errors_schema') or []}
+                schema.update({schema.code: schema for schema in spec['errors_schema']})
+                result['errors_schema'] = list(schema.values())
+
+            if spec.get('result_schema', UNSET) is not UNSET:
+                if result.get('result_schema', UNSET) is UNSET:
+                    result['result_schema'] = spec['result_schema']
+                else:
+                    cur_schema = result['result_schema']
+                    new_schema = spec['result_schema']
+                    result['result_schema'] = Schema(
+                        new_schema.schema or cur_schema.schema,
+                        new_schema.required if new_schema.required is not UNSET else cur_schema.required,
+                        new_schema.summary or cur_schema.summary,
+                        new_schema.description or cur_schema.description,
+                        new_schema.deprecated if new_schema.deprecated is not UNSET else cur_schema.deprecated,
+                        new_schema.definitions or cur_schema.definitions,
+                    )
+
+            if spec.get('params_schema', UNSET) is not UNSET:
+                if result.get('params_schema', UNSET) is UNSET:
+                    result['params_schema'] = spec['params_schema']
+                else:
+                    for param, schema1 in spec['params_schema'].items():
+                        schema2 = result['params_schema'].get(param)
+                        if schema2 is None:
+                            result['params_schema'][param] = schema1
+                        else:
+                            result['params_schema'][param] = Schema(
+                                schema1.schema or schema2.schema,
+                                schema1.required if schema1.required is not UNSET else schema2.required,
+                                schema1.summary or schema2.summary,
+                                schema1.description or schema2.description,
+                                schema1.deprecated if schema1.deprecated is not UNSET else schema2.deprecated,
+                                schema1.definitions or schema2.definitions,
+                            )
+
+            if spec.get('summary', UNSET) is not UNSET:
+                result['summary'] = spec['summary']
+
+            if spec.get('description', UNSET) is not UNSET:
+                result['description'] = spec['description']
+
+            if spec.get('tags', UNSET) is not UNSET:
+                result['tags'] = spec['tags'] + (result.get('tags') or [])
+
+            if spec.get('deprecated', UNSET) is not UNSET:
+                result['deprecated'] = spec['deprecated']
+
+            if spec.get('examples', UNSET) is not UNSET:
+                result['examples'] = spec['examples'] + (result.get('examples') or [])
+
+            if spec.get('error_examples', UNSET) is not UNSET:
+                result['error_examples'] = spec['error_examples'] + (result.get('error_examples') or [])
+
+            if spec.get('external_docs', UNSET) is not UNSET:
+                result['external_docs'] = spec['external_docs']
+
+            if spec.get('security', UNSET) is not UNSET:
+                result['security'] = spec['security'] + (result.get('security') or [])
+
+            if spec.get('parameters', UNSET) is not UNSET:
+                result['parameters'] = spec['parameters'] + (result.get('parameters') or [])
+
+        return result
+
+    def _build_request_schema(self, method_name: str, method_spec: Dict[str, Any]) -> Dict[str, Any]:
+        request_schema = copy.deepcopy(REQUEST_SCHEMA)
+        request_schema['properties']['method']['enum'] = [method_name]
+
+        for param_name, param_schema in method_spec['params_schema'].items():
+            schema = request_schema['properties']['params']['properties'][param_name] = param_schema.schema.copy()
+            schema.update({
+                'title': param_schema.summary,
+                'description': param_schema.description,
+                'deprecated': param_schema.deprecated,
+            })
+
+            if param_schema.required:
+                required_params = request_schema['properties']['params'].setdefault('required', [])
+                required_params.append(param_name)
+
+            if param_schema.definitions:
+                self.components.schemas.update(param_schema.definitions)
+
+        return request_schema
+
+    def _build_response_schema(self, method_spec: Dict[str, Any]) -> Dict[str, Any]:
+        response_schema = copy.deepcopy(RESPONSE_SCHEMA)
+        result_schema = method_spec['result_schema']
+
+        response_schema['oneOf'][RESULT_SCHEMA_IDX]['properties']['result'] = result_schema.schema
+        if result_schema.definitions:
+            self.components.schemas.update(result_schema.definitions)
+
+        if method_spec['errors_schema']:
+            errors_schema = []
+            response_schema['oneOf'][ERROR_SCHEMA_IDX]['properties']['error'] = {'oneOf': errors_schema}
+
+            for schema in utils.unique(
+                [
+                    Error(code=error.code, message=error.message)
+                    for error in method_spec.get('errors') or []
+                ],
+                method_spec['errors_schema'],
+                key=lambda item: item.code,
+            ):
+                errors_schema.append({
+                    'type': 'object',
+                    'properties': {
+                        'code': {'type': 'integer', 'enum': [schema.code]},
+                        'message': {'type': 'string'},
+                        'data': schema.data,
+                    },
+                    'required': ['code', 'message'] + ['data'] if schema.data_required else [],
+                    'deprecated': schema.deprecated,
+                    'title': schema.title or schema.message,
+                    'description': schema.description,
+                })
+                if schema.definitions:
+                    self.components.schemas.update(schema.definitions)
+
+        return response_schema
 
 
 class SwaggerUI(BaseUI):

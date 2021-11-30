@@ -108,7 +108,7 @@ class Application:
         methods = {path: dispatcher.registry.values() for path, dispatcher in self._endpoints.items()}
         schema = self._spec.schema(path=endpoint_path, methods_map=methods)
 
-        return web.json_response(text=json.dumps(schema, indent=2, cls=specs.JSONEncoder))
+        return web.json_response(text=json.dumps(schema, cls=specs.JSONEncoder))
 
     async def _ui_index_page(self, request: web.Request) -> web.Response:
         app_path = request.path.rsplit(self._spec.ui_path, maxsplit=1)[0]

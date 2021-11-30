@@ -1,10 +1,11 @@
 import inspect
-from typing import Any, Callable, Dict, Iterable, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
 
 import pydantic as pd
 
-from pjrpc.common import UNSET
-from pjrpc.server.specs.extractors import BaseSchemaExtractor, Schema
+from pjrpc.common import UNSET, UnsetType
+from pjrpc.common.exceptions import JsonRpcError
+from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Schema
 
 
 class PydanticSchemaExtractor(BaseSchemaExtractor):
@@ -77,6 +78,44 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
 
         return result_schema
 
+    def extract_errors_schema(
+        self,
+        method: Callable,
+        errors: Optional[Iterable[JsonRpcError]] = None,
+    ) -> Union[UnsetType, List[Error]]:
+        if errors:
+            errors_schema = []
+            for error in errors:
+                field_definitions = {}
+                for field_name, annotation in self._get_annotations(error).items():
+                    if field_name.startswith('_'):
+                        continue
+
+                    field_definitions[field_name] = (annotation, getattr(error, field_name, ...))
+
+                result_model = pd.create_model(error.message, **field_definitions)
+                model_schema = result_model.schema(ref_template=self._ref_template)
+
+                data_schema = model_schema['properties'].get('data', UNSET)
+                required = 'data' in model_schema.get('required', [])
+
+                errors_schema.append(
+                    Error(
+                        code=error.code,
+                        message=error.message,
+                        data=data_schema,
+                        data_required=required,
+                        title=error.message,
+                        description=inspect.cleandoc(error.__doc__) if error.__doc__ is not None else UNSET,
+                        deprecated=model_schema.get('deprecated', UNSET),
+                        definitions=model_schema.get('definitions'),
+                    ),
+                )
+            return errors_schema
+
+        else:
+            return UNSET
+
     @staticmethod
     def _extract_field_schema(model_schema: Dict[str, Any], field_name: str) -> Dict[str, Any]:
         field_schema = model_schema['properties'][field_name]
@@ -84,3 +123,11 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
             field_schema = model_schema['definitions'][field_schema['$ref']]
 
         return field_schema
+
+    @staticmethod
+    def _get_annotations(cls: Type):
+        annotations = {}
+        for patent in cls.mro():
+            annotations.update(**getattr(patent, '__annotations__', {}))
+
+        return annotations

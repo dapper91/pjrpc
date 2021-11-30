@@ -4,6 +4,7 @@ from typing import Any
 import pydantic
 from aiohttp import helpers, web
 
+import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import aiohttp as integration
 from pjrpc.server.validators import pydantic as validators
@@ -207,7 +208,10 @@ jsonrpc_app = AuthenticatedJsonRPC(
         security=[
             dict(basicAuth=[]),
         ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
+        schema_extractors=[
+            extractors.docstring.DocstringSchemaExtractor(),
+            extractors.pydantic.PydanticSchemaExtractor(),
+        ],
         ui=specs.SwaggerUI(),
         # ui=specs.RapiDoc(),
         # ui=specs.ReDoc(),
