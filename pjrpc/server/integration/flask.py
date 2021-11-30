@@ -112,7 +112,7 @@ class JsonRPC:
         schema = self._spec.schema(path=endpoint_path, methods_map=methods)
 
         return current_app.response_class(
-            json.dumps(schema, indent=2, cls=specs.JSONEncoder),
+            json.dumps(schema, cls=specs.JSONEncoder),
             mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE,
         )
 

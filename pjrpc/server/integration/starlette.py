@@ -111,7 +111,7 @@ class Application:
         schema = self._spec.schema(path=endpoint_path, methods_map=methods)
 
         return Response(
-            content=json.dumps(schema, indent=2, cls=specs.JSONEncoder),
+            content=json.dumps(schema, cls=specs.JSONEncoder),
             media_type='application/json',
         )
 

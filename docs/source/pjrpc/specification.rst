@@ -65,6 +65,8 @@ and :py:class:`pjrpc.server.specs.extractors.docstring.DocstringSchemaExtractor`
 They uses `pydantic <https://pydantic-docs.helpmanual.io/>`_ models or python docstrings for method summary,
 description, errors, examples and schema extraction respectively. You can implement your own schema extractor
 inheriting it from :py:class:`pjrpc.server.specs.extractors.BaseSchemaExtractor` and implementing abstract methods.
+Multiple schema extractors could be used simultaneously using parameter ``schema_extractors``. Final schema
+will be merged using that extractors in reverse order (former extractor rewrites the result of the later ones).
 
 .. code-block:: python
 
@@ -76,15 +78,15 @@ inheriting it from :py:class:`pjrpc.server.specs.extractors.BaseSchemaExtractor`
                 summary="Simple example",
                 params=dict(
                     user={
-                        'name': 'Alex',
-                        'surname': 'Smith',
+                        'name': 'John',
+                        'surname': 'Doe',
                         'age': 25,
                     },
                 ),
                 result={
                     'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                    'name': 'Alex',
-                    'surname': 'Smith',
+                    'name': 'John',
+                    'surname': 'Doe',
                     'age': 25,
                 },
             ),

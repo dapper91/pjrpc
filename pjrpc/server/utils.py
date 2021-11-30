@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Callable, Dict, Iterable
 
 
 def get_meta(instance: Any) -> Dict[str, Any]:
@@ -59,3 +59,12 @@ def join_path(path, *paths) -> str:
             result = f'{result.rstrip("/")}/{path.lstrip("/")}'
 
     return result
+
+
+def unique(*iterables, key: Callable) -> Iterable:
+    items_map = {}
+    for iterable in iterables:
+        for item in iterable:
+            items_map[key(item)] = item
+
+    return items_map.values()

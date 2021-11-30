@@ -71,7 +71,10 @@ class JsonRPCSite:
         endpoint_path = utils.remove_suffix(request.path, suffix=self._spec.path)
         schema = self._spec.schema(path=endpoint_path, methods=self._dispatcher.registry.values())
 
-        return HttpResponse(json.dumps(schema, indent=2, cls=specs.JSONEncoder), content_type='application/json')
+        return HttpResponse(
+            json.dumps(schema, cls=specs.JSONEncoder),
+            content_type='application/json',
+        )
 
     @require_http_methods(['GET'])
     def _ui_index_page(self, request: HttpRequest) -> HttpResponse:

@@ -7,6 +7,7 @@ import pydantic
 import flask_cors
 from werkzeug import security
 
+import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import flask as integration
 from pjrpc.server.validators import pydantic as validators
@@ -89,15 +90,15 @@ class NotFoundError(pjrpc.exc.JsonRpcError):
             summary="Simple example",
             params=dict(
                 user={
-                    'name': 'Alex',
-                    'surname': 'Smith',
+                    'name': 'John',
+                    'surname': 'Doe',
                     'age': 25,
                 },
             ),
             result={
                 'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                'name': 'Alex',
-                'surname': 'Smith',
+                'name': 'John',
+                'surname': 'Doe',
                 'age': 25,
             },
         ),
@@ -134,10 +135,10 @@ def add_user(user: UserIn) -> UserOut:
                 user_id='c47726c6-a232-45f1-944f-60b98966ff1b',
             ),
             result={
-                 'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                 'name': 'Alex',
-                 'surname': 'Smith',
-                 'age': 25,
+                'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
+                'name': 'John',
+                'surname': 'Doe',
+                'age': 25,
             },
         ),
     ],
@@ -207,7 +208,10 @@ json_rpc = AuthenticatedJsonRPC(
         security=[
             dict(basicAuth=[]),
         ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
+        schema_extractors=[
+            extractors.docstring.DocstringSchemaExtractor(),
+            extractors.pydantic.PydanticSchemaExtractor(),
+        ],
         ui=specs.SwaggerUI(),
         # ui=specs.RapiDoc(),
         # ui=specs.ReDoc(),

@@ -4,6 +4,7 @@ from typing import Any
 import flask
 import pydantic
 
+import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import flask as integration
 from pjrpc.server.validators import pydantic as validators
@@ -62,15 +63,15 @@ class AlreadyExistsError(pjrpc.exc.JsonRpcError):
             summary="Simple example",
             params=dict(
                 user={
-                    'name': 'Alex',
-                    'surname': 'Smith',
+                    'name': 'John',
+                    'surname': 'Doe',
                     'age': 25,
                 },
             ),
             result={
                 'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                'name': 'Alex',
-                'surname': 'Smith',
+                'name': 'John',
+                'surname': 'Doe',
                 'age': 25,
             },
         ),
@@ -165,7 +166,10 @@ json_rpc = integration.JsonRPC(
         security=[
             dict(basicAuth=[]),
         ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
+        schema_extractors=[
+            extractors.docstring.DocstringSchemaExtractor(),
+            extractors.pydantic.PydanticSchemaExtractor(),
+        ],
         ui=specs.SwaggerUI(),
     ),
 )

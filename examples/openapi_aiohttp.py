@@ -4,6 +4,7 @@ from typing import Any
 import pydantic
 from aiohttp import helpers, web
 
+import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import aiohttp as integration
 from pjrpc.server.validators import pydantic as validators
@@ -83,15 +84,15 @@ class NotFoundError(pjrpc.exc.JsonRpcError):
             summary="Simple example",
             params=dict(
                 user={
-                    'name': 'Alex',
-                    'surname': 'Smith',
+                    'name': 'John',
+                    'surname': 'Doe',
                     'age': 25,
                 },
             ),
             result={
                 'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                'name': 'Alex',
-                'surname': 'Smith',
+                'name': 'John',
+                'surname': 'Doe',
                 'age': 25,
             },
         ),
@@ -130,8 +131,8 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
             ),
             result={
                  'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                 'name': 'Alex',
-                 'surname': 'Smith',
+                 'name': 'John',
+                 'surname': 'Doe',
                  'age': 25,
             },
         ),
@@ -207,7 +208,10 @@ jsonrpc_app = AuthenticatedJsonRPC(
         security=[
             dict(basicAuth=[]),
         ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
+        schema_extractors=[
+            extractors.docstring.DocstringSchemaExtractor(),
+            extractors.pydantic.PydanticSchemaExtractor(),
+        ],
         ui=specs.SwaggerUI(),
         # ui=specs.RapiDoc(),
         # ui=specs.ReDoc(),

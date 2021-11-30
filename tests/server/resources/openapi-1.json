@@ -50,7 +50,9 @@
                                                 "jsonrpc",
                                                 "id",
                                                 "result"
-                                            ]
+                                            ],
+                                            "title": "Success",
+                                            "description": "JSON-RPC success"
                                         },
                                         {
                                             "type": "object",
@@ -73,28 +75,48 @@
                                                     ]
                                                 },
                                                 "error": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "code": {
-                                                            "type": "integer"
+                                                    "oneOf": [
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "code": {
+                                                                    "type": "integer",
+                                                                    "enum": [
+                                                                        2001
+                                                                    ]
+                                                                },
+                                                                "message": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [],
+                                                            "title": "test error 1"
                                                         },
-                                                        "message": {
-                                                            "type": "string"
-                                                        },
-                                                        "data": {
-                                                            "type": "object"
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "code": {
+                                                                    "type": "integer",
+                                                                    "enum": [
+                                                                        2002
+                                                                    ]
+                                                                },
+                                                                "message": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [],
+                                                            "title": "test error 2"
                                                         }
-                                                    },
-                                                    "required": [
-                                                        "code",
-                                                        "message"
                                                     ]
                                                 }
                                             },
                                             "required": [
                                                 "jsonrpc",
                                                 "error"
-                                            ]
+                                            ],
+                                            "title": "Error",
+                                            "description": "JSON-RPC error"
                                         }
                                     ]
                                 },
@@ -108,6 +130,17 @@
                                         "summary": "example 1 summary",
                                         "description": "example 1 description"
                                     },
+                                    "test error 2": {
+                                        "value": {
+                                            "jsonrpc": "2.0",
+                                            "id": 1,
+                                            "error": {
+                                                "code": 2002,
+                                                "message": "test error 2"
+                                            }
+                                        },
+                                        "summary": "test error 2 summary"
+                                    },
                                     "test error 1": {
                                         "value": {
                                             "jsonrpc": "2.0",
@@ -118,17 +151,6 @@
                                             }
                                         },
                                         "summary": "test error 1"
-                                    },
-                                    "test error 2": {
-                                        "value": {
-                                            "jsonrpc": "2.0",
-                                            "id": 1,
-                                            "error": {
-                                                "code": 2002,
-                                                "message": "test error 2"
-                                            }
-                                        },
-                                        "summary": "test error 2"
                                     }
                                 }
                             }
@@ -267,7 +289,9 @@
                                                 "jsonrpc",
                                                 "id",
                                                 "result"
-                                            ]
+                                            ],
+                                            "title": "Success",
+                                            "description": "JSON-RPC success"
                                         },
                                         {
                                             "type": "object",
@@ -311,7 +335,9 @@
                                             "required": [
                                                 "jsonrpc",
                                                 "error"
-                                            ]
+                                            ],
+                                            "title": "Error",
+                                            "description": "JSON-RPC error"
                                         }
                                     ]
                                 }
@@ -417,7 +443,9 @@
                                                 "jsonrpc",
                                                 "id",
                                                 "result"
-                                            ]
+                                            ],
+                                            "title": "Success",
+                                            "description": "JSON-RPC success"
                                         },
                                         {
                                             "type": "object",
@@ -461,7 +489,9 @@
                                             "required": [
                                                 "jsonrpc",
                                                 "error"
-                                            ]
+                                            ],
+                                            "title": "Error",
+                                            "description": "JSON-RPC error"
                                         }
                                     ]
                                 }
@@ -563,7 +593,9 @@
                                                 "jsonrpc",
                                                 "id",
                                                 "result"
-                                            ]
+                                            ],
+                                            "title": "Success",
+                                            "description": "JSON-RPC success"
                                         },
                                         {
                                             "type": "object",
@@ -607,7 +639,9 @@
                                             "required": [
                                                 "jsonrpc",
                                                 "error"
-                                            ]
+                                            ],
+                                            "title": "Error",
+                                            "description": "JSON-RPC error"
                                         }
                                     ]
                                 }
@@ -648,7 +682,9 @@
                                         "type": "object",
                                         "properties": {
                                             "param1": {
-                                                "type": "number"
+                                                "type": "number",
+                                                "title": "param1 summary",
+                                                "description": "param1 description"
                                             }
                                         },
                                         "required": [
@@ -707,7 +743,9 @@
                                                 "jsonrpc",
                                                 "id",
                                                 "result"
-                                            ]
+                                            ],
+                                            "title": "Success",
+                                            "description": "JSON-RPC success"
                                         },
                                         {
                                             "type": "object",
@@ -751,7 +789,9 @@
                                             "required": [
                                                 "jsonrpc",
                                                 "error"
-                                            ]
+                                            ],
+                                            "title": "Error",
+                                            "description": "JSON-RPC error"
                                         }
                                     ]
                                 }
@@ -844,7 +884,9 @@
                                                 "jsonrpc",
                                                 "id",
                                                 "result"
-                                            ]
+                                            ],
+                                            "title": "Success",
+                                            "description": "JSON-RPC success"
                                         },
                                         {
                                             "type": "object",
@@ -888,7 +930,9 @@
                                             "required": [
                                                 "jsonrpc",
                                                 "error"
-                                            ]
+                                            ],
+                                            "title": "Error",
+                                            "description": "JSON-RPC error"
                                         }
                                     ]
                                 }
@@ -941,6 +985,159 @@
                     "description": "JSON-RPC Request"
                 },
                 "tags": []
+            }
+        },
+        "/test/path#method7": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "description": "JSON-RPC Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "result": {
+                                                    "title": "Result",
+                                                    "nullable": "true"
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "id",
+                                                "result"
+                                            ],
+                                            "title": "Success",
+                                            "description": "JSON-RPC success"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "jsonrpc": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "1.0",
+                                                        "2.0"
+                                                    ]
+                                                },
+                                                "id": {
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        }
+                                                    ]
+                                                },
+                                                "error": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "code": {
+                                                            "type": "integer"
+                                                        },
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "data": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "code",
+                                                        "message"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "jsonrpc",
+                                                "error"
+                                            ],
+                                            "title": "Error",
+                                            "description": "JSON-RPC error"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "jsonrpc": {
+                                        "type": "string",
+                                        "enum": [
+                                            "1.0",
+                                            "2.0"
+                                        ]
+                                    },
+                                    "id": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "number"
+                                            }
+                                        ]
+                                    },
+                                    "method": {
+                                        "type": "string",
+                                        "enum": [
+                                            "method7"
+                                        ]
+                                    },
+                                    "params": {
+                                        "type": "object",
+                                        "properties": {
+                                            "param1": {
+                                                "type": null,
+                                                "title": "param1 summary",
+                                                "description": "param1 summary. param1 description."
+                                            }
+                                        },
+                                        "required": [
+                                            "param1"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "jsonrpc",
+                                    "method"
+                                ]
+                            }
+                        }
+                    },
+                    "required": true,
+                    "description": "JSON-RPC Request"
+                },
+                "tags": [],
+                "summary": "Method 7.",
+                "description": "Method 7 description.",
+                "deprecated": false
             }
         }
     },
