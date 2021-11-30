@@ -1,6 +1,15 @@
 Changelog
 =========
 
+1.4.0 (2021-11-30)
+------------------
+
+- openapi error examples support added.
+- openapi errors schema support added.
+- multiple extractors support added.
+- docstring extractor bug fixed.
+
+
 1.3.5 (2021-11-03)
 ------------------
 
