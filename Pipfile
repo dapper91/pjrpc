@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 aiohttp = "~=3.0"
 aio-pika = "~=6.0"
-flask = "~=1.0"
+flask = "~=2.0"
 jsonschema = "~=3.0"
 pydantic = "~=1.0"
 requests = "~=2.0"
@@ -14,6 +14,8 @@ kombu = "~=5.0"
 httpx = "~=0.0"
 docstring-parser = "~=0.0"
 openapi-ui-bundles = "~=0.0"
+markupsafe = "==2.0.1"
+werkzeug = "~=2.0"
 
 [dev-packages]
 aioresponses = "~=0.0"
