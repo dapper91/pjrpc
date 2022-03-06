@@ -5,7 +5,7 @@ import pjrpc
 from pjrpc.client.integrations.pytest import PjRpcMocker
 
 
-class TestClient:
+class SyncClient:
     def __init__(self, endpoint):
         self._endpoint = endpoint
 
@@ -20,11 +20,11 @@ def endpoint():
 
 @pytest.fixture
 def cli(endpoint):
-    return TestClient(endpoint)
+    return SyncClient(endpoint)
 
 
 def test_context_manager(cli, endpoint):
-    with PjRpcMocker('test_pytest_plugin.TestClient._request') as mocker:
+    with PjRpcMocker('test_pytest_plugin.SyncClient._request') as mocker:
         mocker.add(endpoint, 'method', result='result')
         cli._request(json.dumps(pjrpc.Request(method='method').to_json()))
 
@@ -34,7 +34,7 @@ def test_context_manager(cli, endpoint):
 
 
 def test_pjrpc_mocker_result_error_id(cli, endpoint):
-    with PjRpcMocker('test_pytest_plugin.TestClient._request') as mocker:
+    with PjRpcMocker('test_pytest_plugin.SyncClient._request') as mocker:
         mocker.add(endpoint, 'method1', result='result')
         response = pjrpc.Response.from_json(
             json.loads(
@@ -54,7 +54,7 @@ def test_pjrpc_mocker_result_error_id(cli, endpoint):
 
 
 def test_pjrpc_mocker_once_param(cli, endpoint):
-    with PjRpcMocker('test_pytest_plugin.TestClient._request', passthrough=True) as mocker:
+    with PjRpcMocker('test_pytest_plugin.SyncClient._request', passthrough=True) as mocker:
         mocker.add(endpoint, 'method', result='result', once=True)
         response = pjrpc.Response.from_json(
             json.loads(
@@ -72,7 +72,7 @@ def test_pjrpc_mocker_once_param(cli, endpoint):
 
 
 def test_pjrpc_mocker_round_robin(cli, endpoint):
-    with PjRpcMocker('test_pytest_plugin.TestClient._request') as mocker:
+    with PjRpcMocker('test_pytest_plugin.SyncClient._request') as mocker:
         mocker.add(endpoint, 'method', result='result1')
         mocker.add(endpoint, 'method', result='result2')
 
@@ -99,7 +99,7 @@ def test_pjrpc_mocker_round_robin(cli, endpoint):
 
 
 def test_pjrpc_replace_remove(cli, endpoint):
-    with PjRpcMocker('test_pytest_plugin.TestClient._request', passthrough=True) as mocker:
+    with PjRpcMocker('test_pytest_plugin.SyncClient._request', passthrough=True) as mocker:
         mocker.add(endpoint, 'method', result='result1')
         response = pjrpc.Response.from_json(
             json.loads(
@@ -126,10 +126,10 @@ def test_pjrpc_replace_remove(cli, endpoint):
 
 
 def test_pjrpc_mocker_calls(endpoint):
-    cli1 = TestClient('endpoint1')
-    cli2 = TestClient('endpoint2')
+    cli1 = SyncClient('endpoint1')
+    cli2 = SyncClient('endpoint2')
 
-    with PjRpcMocker('test_pytest_plugin.TestClient._request') as mocker:
+    with PjRpcMocker('test_pytest_plugin.SyncClient._request') as mocker:
         mocker.add('endpoint1', 'method1', result='result')
         mocker.add('endpoint1', 'method2', result='result')
         mocker.add('endpoint2', 'method1', result='result')
@@ -145,7 +145,7 @@ def test_pjrpc_mocker_calls(endpoint):
 
 
 def test_pjrpc_mocker_callback(cli, endpoint):
-    with PjRpcMocker('test_pytest_plugin.TestClient._request') as mocker:
+    with PjRpcMocker('test_pytest_plugin.SyncClient._request') as mocker:
         def callback(**kwargs):
             assert kwargs == {'a': 1, 'b': '2'}
             return 'result'
@@ -162,7 +162,7 @@ def test_pjrpc_mocker_callback(cli, endpoint):
 
 
 def test_pjrpc_mocker_passthrough(cli, endpoint):
-    with PjRpcMocker('test_pytest_plugin.TestClient._request', passthrough=True) as mocker:
+    with PjRpcMocker('test_pytest_plugin.SyncClient._request', passthrough=True) as mocker:
         mocker.add('other_endpoint', 'method', result='result')
 
         response = pjrpc.Response.from_json(
@@ -174,7 +174,7 @@ def test_pjrpc_mocker_passthrough(cli, endpoint):
         assert response.result == 'original_result'
 
 
-class TestAsyncClient:
+class AsyncClient:
     def __init__(self, endpoint):
         self._endpoint = endpoint
 
@@ -183,9 +183,9 @@ class TestAsyncClient:
 
 
 async def test_pjrpc_mocker_async(endpoint):
-    cli = TestAsyncClient(endpoint)
+    cli = AsyncClient(endpoint)
 
-    with PjRpcMocker('test_pytest_plugin.TestAsyncClient._request') as mocker:
+    with PjRpcMocker('test_pytest_plugin.AsyncClient._request') as mocker:
         mocker.add(endpoint, 'method1', result='result1')
         mocker.add(endpoint, 'method2', result='result2')
 
