@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.4.1 (2022-03-06)
+------------------
+
+- pytest integration fixed to make asynchronous methods pass-through possible.
+
+
 1.4.0 (2021-11-30)
 ------------------
 
