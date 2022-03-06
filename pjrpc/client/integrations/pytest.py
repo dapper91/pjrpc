@@ -7,7 +7,6 @@ import asyncio
 import collections
 import functools as ft
 import json
-import sys
 import unittest.mock
 from typing import Any, Callable, Dict, Optional, Union
 
@@ -16,8 +15,6 @@ import pytest
 import pjrpc
 from pjrpc import Response
 from pjrpc.common import UNSET, UnsetType
-
-IS_GE_PY38 = sys.version_info >= (3, 8)
 
 
 class Match:
@@ -162,13 +159,21 @@ class PjRpcMocker:
         Activates a patcher.
         """
 
-        self._patcher = self._mocker.patch(self._target, side_effect=self._on_request, autospec=True)
+        patcher = self._mocker.patch(self._target)
+        with patcher:
+            if asyncio.iscoroutinefunction(patcher.temp_original):
+                self._async_resp = True
 
-        result = self._patcher.start()
-        if asyncio.iscoroutinefunction(self._patcher.temp_original):
-            self._async_resp = True
+        if self._async_resp:
+            async def side_effect(*args, **kwargs):
+                return await self._on_request(*args, **kwargs)
+        else:
+            def side_effect(*args, **kwargs):
+                return self._on_request(*args, **kwargs)
 
-        return result
+        self._patcher = self._mocker.patch(self._target, side_effect=side_effect, autospec=True)
+
+        return self._patcher.start()
 
     def stop(self) -> None:
         """
@@ -186,7 +191,7 @@ class PjRpcMocker:
         if not self._matches[endpoint]:
             self._matches.pop(endpoint)
 
-    def _on_request(self, origin_self: Any, request_text: str, is_notification: bool = False, **kwargs: Any) -> str:
+    def _on_request(self, origin_self: Any, request_text: str, is_notification: bool = False, **kwargs: Any):
         endpoint = origin_self._endpoint
         matches = self._matches.get(endpoint)
         if matches is None:
@@ -208,7 +213,7 @@ class PjRpcMocker:
             request = pjrpc.Request.from_json(json_data)
             response = self._match_request(endpoint, request.version, request.method, request.params, request.id)
 
-        if not IS_GE_PY38 and self._async_resp:
+        if self._async_resp:
             async def wrapper():
                 return json.dumps(response.to_json())
             return wrapper()
