@@ -1,5 +1,5 @@
 import asyncio
-import collections
+import collections.abc
 import functools as ft
 import json
 import itertools as it
@@ -458,7 +458,7 @@ class AsyncDispatcher(Dispatcher):
             response = self._response_class(id=None, error=pjrpc.exceptions.InvalidRequestError(data=str(e)))
 
         else:
-            if isinstance(request, collections.Iterable):
+            if isinstance(request, collections.abc.Iterable):
                 response = self._batch_response(
                     *filter(
                         lambda resp: resp is not UNSET, await asyncio.gather(
