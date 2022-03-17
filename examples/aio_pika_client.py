@@ -19,6 +19,7 @@ async def main():
 
     await client.notify('tick')
 
+    await client.notify('schedule_shutdown')
 
 if __name__ == "__main__":
     asyncio.run(main())
