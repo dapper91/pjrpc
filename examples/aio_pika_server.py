@@ -15,6 +15,12 @@ def sum(a, b):
     return a + b
 
 
+@methods.add
+def tick():
+    """RPC method implementing examples/aio_pika_client.py's notification 'tick'"""
+    print("examples/aio_pika_server.py: received tick")
+
+
 @methods.add(context='message')
 def add_user(message: aio_pika.IncomingMessage, user: dict):
     user_id = uuid.uuid4().hex
