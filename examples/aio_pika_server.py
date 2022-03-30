@@ -9,6 +9,12 @@ from pjrpc.server.integration import aio_pika as integration
 methods = pjrpc.server.MethodRegistry()
 
 
+@methods.add
+def sum(a, b):
+    """RPC method implementing examples/aio_pika_client.py's calls to sum(1, 2) -> 3"""
+    return a + b
+
+
 @methods.add(context='message')
 def add_user(message: aio_pika.IncomingMessage, user: dict):
     user_id = uuid.uuid4().hex
