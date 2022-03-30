@@ -40,11 +40,11 @@ def test_request(json_rpc, path, mocker, request_id, params, result):
     json_rpc.dispatcher.add(mock, method_name)
 
     cli = werkzeug.test.Client(json_rpc)
-    body_iter, code, header = cli.post(
+    response = cli.post(
         path, json=v20.Request(method=method_name, params=params, id=request_id).to_json(),
     )
-    body = b''.join(body_iter)
-    assert code == '200 OK'
+    body = b''.join(response.response)
+    assert response.status == '200 OK'
 
     resp = v20.Response.from_json(json.loads(body))
 
@@ -65,9 +65,9 @@ def test_notify(json_rpc, path, mocker):
     json_rpc.dispatcher.add(mock, method_name)
 
     cli = werkzeug.test.Client(json_rpc)
-    body_iter, code, header = cli.post(path, json=v20.Request(method=method_name, params=params).to_json())
-    body = b''.join(body_iter)
-    assert code == '200 OK'
+    response = cli.post(path, json=v20.Request(method=method_name, params=params).to_json())
+    body = b''.join(response.response)
+    assert response.status == '200 OK'
     assert body == b''
 
 
@@ -85,11 +85,11 @@ def test_errors(json_rpc, path, mocker):
 
     cli = werkzeug.test.Client(json_rpc)
     # method not found
-    body_iter, code, header = cli.post(
+    response = cli.post(
         path, json=v20.Request(method='unknown_method', params=params, id=request_id).to_json(),
     )
-    body = b''.join(body_iter)
-    assert code == '200 OK'
+    body = b''.join(response.response)
+    assert response.status == '200 OK'
 
     resp = v20.Response.from_json(json.loads(body))
     assert resp.id is request_id
@@ -97,11 +97,11 @@ def test_errors(json_rpc, path, mocker):
     assert resp.error == exc.MethodNotFoundError(data="method 'unknown_method' not found")
 
     # customer error
-    body_iter, code, header = cli.post(
+    response = cli.post(
         path, json=v20.Request(method=method_name, params=params, id=request_id).to_json(),
     )
-    body = b''.join(body_iter)
-    assert code == '200 OK'
+    body = b''.join(response.response)
+    assert response.status == '200 OK'
 
     resp = v20.Response.from_json(json.loads(body))
     mock.assert_called_once_with(args=params)
@@ -110,9 +110,9 @@ def test_errors(json_rpc, path, mocker):
     assert resp.error == exc.JsonRpcError(code=1, message='message')
 
     # malformed json
-    body_iter, code, header = cli.post(path, headers={'Content-Type': 'application/json'}, data='')
-    body = b''.join(body_iter)
-    assert code == '200 OK'
+    response = cli.post(path, headers={'Content-Type': 'application/json'}, data='')
+    body = b''.join(response.response)
+    assert response.status == '200 OK'
     resp = v20.Response.from_json(json.loads(body))
     assert resp.id is None
     assert resp.is_error is True
