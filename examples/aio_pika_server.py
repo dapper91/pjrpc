@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import uuid
 
 import aio_pika
@@ -32,6 +33,7 @@ executor = integration.Executor('amqp://guest:guest@localhost:5672/v1', queue_na
 executor.dispatcher.add_methods(methods)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     loop = asyncio.get_event_loop()
 
     loop.run_until_complete(executor.start())
