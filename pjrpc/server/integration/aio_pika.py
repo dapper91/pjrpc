@@ -91,7 +91,7 @@ class Executor:
                             routing_key=reply_to,
                         )
 
-            message.ack()
+            await message.ack()
 
         except Exception as e:
             logger.exception("jsonrpc request handling error: %s", e)
