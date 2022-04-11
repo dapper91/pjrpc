@@ -1,0 +1,12 @@
+version: "2"
+services:
+    rabbitmq:
+        image: rabbitmq:3.9-management-alpine
+        ports:
+            - 15672:15672
+            - 5672:5672
+        volumes:
+            - ./rabbit.definitions.json:/tmp/rabbit.definitions.json:ro
+        environment:
+            - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_management load_definitions "/tmp/rabbit.definitions.json"
+        restart: unless-stopped
