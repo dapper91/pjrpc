@@ -4,6 +4,8 @@ import uuid
 from typing import Any, Dict, Optional, cast
 
 import aio_pika
+from aio_pika.abc import AbstractIncomingMessage
+from yarl import URL
 
 import pjrpc
 from pjrpc.client import AbstractAsyncClient
@@ -28,7 +30,7 @@ class Client(AbstractAsyncClient):
 
     def __init__(
         self,
-        broker_url: str,
+        broker_url: URL,
         queue_name: Optional[str] = None,
         conn_args: Optional[Dict[str, Any]] = None,
         exchange_name: Optional[str] = None,
@@ -42,7 +44,7 @@ class Client(AbstractAsyncClient):
 
         super().__init__(**kwargs)
         self._connection = aio_pika.connection.Connection(broker_url, **(conn_args or {}))
-        self._channel: Optional[aio_pika.Channel] = None
+        self._channel: Optional[aio_pika.abc.AbstractChannel] = None
 
         self._exchange_name = exchange_name
         self._exchange_args = exchange_args
@@ -51,10 +53,10 @@ class Client(AbstractAsyncClient):
         self._routing_key = cast(str, routing_key or queue_name)
         self._result_queue_name = result_queue_name
         self._result_queue_args = result_queue_args
-        self._result_queue: Optional[aio_pika.Queue] = None
+        self._result_queue: Optional[aio_pika.abc.AbstractQueue] = None
         self._consumer_tag: Optional[str] = None
 
-        self._futures: Dict[str, asyncio.Future] = {}
+        self._futures: Dict[str, asyncio.Future[str]] = {}
 
     async def connect(self) -> None:
         """
@@ -71,10 +73,10 @@ class Client(AbstractAsyncClient):
             await self._exchange.declare()
 
         if self._result_queue_name:
-            self._result_queue = aio_pika.Queue(
-                self._connection, channel, self._result_queue_name, **(self._result_queue_args or {})
+            assert channel
+            self._result_queue = await channel.declare_queue(
+                self._result_queue_name, **(self._result_queue_args or {})
             )
-            await self._result_queue.declare()
             self._consumer_tag = await self._result_queue.consume(self._on_result_message, no_ack=True)
 
     async def close(self) -> None:
@@ -99,8 +101,9 @@ class Client(AbstractAsyncClient):
 
             future.set_exception(asyncio.CancelledError)
 
-    async def _on_result_message(self, message: aio_pika.IncomingMessage) -> None:
+    async def _on_result_message(self, message: AbstractIncomingMessage) -> None:
         correlation_id = message.correlation_id
+        assert correlation_id
         future = self._futures.pop(correlation_id, None)
 
         if future is None:
@@ -147,7 +150,7 @@ class Client(AbstractAsyncClient):
                 **kwargs,
             )
 
-            future: asyncio.Future = asyncio.Future()
+            future: asyncio.Future[str] = asyncio.Future()
             self._futures[request_id] = future
 
             try:
