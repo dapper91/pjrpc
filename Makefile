@@ -1,9 +1,12 @@
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+mkfile_dir  := $(dir $(mkfile_path))
+
 init:
 	pip install pipenv --upgrade
 	pipenv install --dev
 
 test:
-	pipenv run py.test
+	PYTHONPATH=$(mkfile_dir) pipenv run py.test
 
 coverage:
 	pipenv run py.test --verbose --cov-report term --cov=xjsonrpc tests
