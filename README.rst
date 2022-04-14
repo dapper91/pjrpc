@@ -1,6 +1,6 @@
-=====
+========
 xjsonrpc
-=====
+========
 
 .. image:: https://static.pepy.tech/personalized-badge/xjsonrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
     :target: https://pepy.tech/project/xjsonrpc
@@ -25,12 +25,15 @@ xjsonrpc
 ``xjsonrpc`` is an extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library with an intuitive interface
 that can be easily extended and integrated in your project without writing a lot of boilerplate code.
 
+It was forked from https://github.com/dapper91/pjrpc to make fast progress in
+the area of the rabbitmq/aio_pika backend with fixes and improved code examples.
+
 Features:
 
 - framework agnostic
 - intuitive api
 - extendability
-- synchronous and asynchronous client backed
+- synchronous and asynchronous client backend
 - synchronous and asynchronous server support
 - popular frameworks integration
 - builtin parameter validation

@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Welcome to xjsonrpc's documentation!
-=================================
+====================================
 
 
 .. image:: https://static.pepy.tech/personalized-badge/xjsonrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
