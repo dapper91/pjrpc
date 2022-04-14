@@ -16,6 +16,7 @@ docstring-parser = "~=0.0"
 openapi-ui-bundles = "~=0.0"
 markupsafe = "==2.0.1"
 werkzeug = "~=2.0"
+xjsonrpc = {path = "."}
 
 [dev-packages]
 aioresponses = "~=0.0"
