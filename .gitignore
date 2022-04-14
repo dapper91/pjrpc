@@ -74,6 +74,10 @@ target/
 
 # pyenv
 .python-version
+Pipfile.lock
+
+# pypi twine
+.pypirc
 
 # celery beat schedule file
 celerybeat-schedule
