@@ -15,9 +15,7 @@ def path():
 
 @pytest.fixture
 def json_rpc(path):
-    json_rpc = integration.Application(path)
-
-    return json_rpc
+    return integration.Application(path)
 
 
 @pytest.mark.parametrize(

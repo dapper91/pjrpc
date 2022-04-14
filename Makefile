@@ -5,8 +5,13 @@ init:
 	pip install pipenv --upgrade
 	pipenv install --dev
 
+# https://github.com/aio-libs/aiohttp/issues/3252
+# https://stackoverflow.com/questions/879173/how-to-ignore-deprecation-warnings-in-python
+export PYTHONWARNINGS=ignore::DeprecationWarning
+
 test:
-	PYTHONPATH=$(mkfile_dir) pipenv run py.test
+	@# Either the above or -W ignore::DeprecationWarning. Keep both for information:
+	@PYTHONPATH=$(mkfile_dir) pipenv run python -W ignore::DeprecationWarning -m pytest
 
 coverage:
 	pipenv run py.test --verbose --cov-report term --cov=xjsonrpc tests
