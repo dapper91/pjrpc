@@ -1,6 +1,18 @@
 Changelog
 =========
 
+1.4.2 (2022-04-14)
+------------------
+
+- Added support for Python 3.10
+- Fixed missing await for message.ack() in aio_pika.Server
+- Fixed using a specific result_queue in aio_pika.Client
+  and added examples/aio_pika_client_queue.py to show how to use it.
+- Fixed a number of issues in the aio_pika and kombu examples.
+- Fixed make test check-code and reduce the amount of issued mypy warnings
+- Fixed flask runtime dependency to 2.0 and fix test depends.
+- Added a usable extended example with logging in examples/rabbitmq/pika
+
 1.4.1 (2022-03-06)
 ------------------
 
