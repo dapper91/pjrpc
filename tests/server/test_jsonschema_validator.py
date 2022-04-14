@@ -1,6 +1,6 @@
 import pytest
-from pjrpc.server import validators
-from pjrpc.server.validators import jsonschema
+from xjsonrpc.server import validators
+from xjsonrpc.server.validators import jsonschema
 
 
 @pytest.mark.parametrize(

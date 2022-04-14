@@ -4,21 +4,21 @@ from typing import Any
 import flask
 import pydantic
 
-import pjrpc.server.specs.extractors.docstring
-import pjrpc.server.specs.extractors.pydantic
-from pjrpc.server.integration import flask as integration
-from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.specs import extractors, openapi as specs
+import xjsonrpc.server.specs.extractors.docstring
+import xjsonrpc.server.specs.extractors.pydantic
+from xjsonrpc.server.integration import flask as integration
+from xjsonrpc.server.validators import pydantic as validators
+from xjsonrpc.server.specs import extractors, openapi as specs
 
 
 app = flask.Flask('myapp')
 
-user_methods = pjrpc.server.MethodRegistry()
-post_methods = pjrpc.server.MethodRegistry()
+user_methods = xjsonrpc.server.MethodRegistry()
+post_methods = xjsonrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
 
 
-class JSONEncoder(pjrpc.JSONEncoder):
+class JSONEncoder(xjsonrpc.JSONEncoder):
     def default(self, o: Any) -> Any:
         if isinstance(o, pydantic.BaseModel):
             return o.dict()
@@ -46,7 +46,7 @@ class UserOut(UserIn):
     id: uuid.UUID
 
 
-class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+class AlreadyExistsError(xjsonrpc.exc.JsonRpcError):
     """
     User already registered error.
     """

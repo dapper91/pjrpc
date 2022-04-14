@@ -2,11 +2,11 @@ import uuid
 
 import flask
 
-import pjrpc.server
-from pjrpc.server.integration import flask as integration
+import xjsonrpc.server
+from xjsonrpc.server.integration import flask as integration
 
 
-methods_v1 = pjrpc.server.MethodRegistry()
+methods_v1 = xjsonrpc.server.MethodRegistry()
 
 
 @methods_v1.add
@@ -17,7 +17,7 @@ def add_user_v1(user: dict):
     return {'id': user_id, **user}
 
 
-methods_v2 = pjrpc.server.MethodRegistry()
+methods_v2 = xjsonrpc.server.MethodRegistry()
 
 
 @methods_v2.add

@@ -1,18 +1,18 @@
 import asyncio
 
-import pjrpc
-from pjrpc.client.backend import aiohttp as pjrpc_client
+import xjsonrpc
+from xjsonrpc.client.backend import aiohttp as xjsonrpc_client
 
 
 async def main():
-    async with pjrpc_client.Client('http://localhost:8080/api/v1') as client:
+    async with xjsonrpc_client.Client('http://localhost:8080/api/v1') as client:
 
         batch_response = await client.batch.send(
-            pjrpc.BatchRequest(
-                pjrpc.Request('sum', [2, 2], id=1),
-                pjrpc.Request('sub', [2, 2], id=2),
-                pjrpc.Request('div', [2, 2], id=3),
-                pjrpc.Request('mult', [2, 2], id=4),
+            xjsonrpc.BatchRequest(
+                xjsonrpc.Request('sum', [2, 2], id=1),
+                xjsonrpc.Request('sub', [2, 2], id=2),
+                xjsonrpc.Request('div', [2, 2], id=3),
+                xjsonrpc.Request('mult', [2, 2], id=4),
             ),
         )
         print(f"2 + 2 = {batch_response[0].result}")

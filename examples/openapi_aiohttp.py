@@ -4,20 +4,20 @@ from typing import Any
 import pydantic
 from aiohttp import helpers, web
 
-import pjrpc.server.specs.extractors.docstring
-import pjrpc.server.specs.extractors.pydantic
-from pjrpc.server.integration import aiohttp as integration
-from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.specs import extractors, openapi as specs
+import xjsonrpc.server.specs.extractors.docstring
+import xjsonrpc.server.specs.extractors.pydantic
+from xjsonrpc.server.integration import aiohttp as integration
+from xjsonrpc.server.validators import pydantic as validators
+from xjsonrpc.server.specs import extractors, openapi as specs
 
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
 
 credentials = {"admin": "admin"}
 
 
-class JSONEncoder(pjrpc.JSONEncoder):
+class JSONEncoder(xjsonrpc.JSONEncoder):
     def default(self, o: Any) -> Any:
         if isinstance(o, pydantic.BaseModel):
             return o.dict()
@@ -28,7 +28,7 @@ class JSONEncoder(pjrpc.JSONEncoder):
 
 
 class AuthenticatedJsonRPC(integration.Application):
-    async def _rpc_handle(self, http_request: web.Request, dispatcher: pjrpc.server.Dispatcher) -> web.Response:
+    async def _rpc_handle(self, http_request: web.Request, dispatcher: xjsonrpc.server.Dispatcher) -> web.Response:
         try:
             auth = helpers.BasicAuth.decode(http_request.headers.get('Authorization', ''))
         except ValueError:
@@ -58,7 +58,7 @@ class UserOut(UserIn):
     id: uuid.UUID
 
 
-class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+class AlreadyExistsError(xjsonrpc.exc.JsonRpcError):
     """
     User already registered error.
     """
@@ -67,7 +67,7 @@ class AlreadyExistsError(pjrpc.exc.JsonRpcError):
     message = "user already exists"
 
 
-class NotFoundError(pjrpc.exc.JsonRpcError):
+class NotFoundError(xjsonrpc.exc.JsonRpcError):
     """
     User not found error.
     """

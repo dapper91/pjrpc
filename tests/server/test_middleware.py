@@ -1,13 +1,13 @@
 import json
 
-import pjrpc
-from pjrpc.server import dispatcher as pjrpc_dispatcher
+import xjsonrpc
+from xjsonrpc.server import dispatcher as xjsonrpc_dispatcher
 
 
 def test_middleware(mocker):
     test_result = 'the result'
-    test_request = pjrpc.common.Request('test_method', params=dict(param='param'), id=1)
-    test_response = pjrpc.common.Response(id=1, result=test_result)
+    test_request = xjsonrpc.common.Request('test_method', params=dict(param='param'), id=1)
+    test_response = xjsonrpc.common.Response(id=1, result=test_result)
     test_context = object()
     middleware_call_order = []
 
@@ -30,12 +30,12 @@ def test_middleware(mocker):
 
         return handler(request, context)
 
-    dispatcher = pjrpc_dispatcher.Dispatcher(middlewares=(test_middleware1, test_middleware2))
+    dispatcher = xjsonrpc_dispatcher.Dispatcher(middlewares=(test_middleware1, test_middleware2))
     dispatcher.add(test_method, 'test_method', 'context')
 
     request_text = json.dumps(test_request.to_json())
     response_text = dispatcher.dispatch(request_text, test_context)
-    actual_response = pjrpc.common.Response.from_json(json.loads(response_text))
+    actual_response = xjsonrpc.common.Response.from_json(json.loads(response_text))
     assert actual_response == test_response
 
     assert middleware_call_order == [test_middleware1, test_middleware2]
@@ -43,8 +43,8 @@ def test_middleware(mocker):
 
 async def test_async_middleware(mocker):
     test_result = 'the result'
-    test_request = pjrpc.common.Request('test_method', params=dict(param='param'), id=1)
-    test_response = pjrpc.common.Response(id=1, result=test_result)
+    test_request = xjsonrpc.common.Request('test_method', params=dict(param='param'), id=1)
+    test_response = xjsonrpc.common.Response(id=1, result=test_result)
     test_context = object()
     middleware_call_order = []
 
@@ -67,12 +67,12 @@ async def test_async_middleware(mocker):
 
         return await handler(request, context)
 
-    dispatcher = pjrpc_dispatcher.AsyncDispatcher(middlewares=(test_middleware1, test_middleware2))
+    dispatcher = xjsonrpc_dispatcher.AsyncDispatcher(middlewares=(test_middleware1, test_middleware2))
     dispatcher.add(test_method, 'test_method', 'context')
 
     request_text = json.dumps(test_request.to_json())
     response_text = await dispatcher.dispatch(request_text, test_context)
-    actual_response = pjrpc.common.Response.from_json(json.loads(response_text))
+    actual_response = xjsonrpc.common.Response.from_json(json.loads(response_text))
     assert actual_response == test_response
 
     assert middleware_call_order == [test_middleware1, test_middleware2]

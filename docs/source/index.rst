@@ -1,47 +1,47 @@
-.. pjrpc documentation master file, created by
+.. xjsonrpc documentation master file, created by
    sphinx-quickstart on Wed Oct 23 21:38:52 2019.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to pjrpc's documentation!
+Welcome to xjsonrpc's documentation!
 =================================
 
 
-.. image:: https://static.pepy.tech/personalized-badge/pjrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
-    :target: https://pepy.tech/project/pjrpc
+.. image:: https://static.pepy.tech/personalized-badge/xjsonrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
+    :target: https://pepy.tech/project/xjsonrpc
     :alt: Downloads/month
-.. image:: https://travis-ci.org/dapper91/pjrpc.svg?branch=master
-    :target: https://travis-ci.org/dapper91/pjrpc
+.. image:: https://travis-ci.org/bernhardkaindl/xjsonrpc.svg?branch=master
+    :target: https://travis-ci.org/bernhardkaindl/xjsonrpc
     :alt: Build status
-.. image:: https://img.shields.io/pypi/l/pjrpc.svg
-    :target: https://pypi.org/project/pjrpc
+.. image:: https://img.shields.io/pypi/l/xjsonrpc.svg
+    :target: https://pypi.org/project/xjsonrpc
     :alt: License
-.. image:: https://img.shields.io/pypi/pyversions/pjrpc.svg
-    :target: https://pypi.org/project/pjrpc
+.. image:: https://img.shields.io/pypi/pyversions/xjsonrpc.svg
+    :target: https://pypi.org/project/xjsonrpc
     :alt: Supported Python versions
-.. image:: https://codecov.io/gh/dapper91/pjrpc/branch/master/graph/badge.svg
-    :target: https://codecov.io/gh/dapper91/pjrpc
+.. image:: https://codecov.io/gh/bernhardkaindl/xjsonrpc/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/bernhardkaindl/xjsonrpc
     :alt: Code coverage
-.. image:: https://readthedocs.org/projects/pjrpc/badge/?version=stable&style=flat
+.. image:: https://readthedocs.org/projects/xjsonrpc/badge/?version=stable&style=flat
    :alt: ReadTheDocs status
-   :target: https://pjrpc.readthedocs.io/en/stable/
+   :target: https://xjsonrpc.readthedocs.io/en/stable/
 
 
-``pjrpc`` is an extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library with an intuitive interface
+``xjsonrpc`` is an extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library with an intuitive interface
 that can be easily extended and integrated in your project without writing a lot of boilerplate code.
 
 Features:
 
-- :doc:`framework/library agnostic <pjrpc/examples>`
-- :doc:`intuitive interface <pjrpc/quickstart>`
-- :doc:`extensibility <pjrpc/extending>`
-- :doc:`synchronous and asynchronous client backends <pjrpc/client>`
-- :doc:`popular frameworks integration <pjrpc/server>` (aiohttp, flask, kombu, aio_pika)
-- :doc:`builtin parameter validation <pjrpc/validation>`
-- :doc:`pytest integration <pjrpc/testing>`
-- :doc:`openapi schema generation support <pjrpc/specification>`
-- :doc:`openrpc schema generation support <pjrpc/specification>`
-- :doc:`web ui support (SwaggerUI, RapiDoc, ReDoc) <pjrpc/webui>`
+- :doc:`framework/library agnostic <xjsonrpc/examples>`
+- :doc:`intuitive interface <xjsonrpc/quickstart>`
+- :doc:`extensibility <xjsonrpc/extending>`
+- :doc:`synchronous and asynchronous client backends <xjsonrpc/client>`
+- :doc:`popular frameworks integration <xjsonrpc/server>` (aiohttp, flask, kombu, aio_pika)
+- :doc:`builtin parameter validation <xjsonrpc/validation>`
+- :doc:`pytest integration <xjsonrpc/testing>`
+- :doc:`openapi schema generation support <xjsonrpc/specification>`
+- :doc:`openrpc schema generation support <xjsonrpc/specification>`
+- :doc:`web ui support (SwaggerUI, RapiDoc, ReDoc) <xjsonrpc/webui>`
 
 
 Extra requirements
@@ -66,18 +66,18 @@ The User Guide
 .. toctree::
    :maxdepth: 2
 
-   pjrpc/installation
-   pjrpc/quickstart
-   pjrpc/client
-   pjrpc/server
-   pjrpc/validation
-   pjrpc/errors
-   pjrpc/extending
-   pjrpc/testing
-   pjrpc/tracing
-   pjrpc/specification
-   pjrpc/webui
-   pjrpc/examples
+   xjsonrpc/installation
+   xjsonrpc/quickstart
+   xjsonrpc/client
+   xjsonrpc/server
+   xjsonrpc/validation
+   xjsonrpc/errors
+   xjsonrpc/extending
+   xjsonrpc/testing
+   xjsonrpc/tracing
+   xjsonrpc/specification
+   xjsonrpc/webui
+   xjsonrpc/examples
 
 
 The API Documentation
@@ -86,7 +86,7 @@ The API Documentation
 .. toctree::
    :maxdepth: 3
 
-   pjrpc/api
+   xjsonrpc/api
 
 
 Development
@@ -95,7 +95,7 @@ Development
 .. toctree::
    :maxdepth: 2
 
-   pjrpc/development
+   xjsonrpc/development
 
 
 Indices and tables

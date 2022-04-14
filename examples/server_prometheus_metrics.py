@@ -4,8 +4,8 @@ from typing import Any, Callable
 import prometheus_client as pc
 from aiohttp import web
 
-import pjrpc.server
-from pjrpc.server.integration import aiohttp
+import xjsonrpc.server
+from xjsonrpc.server.integration import aiohttp
 
 method_error_count = pc.Counter('method_error_count', 'Method error count', labelnames=['method', 'code'])
 method_latency_hist = pc.Histogram('method_latency', 'Method latency', labelnames=['method'])
@@ -19,7 +19,7 @@ http_app = web.Application()
 http_app.add_routes([web.get('/metrics', metrics)])
 
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add(context='context')
@@ -29,27 +29,27 @@ async def method(context: web.Request):
     print("method finished")
 
 
-async def latency_metric_middleware(request: pjrpc.Request, context: web.Request, handler: Callable) -> Any:
+async def latency_metric_middleware(request: xjsonrpc.Request, context: web.Request, handler: Callable) -> Any:
     with method_latency_hist.labels(method=request.method).time():
         return await handler(request, context)
 
 
-async def active_count_metric_middleware(request: pjrpc.Request, context: web.Request, handler: Callable) -> Any:
+async def active_count_metric_middleware(request: xjsonrpc.Request, context: web.Request, handler: Callable) -> Any:
     with method_active_count.labels(method=request.method).track_inprogress():
         return await handler(request, context)
 
 
 async def any_error_handler(
-    request: pjrpc.Request, context: web.Request, error: pjrpc.exceptions.JsonRpcError,
-) -> pjrpc.exceptions.JsonRpcError:
+    request: xjsonrpc.Request, context: web.Request, error: xjsonrpc.exceptions.JsonRpcError,
+) -> xjsonrpc.exceptions.JsonRpcError:
     method_error_count.labels(method=request.method, code=error.code).inc()
 
     return error
 
 
 async def validation_error_handler(
-    request: pjrpc.Request, context: web.Request, error: pjrpc.exceptions.JsonRpcError,
-) -> pjrpc.exceptions.JsonRpcError:
+    request: xjsonrpc.Request, context: web.Request, error: xjsonrpc.exceptions.JsonRpcError,
+) -> xjsonrpc.exceptions.JsonRpcError:
     print("validation error occurred")
 
     return error

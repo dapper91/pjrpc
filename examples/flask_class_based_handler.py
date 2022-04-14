@@ -2,16 +2,16 @@ import uuid
 
 import flask
 
-import pjrpc
-from pjrpc.server.integration import flask as integration
+import xjsonrpc
+from xjsonrpc.server.integration import flask as integration
 
 app = flask.Flask(__name__)
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.view(prefix='user')
-class UserView(pjrpc.server.ViewMixin):
+class UserView(xjsonrpc.server.ViewMixin):
 
     def __init__(self):
         super().__init__()
@@ -27,7 +27,7 @@ class UserView(pjrpc.server.ViewMixin):
     def get(self, user_id: str):
         user = self._users.get(user_id)
         if not user:
-            pjrpc.exc.JsonRpcError(code=1, message='not found')
+            xjsonrpc.exc.JsonRpcError(code=1, message='not found')
 
         return user
 

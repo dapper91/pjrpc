@@ -2,10 +2,10 @@ import uuid
 
 from aiohttp import web
 
-import pjrpc.server
-from pjrpc.server.integration import aiohttp
+import xjsonrpc.server
+from xjsonrpc.server.integration import aiohttp
 
-methods_v1 = pjrpc.server.MethodRegistry()
+methods_v1 = xjsonrpc.server.MethodRegistry()
 
 
 @methods_v1.add(context='request')
@@ -16,7 +16,7 @@ async def add_user_v1(request: web.Request, user: dict):
     return {'id': user_id, **user}
 
 
-methods_v2 = pjrpc.server.MethodRegistry()
+methods_v2 = xjsonrpc.server.MethodRegistry()
 
 
 @methods_v2.add(context='request')

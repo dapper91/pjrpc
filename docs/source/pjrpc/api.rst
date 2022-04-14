@@ -3,69 +3,69 @@
 Developer Interface
 ===================
 
-.. currentmodule:: pjrpc
+.. currentmodule:: xjsonrpc
 
 
-.. automodule:: pjrpc
+.. automodule:: xjsonrpc
 
 
 Common
 ------
 
-.. automodule:: pjrpc.common
+.. automodule:: xjsonrpc.common
     :members:
 
 Exceptions
 ~~~~~~~~~~
 
-.. automodule:: pjrpc.common.exceptions
+.. automodule:: xjsonrpc.common.exceptions
     :members:
 
 Identifier generators
 ~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pjrpc.common.generators
+.. automodule:: xjsonrpc.common.generators
     :members:
 
 
 Client
 ------
 
-.. automodule:: pjrpc.client
+.. automodule:: xjsonrpc.client
     :members:
 
 Backends
 ~~~~~~~~
 
-.. automodule:: pjrpc.client.backend.requests
+.. automodule:: xjsonrpc.client.backend.requests
     :members:
 
-.. automodule:: pjrpc.client.backend.aiohttp
+.. automodule:: xjsonrpc.client.backend.aiohttp
     :members:
 
-.. automodule:: pjrpc.client.backend.kombu
+.. automodule:: xjsonrpc.client.backend.kombu
     :members:
 
-.. automodule:: pjrpc.client.backend.aio_pika
+.. automodule:: xjsonrpc.client.backend.aio_pika
     :members:
 
 Tracer
 ~~~~~~
 
-.. automodule:: pjrpc.client.tracer
+.. automodule:: xjsonrpc.client.tracer
     :members:
 
 
 Integrations
 ~~~~~~~~~~~~
 
-.. automodule:: pjrpc.client.integrations.pytest
+.. automodule:: xjsonrpc.client.integrations.pytest
     :members:
 
 Server
 ------
 
-.. automodule:: pjrpc.server
+.. automodule:: xjsonrpc.server
     :members:
 
 
@@ -75,81 +75,81 @@ Integrations
 aiohttp
 _______
 
-.. automodule:: pjrpc.server.integration.aiohttp
+.. automodule:: xjsonrpc.server.integration.aiohttp
     :members:
 
 flask
 _____
 
-.. automodule:: pjrpc.server.integration.flask
+.. automodule:: xjsonrpc.server.integration.flask
     :members:
 
 kombu
 _____
 
-.. automodule:: pjrpc.server.integration.kombu
+.. automodule:: xjsonrpc.server.integration.kombu
     :members:
 
 aio_pika
 ________
 
-.. automodule:: pjrpc.server.integration.aio_pika
+.. automodule:: xjsonrpc.server.integration.aio_pika
     :members:
 
 
 werkzeug
 ________
 
-.. automodule:: pjrpc.server.integration.werkzeug
+.. automodule:: xjsonrpc.server.integration.werkzeug
     :members:
 
 
 Validators
 ~~~~~~~~~~
 
-.. automodule:: pjrpc.server.validators
+.. automodule:: xjsonrpc.server.validators
     :members:
 
 jsonschema
 __________
 
-.. automodule:: pjrpc.server.validators.jsonschema
+.. automodule:: xjsonrpc.server.validators.jsonschema
     :members:
 
 pydantic
 ________
 
-.. automodule:: pjrpc.server.validators.pydantic
+.. automodule:: xjsonrpc.server.validators.pydantic
     :members:
 
 
 Specification
 ~~~~~~~~~~~~~
 
-.. automodule:: pjrpc.server.specs
+.. automodule:: xjsonrpc.server.specs
     :members:
 
 extractors
 __________
 
-.. automodule:: pjrpc.server.specs.extractors
+.. automodule:: xjsonrpc.server.specs.extractors
     :members:
 
 
-.. automodule:: pjrpc.server.specs.extractors.pydantic
+.. automodule:: xjsonrpc.server.specs.extractors.pydantic
     :members:
 
 
-.. automodule:: pjrpc.server.specs.extractors.docstring
+.. automodule:: xjsonrpc.server.specs.extractors.docstring
     :members:
 
 schemas
 _______
 
 
-.. automodule:: pjrpc.server.specs.openapi
+.. automodule:: xjsonrpc.server.specs.openapi
     :members:
 
 
-.. automodule:: pjrpc.server.specs.openrpc
+.. automodule:: xjsonrpc.server.specs.openrpc
     :members:

@@ -1,6 +1,6 @@
 import pytest
-from pjrpc.server.validators import pydantic
-from pjrpc.server.validators import ValidationError
+from xjsonrpc.server.validators import pydantic
+from xjsonrpc.server.validators import ValidationError
 
 
 @pytest.mark.parametrize(

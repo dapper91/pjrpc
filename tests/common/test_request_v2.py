@@ -1,7 +1,7 @@
 import pytest
 
-import pjrpc
-from pjrpc.common import v20, exceptions
+import xjsonrpc
+from xjsonrpc.common import v20, exceptions
 
 
 @pytest.mark.parametrize(
@@ -76,22 +76,22 @@ def test_request_repr():
 
 
 def test_request_deserialization_error():
-    with pytest.raises(pjrpc.exc.DeserializationError, match="data must be of type dict"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="data must be of type dict"):
         v20.Request.from_json([])
 
-    with pytest.raises(pjrpc.exc.DeserializationError, match="required field 'jsonrpc' not found"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="required field 'jsonrpc' not found"):
         v20.Request.from_json({})
 
-    with pytest.raises(pjrpc.exc.DeserializationError, match="jsonrpc version '2.1' is not supported"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="jsonrpc version '2.1' is not supported"):
         v20.Request.from_json({'jsonrpc': '2.1'})
 
-    with pytest.raises(pjrpc.exc.DeserializationError, match="field 'id' must be of type integer or string"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="field 'id' must be of type integer or string"):
         v20.Request.from_json({'jsonrpc': '2.0', 'id': {}})
 
-    with pytest.raises(pjrpc.exc.DeserializationError, match="field 'method' must be of type string"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="field 'method' must be of type string"):
         v20.Request.from_json({'jsonrpc': '2.0', 'id': 1, 'method': 1})
 
-    with pytest.raises(pjrpc.exc.DeserializationError, match="field 'params' must be of type list or dict"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="field 'params' must be of type list or dict"):
         v20.Request.from_json({'jsonrpc': '2.0', 'id': 1, 'method': 'method', 'params': 'params'})
 
 
@@ -207,5 +207,5 @@ def test_batch_request_repr():
 
 
 def test_batch_request_deserialization_error():
-    with pytest.raises(pjrpc.exc.DeserializationError, match="data must be of type list"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="data must be of type list"):
         v20.BatchRequest.from_json({})

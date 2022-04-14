@@ -2,12 +2,12 @@ import uuid
 
 import flask
 
-import pjrpc
-from pjrpc.server.integration import flask as integration
+import xjsonrpc
+from xjsonrpc.server.integration import flask as integration
 
 app = flask.Flask(__name__)
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add

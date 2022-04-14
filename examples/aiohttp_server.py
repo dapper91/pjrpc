@@ -2,10 +2,10 @@ import uuid
 
 from aiohttp import web
 
-import pjrpc.server
-from pjrpc.server.integration import aiohttp
+import xjsonrpc.server
+from xjsonrpc.server.integration import aiohttp
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add(context='request')

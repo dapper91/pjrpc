@@ -3,11 +3,11 @@ from typing import Optional
 
 import pydantic
 
-import pjrpc.common.exceptions
-import pjrpc.server.specs.extractors.docstring
-from pjrpc.server import Method
-from pjrpc.server.specs import openrpc as specs
-from pjrpc.server.specs import extractors
+import xjsonrpc.common.exceptions
+import xjsonrpc.server.specs.extractors.docstring
+from xjsonrpc.server import Method
+from xjsonrpc.server.specs import openrpc as specs
+from xjsonrpc.server.specs import extractors
 
 
 def test_openapi_schema_generator(resources):
@@ -39,7 +39,7 @@ def test_openapi_schema_generator(resources):
         field2: int
         field3: SubModel
 
-    class TestError(pjrpc.common.exceptions.JsonRpcError):
+    class TestError(xjsonrpc.common.exceptions.JsonRpcError):
         code = 2001
         message = 'test error 1'
 

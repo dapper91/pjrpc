@@ -1,5 +1,5 @@
 import json
-from pjrpc.server import dispatcher, validators, Method, ViewMixin
+from xjsonrpc.server import dispatcher, validators, Method, ViewMixin
 
 from tests.common import _
 

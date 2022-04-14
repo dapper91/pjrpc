@@ -4,8 +4,8 @@ import opentracing
 from opentracing import tags
 from aiohttp import web
 
-import pjrpc.server
-from pjrpc.server.integration import aiohttp
+import xjsonrpc.server
+from xjsonrpc.server.integration import aiohttp
 
 
 @web.middleware
@@ -40,7 +40,7 @@ http_app = web.Application(
     ),
 )
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add(context='context')
@@ -54,7 +54,7 @@ async def jsonrpc_tracing_middleware(request, context, handler):
     tracer = opentracing.global_tracer()
     span = tracer.start_span(f'jsonrpc.{request.method}')
 
-    span.set_tag(tags.COMPONENT, 'pjrpc')
+    span.set_tag(tags.COMPONENT, 'xjsonrpc')
     span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_SERVER)
     span.set_tag('jsonrpc.version', request.version)
     span.set_tag('jsonrpc.id', request.id)

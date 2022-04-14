@@ -3,7 +3,7 @@ import string
 import uuid
 
 import pytest
-from pjrpc.common import generators
+from xjsonrpc.common import generators
 
 
 @pytest.mark.parametrize(

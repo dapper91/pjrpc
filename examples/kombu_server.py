@@ -2,10 +2,10 @@ import uuid
 
 import kombu
 
-import pjrpc
-from pjrpc.server.integration import kombu as integration
+import xjsonrpc
+from xjsonrpc.server.integration import kombu as integration
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add(context='message')

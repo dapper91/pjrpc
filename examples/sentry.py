@@ -1,10 +1,10 @@
 import sentry_sdk
 from aiohttp import web
 
-import pjrpc.server
-from pjrpc.server.integration import aiohttp
+import xjsonrpc.server
+from xjsonrpc.server.integration import aiohttp
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add(context='request')
@@ -15,7 +15,7 @@ async def method(request):
 async def sentry_middleware(request, context, handler):
     try:
         return await handler(request, context)
-    except pjrpc.exceptions.JsonRpcError as e:
+    except xjsonrpc.exceptions.JsonRpcError as e:
         sentry_sdk.capture_exception(e)
         raise
 

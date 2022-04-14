@@ -1,5 +1,5 @@
 import pytest
-from pjrpc.server import validators
+from xjsonrpc.server import validators
 
 
 @pytest.mark.parametrize(

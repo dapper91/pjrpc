@@ -1,3 +1,3 @@
 """
-Django pjrpc integration.
+Django xjsonrpc integration.
 """

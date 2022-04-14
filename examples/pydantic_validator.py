@@ -5,11 +5,11 @@ from typing import List
 import pydantic
 from aiohttp import web
 
-import pjrpc.server
-from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.integration import aiohttp
+import xjsonrpc.server
+from xjsonrpc.server.validators import pydantic as validators
+from xjsonrpc.server.integration import aiohttp
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
 
 
@@ -39,7 +39,7 @@ async def add_user(request: web.Request, user: User):
     return {'id': user_id, **user.dict()}
 
 
-class JSONEncoder(pjrpc.server.JSONEncoder):
+class JSONEncoder(xjsonrpc.server.JSONEncoder):
 
     def default(self, o):
         if isinstance(o, uuid.UUID):

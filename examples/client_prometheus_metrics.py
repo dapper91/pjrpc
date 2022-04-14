@@ -1,8 +1,8 @@
 import time
 
 import prometheus_client as prom_cli
-from pjrpc.client import tracer
-from pjrpc.client.backend import requests as pjrpc_client
+from xjsonrpc.client import tracer
+from xjsonrpc.client.backend import requests as xjsonrpc_client
 
 method_latency_hist = prom_cli.Histogram('method_latency', 'Method latency', labelnames=['method'])
 method_call_total = prom_cli.Counter('method_call_total', 'Method call count', labelnames=['method'])
@@ -23,7 +23,7 @@ class PrometheusTracer(tracer.Tracer):
         method_latency_hist.labels(request.method).observe(time.time() - trace_context.started_at)
 
 
-client = pjrpc_client.Client(
+client = xjsonrpc_client.Client(
     'http://localhost/api/v1', tracers=(
         PrometheusTracer(),
     ),

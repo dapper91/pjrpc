@@ -4,11 +4,11 @@ from collections import defaultdict
 import pydantic
 from django.http.request import HttpRequest
 
-import pjrpc.server.specs.extractors.pydantic
-from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.specs import openapi as specs
+import xjsonrpc.server.specs.extractors.pydantic
+from xjsonrpc.server.validators import pydantic as validators
+from xjsonrpc.server.specs import openapi as specs
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
 db = defaultdict(dict)
 
@@ -30,7 +30,7 @@ class PostOut(PostIn):
     id: uuid.UUID
 
 
-class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+class AlreadyExistsError(xjsonrpc.exc.JsonRpcError):
     """
     Post already registered error.
     """
@@ -39,7 +39,7 @@ class AlreadyExistsError(pjrpc.exc.JsonRpcError):
     message = "post already exists"
 
 
-class NotFoundError(pjrpc.exc.JsonRpcError):
+class NotFoundError(xjsonrpc.exc.JsonRpcError):
     """
     Post not found error.
     """

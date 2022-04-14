@@ -1,7 +1,7 @@
 import opentracing
 from opentracing import tags
-from pjrpc.client import tracer
-from pjrpc.client.backend import requests as pjrpc_client
+from xjsonrpc.client import tracer
+from xjsonrpc.client.backend import requests as xjsonrpc_client
 
 
 class ClientTracer(tracer.Tracer):
@@ -12,7 +12,7 @@ class ClientTracer(tracer.Tracer):
 
     def on_request_begin(self, trace_context, request):
         span = self._tracer.start_active_span(f'jsonrpc.{request.method}').span
-        span.set_tag(tags.COMPONENT, 'pjrpc.client')
+        span.set_tag(tags.COMPONENT, 'xjsonrpc.client')
         span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
 
     def on_request_end(self, trace_context, request, response):
@@ -30,7 +30,7 @@ class ClientTracer(tracer.Tracer):
         span.finish()
 
 
-client = pjrpc_client.Client(
+client = xjsonrpc_client.Client(
     'http://localhost/api/v1', tracers=(
         ClientTracer(),
     ),

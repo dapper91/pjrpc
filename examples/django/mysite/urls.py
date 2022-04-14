@@ -16,8 +16,8 @@ Including another URLconf
 
 from django.urls import include, path
 
-import pjrpc.server.integration.django.urls
+import xjsonrpc.server.integration.django.urls
 
 urlpatterns = [
-    path('api/v1/', include(pjrpc.server.integration.django.urls)),
+    path('api/v1/', include(xjsonrpc.server.integration.django.urls)),
 ]

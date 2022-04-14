@@ -1,6 +1,6 @@
 import json
-from pjrpc.common import BatchRequest, BatchResponse, Request, Response
-from pjrpc import client
+from xjsonrpc.common import BatchRequest, BatchResponse, Request, Response
+from xjsonrpc import client
 
 import pytest
 

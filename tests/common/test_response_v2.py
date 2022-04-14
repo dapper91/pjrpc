@@ -1,7 +1,7 @@
 import pytest
 
-import pjrpc
-from pjrpc.common import v20, exceptions
+import xjsonrpc
+from xjsonrpc.common import v20, exceptions
 
 
 @pytest.mark.parametrize(
@@ -71,22 +71,22 @@ def test_response_repr():
 
 
 def test_response_deserialization_error():
-    with pytest.raises(pjrpc.exc.DeserializationError, match="data must be of type dict"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="data must be of type dict"):
         v20.Response.from_json([])
 
-    with pytest.raises(pjrpc.exc.DeserializationError, match="required field 'jsonrpc' not found"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="required field 'jsonrpc' not found"):
         v20.Response.from_json({})
 
-    with pytest.raises(pjrpc.exc.DeserializationError, match="jsonrpc version '2.1' is not supported"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="jsonrpc version '2.1' is not supported"):
         v20.Response.from_json({'jsonrpc': '2.1'})
 
-    with pytest.raises(pjrpc.exc.DeserializationError, match="field 'id' must be of type integer or string"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="field 'id' must be of type integer or string"):
         v20.Response.from_json({'jsonrpc': '2.0', 'id': {}})
 
-    with pytest.raises(pjrpc.exc.DeserializationError, match="'result' or 'error' fields must be provided"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="'result' or 'error' fields must be provided"):
         v20.Response.from_json({'jsonrpc': '2.0', 'id': 1})
 
-    with pytest.raises(pjrpc.exc.DeserializationError, match="'result' and 'error' fields are mutually exclusive"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="'result' and 'error' fields are mutually exclusive"):
         v20.Response.from_json({'jsonrpc': '2.0', 'id': 1, 'error': {'code': 1, 'message': 'message'}, 'result': 1})
 
 
@@ -118,7 +118,7 @@ def test_batch_response_serialization():
 
     assert actual_dict == expected_dict
 
-    response = v20.BatchResponse(error=pjrpc.exc.MethodNotFoundError())
+    response = v20.BatchResponse(error=xjsonrpc.exc.MethodNotFoundError())
     actual_dict = response.to_json()
     expected_dict = {
         'jsonrpc': '2.0',
@@ -173,7 +173,7 @@ def test_batch_response_deserialization():
     response = v20.BatchResponse.from_json(data)
 
     assert response.is_error
-    assert response.error == pjrpc.exc.MethodNotFoundError()
+    assert response.error == xjsonrpc.exc.MethodNotFoundError()
 
 
 def test_batch_response_methods():
@@ -195,9 +195,9 @@ def test_batch_response_methods():
 
     assert not response.has_error
 
-    response.append(v20.Response(id=5, error=pjrpc.exc.JsonRpcError(code=1, message='msg')))
+    response.append(v20.Response(id=5, error=xjsonrpc.exc.JsonRpcError(code=1, message='msg')))
     assert response.has_error
-    with pytest.raises(pjrpc.exc.JsonRpcError) as e:
+    with pytest.raises(xjsonrpc.exc.JsonRpcError) as e:
         response.result
 
     assert e.value.code == 1
@@ -224,5 +224,5 @@ def test_batch_response_repr():
 
 
 def test_batch_response_deserialization_error():
-    with pytest.raises(pjrpc.exc.DeserializationError, match="data must be of type list"):
+    with pytest.raises(xjsonrpc.exc.DeserializationError, match="data must be of type list"):
         v20.BatchResponse.from_json('')

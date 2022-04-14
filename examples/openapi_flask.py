@@ -7,17 +7,17 @@ import pydantic
 import flask_cors
 from werkzeug import security
 
-import pjrpc.server.specs.extractors.docstring
-import pjrpc.server.specs.extractors.pydantic
-from pjrpc.server.integration import flask as integration
-from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.specs import extractors, openapi as specs
+import xjsonrpc.server.specs.extractors.docstring
+import xjsonrpc.server.specs.extractors.pydantic
+from xjsonrpc.server.integration import flask as integration
+from xjsonrpc.server.validators import pydantic as validators
+from xjsonrpc.server.specs import extractors, openapi as specs
 
 
 app = flask.Flask('myapp')
 flask_cors.CORS(app, resources={"/myapp/api/v1/*": {"origins": "*"}})
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
 
 auth = flask_httpauth.HTTPBasicAuth()
@@ -32,11 +32,11 @@ def verify_password(username: str, password: str) -> Optional[str]:
 
 class AuthenticatedJsonRPC(integration.JsonRPC):
     @auth.login_required
-    def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
+    def _rpc_handle(self, dispatcher: xjsonrpc.server.Dispatcher) -> flask.Response:
         return super()._rpc_handle(dispatcher)
 
 
-class JSONEncoder(pjrpc.JSONEncoder):
+class JSONEncoder(xjsonrpc.JSONEncoder):
     def default(self, o: Any) -> Any:
         if isinstance(o, pydantic.BaseModel):
             return o.dict()
@@ -64,7 +64,7 @@ class UserOut(UserIn):
     id: uuid.UUID
 
 
-class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+class AlreadyExistsError(xjsonrpc.exc.JsonRpcError):
     """
     User already registered error.
     """
@@ -73,7 +73,7 @@ class AlreadyExistsError(pjrpc.exc.JsonRpcError):
     message = "user already exists"
 
 
-class NotFoundError(pjrpc.exc.JsonRpcError):
+class NotFoundError(xjsonrpc.exc.JsonRpcError):
     """
     User not found error.
     """

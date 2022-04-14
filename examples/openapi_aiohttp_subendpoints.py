@@ -4,20 +4,20 @@ from typing import Any
 import pydantic
 from aiohttp import web
 
-import pjrpc.server.specs.extractors.docstring
-import pjrpc.server.specs.extractors.pydantic
-from pjrpc.server.integration import aiohttp as integration
-from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.specs import extractors, openapi as specs
+import xjsonrpc.server.specs.extractors.docstring
+import xjsonrpc.server.specs.extractors.pydantic
+from xjsonrpc.server.integration import aiohttp as integration
+from xjsonrpc.server.validators import pydantic as validators
+from xjsonrpc.server.specs import extractors, openapi as specs
 
-user_methods = pjrpc.server.MethodRegistry()
-post_methods = pjrpc.server.MethodRegistry()
+user_methods = xjsonrpc.server.MethodRegistry()
+post_methods = xjsonrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
 
 credentials = {"admin": "admin"}
 
 
-class JSONEncoder(pjrpc.JSONEncoder):
+class JSONEncoder(xjsonrpc.JSONEncoder):
     def default(self, o: Any) -> Any:
         if isinstance(o, pydantic.BaseModel):
             return o.dict()
@@ -45,7 +45,7 @@ class UserOut(UserIn):
     id: uuid.UUID
 
 
-class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+class AlreadyExistsError(xjsonrpc.exc.JsonRpcError):
     """
     User already registered error.
     """

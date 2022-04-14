@@ -2,11 +2,11 @@ import uuid
 
 from aiohttp import web
 
-import pjrpc.server
-from pjrpc.server.validators import jsonschema as validators
-from pjrpc.server.integration import aiohttp
+import xjsonrpc.server
+from xjsonrpc.server.validators import jsonschema as validators
+from xjsonrpc.server.integration import aiohttp
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 validator = validators.JsonSchemaValidator()
 
 

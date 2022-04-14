@@ -4,9 +4,9 @@ import pytest
 import responses
 import respx
 
-import pjrpc
-from pjrpc.client.backend import requests as requests_backend
-from pjrpc.client.backend import httpx as httpx_backend
+import xjsonrpc
+from xjsonrpc.client.backend import requests as requests_backend
+from xjsonrpc.client.backend import httpx as httpx_backend
 
 
 class ResponsesMocker(responses.RequestsMock):
@@ -55,7 +55,7 @@ def test_call(Client, mocker):
 
         client = Client(test_url)
 
-        response = client.send(pjrpc.Request('method', (1, 2), id=1))
+        response = client.send(xjsonrpc.Request('method', (1, 2), id=1))
         assert response.id == 1
         assert response.result == 'result'
 
@@ -125,7 +125,7 @@ def test_notify(Client, mocker):
         mock.mock('POST', test_url, status=200, content='')
         client = Client(test_url)
 
-        response = client.send(pjrpc.Request('method', params=[1, 2]))
+        response = client.send(xjsonrpc.Request('method', params=[1, 2]))
         assert response is None
         assert mock.requests[0].url == test_url
         assert json.loads(mock.requests[0].content) == {
@@ -172,10 +172,10 @@ def test_batch(Client, mocker):
         client = Client(test_url)
 
         result = client.batch.send(
-            pjrpc.BatchRequest(
-                pjrpc.Request('method1', params=[1, 2], id=1),
-                pjrpc.Request('method2', params=[2, 3], id=2),
-                pjrpc.Request('method3', params=[3, 4]),
+            xjsonrpc.BatchRequest(
+                xjsonrpc.Request('method1', params=[1, 2], id=1),
+                xjsonrpc.Request('method2', params=[2, 3], id=2),
+                xjsonrpc.Request('method3', params=[3, 4]),
             ),
         )
         assert len(result) == 2
@@ -266,9 +266,9 @@ def test_batch(Client, mocker):
         ]
 
         result = client.batch.send(
-            pjrpc.BatchRequest(
-                pjrpc.Request(method='method1', params=[1, 2], id=1),
-                pjrpc.Request(method='method2', params=[2, 3], id=2),
+            xjsonrpc.BatchRequest(
+                xjsonrpc.Request(method='method1', params=[1, 2], id=1),
+                xjsonrpc.Request(method='method2', params=[2, 3], id=2),
             ),
         )
         assert result[0].id == 1
@@ -335,7 +335,7 @@ def test_error(Client, mocker):
 
         client = Client(test_url)
 
-        with pytest.raises(pjrpc.exceptions.MethodNotFoundError):
+        with pytest.raises(xjsonrpc.exceptions.MethodNotFoundError):
             client('method', 1, 2)
 
         assert mock.requests[0].url == test_url
@@ -357,7 +357,7 @@ def test_error(Client, mocker):
             },
         )
 
-        with pytest.raises(pjrpc.exceptions.InvalidRequestError):
+        with pytest.raises(xjsonrpc.exceptions.InvalidRequestError):
             client.batch[('method', 'param')]
 
     with mocker() as mock:
@@ -378,7 +378,7 @@ def test_error(Client, mocker):
 
         client = Client(test_url)
 
-        with pytest.raises(pjrpc.exceptions.IdentityError):
+        with pytest.raises(xjsonrpc.exceptions.IdentityError):
             client.batch[
                 ('method1', 'param'),
                 ('method2', 'param'),
@@ -404,6 +404,6 @@ def test_context_manager(Client, mocker):
         )
 
         with Client(test_url) as client:
-            response = client.send(pjrpc.Request('method', (1, 2), id=1))
+            response = client.send(xjsonrpc.Request('method', (1, 2), id=1))
             assert response.id == 1
             assert response.result == 'result'

@@ -2,10 +2,10 @@ import uuid
 
 import uvicorn
 
-import pjrpc
-from pjrpc.server.integration import starlette as integration
+import xjsonrpc
+from xjsonrpc.server.integration import starlette as integration
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 users = {}
 
 

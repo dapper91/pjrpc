@@ -2,12 +2,12 @@ import pytest
 from aiohttp import web
 from unittest import mock
 
-import pjrpc.server
-from pjrpc.client.backend import aiohttp as async_client
-from pjrpc.server.integration import aiohttp as integration
-from pjrpc.client.integrations.pytest import PjRpcAiohttpMocker
+import xjsonrpc.server
+from xjsonrpc.client.backend import aiohttp as async_client
+from xjsonrpc.server.integration import aiohttp as integration
+from xjsonrpc.client.integrations.pytest import PjRpcAiohttpMocker
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add
@@ -29,7 +29,7 @@ def jsonrpc_app(http_app):
     return jsonrpc_app
 
 
-async def test_pjrpc_server(aiohttp_client, http_app, jsonrpc_app):
+async def test_xjsonrpc_server(aiohttp_client, http_app, jsonrpc_app):
     jsonrpc_cli = async_client.Client('/api/v1', session=await aiohttp_client(http_app))
 
     with PjRpcAiohttpMocker(passthrough=True) as mocker:

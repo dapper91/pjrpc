@@ -4,10 +4,10 @@ import uuid
 
 import aio_pika
 
-import pjrpc
-from pjrpc.server.integration import aio_pika as integration
+import xjsonrpc
+from xjsonrpc.server.integration import aio_pika as integration
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add

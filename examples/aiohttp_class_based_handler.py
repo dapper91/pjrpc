@@ -2,14 +2,14 @@ import uuid
 
 from aiohttp import web
 
-import pjrpc.server
-from pjrpc.server.integration import aiohttp
+import xjsonrpc.server
+from xjsonrpc.server.integration import aiohttp
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.view(context='request', prefix='user')
-class UserView(pjrpc.server.ViewMixin):
+class UserView(xjsonrpc.server.ViewMixin):
 
     def __init__(self, request: web.Request):
         super().__init__()
@@ -25,7 +25,7 @@ class UserView(pjrpc.server.ViewMixin):
     async def get(self, user_id: str):
         user = self._users.get(user_id)
         if not user:
-            pjrpc.exc.JsonRpcError(code=1, message='not found')
+            xjsonrpc.exc.JsonRpcError(code=1, message='not found')
 
         return user
 

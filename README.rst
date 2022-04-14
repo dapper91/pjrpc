@@ -1,28 +1,28 @@
 =====
-pjrpc
+xjsonrpc
 =====
 
-.. image:: https://static.pepy.tech/personalized-badge/pjrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
-    :target: https://pepy.tech/project/pjrpc
+.. image:: https://static.pepy.tech/personalized-badge/xjsonrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
+    :target: https://pepy.tech/project/xjsonrpc
     :alt: Downloads/month
-.. image:: https://travis-ci.org/dapper91/pjrpc.svg?branch=master
-    :target: https://travis-ci.org/dapper91/pjrpc
+.. image:: https://travis-ci.org/bernhardkaindl/xjsonrpc.svg?branch=master
+    :target: https://travis-ci.org/bernhardkaindl/xjsonrpc
     :alt: Build status
-.. image:: https://img.shields.io/pypi/l/pjrpc.svg
-    :target: https://pypi.org/project/pjrpc
+.. image:: https://img.shields.io/pypi/l/xjsonrpc.svg
+    :target: https://pypi.org/project/xjsonrpc
     :alt: License
-.. image:: https://img.shields.io/pypi/pyversions/pjrpc.svg
-    :target: https://pypi.org/project/pjrpc
+.. image:: https://img.shields.io/pypi/pyversions/xjsonrpc.svg
+    :target: https://pypi.org/project/xjsonrpc
     :alt: Supported Python versions
-.. image:: https://codecov.io/gh/dapper91/pjrpc/branch/master/graph/badge.svg
-    :target: https://codecov.io/gh/dapper91/pjrpc
+.. image:: https://codecov.io/gh/bernhardkaindl/xjsonrpc/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/bernhardkaindl/xjsonrpc
     :alt: Code coverage
-.. image:: https://readthedocs.org/projects/pjrpc/badge/?version=stable&style=flat
+.. image:: https://readthedocs.org/projects/xjsonrpc/badge/?version=stable&style=flat
    :alt: ReadTheDocs status
-   :target: https://pjrpc.readthedocs.io/en/stable/
+   :target: https://xjsonrpc.readthedocs.io/en/stable/
 
 
-``pjrpc`` is an extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library with an intuitive interface
+``xjsonrpc`` is an extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library with an intuitive interface
 that can be easily extended and integrated in your project without writing a lot of boilerplate code.
 
 Features:
@@ -41,11 +41,11 @@ Features:
 Installation
 ------------
 
-You can install pjrpc with pip:
+You can install xjsonrpc with pip:
 
 .. code-block:: console
 
-    $ pip install pjrpc
+    $ pip install xjsonrpc
 
 
 Extra requirements
@@ -67,7 +67,7 @@ Extra requirements
 Documentation
 -------------
 
-Documentation is available at `Read the Docs <https://pjrpc.readthedocs.io/en/latest/>`_.
+Documentation is available at `Read the Docs <https://xjsonrpc.readthedocs.io/en/latest/>`_.
 
 
 Quickstart
@@ -76,19 +76,19 @@ Quickstart
 Client requests
 _______________
 
-``pjrpc`` client interface is very simple and intuitive. Methods may be called by name, using proxy object
-or by sending handmade ``pjrpc.common.Request`` class object. Notification requests can be made using
-``pjrpc.client.AbstractClient.notify`` method or by sending a ``pjrpc.common.Request`` object without id.
+``xjsonrpc`` client interface is very simple and intuitive. Methods may be called by name, using proxy object
+or by sending handmade ``xjsonrpc.common.Request`` class object. Notification requests can be made using
+``xjsonrpc.client.AbstractClient.notify`` method or by sending a ``xjsonrpc.common.Request`` object without id.
 
 .. code-block:: python
 
-    import pjrpc
-    from pjrpc.client.backend import requests as pjrpc_client
+    import xjsonrpc
+    from xjsonrpc.client.backend import requests as xjsonrpc_client
 
 
-    client = pjrpc_client.Client('http://localhost/api/v1')
+    client = xjsonrpc_client.Client('http://localhost/api/v1')
 
-    response: pjrpc.Response = client.send(pjrpc.Request('sum', params=[1, 2], id=1))
+    response: xjsonrpc.Response = client.send(xjsonrpc.Request('sum', params=[1, 2], id=1))
     print(f"1 + 2 = {response.result}")
 
     result = client('sum', a=1, b=2)
@@ -104,13 +104,13 @@ Asynchronous client api looks pretty much the same:
 
 .. code-block:: python
 
-    import pjrpc
-    from pjrpc.client.backend import aiohttp as pjrpc_client
+    import xjsonrpc
+    from xjsonrpc.client.backend import aiohttp as xjsonrpc_client
 
 
-    client = pjrpc_client.Client('http://localhost/api/v1')
+    client = xjsonrpc_client.Client('http://localhost/api/v1')
 
-    response = await client.send(pjrpc.Request('sum', params=[1, 2], id=1))
+    response = await client.send(xjsonrpc.Request('sum', params=[1, 2], id=1))
     print(f"1 + 2 = {response.result}")
 
     result = await client('sum', a=1, b=2)
@@ -125,23 +125,23 @@ Asynchronous client api looks pretty much the same:
 Batch requests
 ______________
 
-Batch requests also supported. You can build ``pjrpc.common.BatchRequest`` request by your hand and then send it to the
-server. The result is a ``pjrpc.common.BatchResponse`` instance you can iterate over to get all the results or get
+Batch requests also supported. You can build ``xjsonrpc.common.BatchRequest`` request by your hand and then send it to the
+server. The result is a ``xjsonrpc.common.BatchResponse`` instance you can iterate over to get all the results or get
 each one by index:
 
 .. code-block:: python
 
-    import pjrpc
-    from pjrpc.client.backend import requests as pjrpc_client
+    import xjsonrpc
+    from xjsonrpc.client.backend import requests as xjsonrpc_client
 
 
-    client = pjrpc_client.Client('http://localhost/api/v1')
+    client = xjsonrpc_client.Client('http://localhost/api/v1')
 
-    batch_response = await client.batch.send(pjrpc.BatchRequest(
-        pjrpc.Request('sum', [2, 2], id=1),
-        pjrpc.Request('sub', [2, 2], id=2),
-        pjrpc.Request('div', [2, 2], id=3),
-        pjrpc.Request('mult', [2, 2], id=4),
+    batch_response = await client.batch.send(xjsonrpc.BatchRequest(
+        xjsonrpc.Request('sum', [2, 2], id=1),
+        xjsonrpc.Request('sub', [2, 2], id=2),
+        xjsonrpc.Request('div', [2, 2], id=3),
+        xjsonrpc.Request('mult', [2, 2], id=4),
     ))
     print(f"2 + 2 = {batch_response[0].result}")
     print(f"2 - 2 = {batch_response[1].result}")
@@ -150,7 +150,7 @@ each one by index:
 
 
 There are also several alternative approaches which are a syntactic sugar for the first one (note that the result
-is not a ``pjrpc.common.BatchResponse`` object anymore but a tuple of "plain" method invocation results):
+is not a ``xjsonrpc.common.BatchResponse`` object anymore but a tuple of "plain" method invocation results):
 
 - using chain call notation:
 
@@ -196,17 +196,17 @@ the succeeded ones like this:
 
 .. code-block:: python
 
-    import pjrpc
-    from pjrpc.client.backend import requests as pjrpc_client
+    import xjsonrpc
+    from xjsonrpc.client.backend import requests as xjsonrpc_client
 
 
-    client = pjrpc_client.Client('http://localhost/api/v1')
+    client = xjsonrpc_client.Client('http://localhost/api/v1')
 
-    batch_response = client.batch.send(pjrpc.BatchRequest(
-        pjrpc.Request('sum', [2, 2], id=1),
-        pjrpc.Request('sub', [2, 2], id=2),
-        pjrpc.Request('div', [2, 2], id=3),
-        pjrpc.Request('mult', [2, 2], id=4),
+    batch_response = client.batch.send(xjsonrpc.BatchRequest(
+        xjsonrpc.Request('sum', [2, 2], id=1),
+        xjsonrpc.Request('sub', [2, 2], id=2),
+        xjsonrpc.Request('div', [2, 2], id=3),
+        xjsonrpc.Request('mult', [2, 2], id=4),
     ))
 
     for response in batch_response:
@@ -220,11 +220,11 @@ Batch notifications:
 
 .. code-block:: python
 
-    import pjrpc
-    from pjrpc.client.backend import requests as pjrpc_client
+    import xjsonrpc
+    from xjsonrpc.client.backend import requests as xjsonrpc_client
 
 
-    client = pjrpc_client.Client('http://localhost/api/v1')
+    client = xjsonrpc_client.Client('http://localhost/api/v1')
 
     client.batch.notify('tick').notify('tack').notify('tick').notify('tack').call()
 
@@ -233,7 +233,7 @@ Batch notifications:
 Server
 ______
 
-``pjrpc`` supports popular backend frameworks like `aiohttp <https://aiohttp.readthedocs.io>`_,
+``xjsonrpc`` supports popular backend frameworks like `aiohttp <https://aiohttp.readthedocs.io>`_,
 `flask <https://flask.palletsprojects.com>`_ and message brokers like `kombu <https://kombu.readthedocs.io/en/stable/>`_
 and `aio_pika <https://aio-pika.readthedocs.io>`_.
 
@@ -247,10 +247,10 @@ registry and run the server:
 
     from aiohttp import web
 
-    import pjrpc.server
-    from pjrpc.server.integration import aiohttp
+    import xjsonrpc.server
+    from xjsonrpc.server.integration import aiohttp
 
-    methods = pjrpc.server.MethodRegistry()
+    methods = xjsonrpc.server.MethodRegistry()
 
 
     @methods.add(context='request')
@@ -273,10 +273,10 @@ Parameter validation
 ____________________
 
 Very often besides dumb method parameters validation it is necessary to implement more "deep" validation and provide
-comprehensive errors description to clients. Fortunately ``pjrpc`` has builtin parameter validation based on
+comprehensive errors description to clients. Fortunately ``xjsonrpc`` has builtin parameter validation based on
 `pydantic <https://pydantic-docs.helpmanual.io/>`_ library which uses python type annotation for validation.
 Look at the following example: all you need to annotate method parameters (or describe more complex types beforehand if
-necessary). ``pjrpc`` will be validating method parameters and returning informative errors to clients.
+necessary). ``xjsonrpc`` will be validating method parameters and returning informative errors to clients.
 
 
 .. code-block:: python
@@ -288,11 +288,11 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
     import pydantic
     from aiohttp import web
 
-    import pjrpc.server
-    from pjrpc.server.validators import pydantic as validators
-    from pjrpc.server.integration import aiohttp
+    import xjsonrpc.server
+    from xjsonrpc.server.validators import pydantic as validators
+    from xjsonrpc.server.integration import aiohttp
 
-    methods = pjrpc.server.MethodRegistry()
+    methods = xjsonrpc.server.MethodRegistry()
     validator = validators.PydanticValidator()
 
 
@@ -322,7 +322,7 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
         return {'id': user_id, **user.dict()}
 
 
-    class JSONEncoder(pjrpc.server.JSONEncoder):
+    class JSONEncoder(xjsonrpc.server.JSONEncoder):
 
         def default(self, o):
             if isinstance(o, uuid.UUID):
@@ -344,37 +344,37 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
 Error handling
 ______________
 
-``pjrpc`` implements all the errors listed in `protocol specification <https://www.jsonrpc.org/specification#error_object>`_
-which can be found in ``pjrpc.common.exceptions`` module so that error handling is very simple and "pythonic-way":
+``xjsonrpc`` implements all the errors listed in `protocol specification <https://www.jsonrpc.org/specification#error_object>`_
+which can be found in ``xjsonrpc.common.exceptions`` module so that error handling is very simple and "pythonic-way":
 
 .. code-block:: python
 
-    import pjrpc
-    from pjrpc.client.backend import requests as pjrpc_client
+    import xjsonrpc
+    from xjsonrpc.client.backend import requests as xjsonrpc_client
 
-    client = pjrpc_client.Client('http://localhost/api/v1')
+    client = xjsonrpc_client.Client('http://localhost/api/v1')
 
     try:
         result = client.proxy.sum(1, 2)
-    except pjrpc.MethodNotFound as e:
+    except xjsonrpc.MethodNotFound as e:
         print(e)
 
 
 Default error list can be easily extended. All you need to create an error class inherited from
-``pjrpc.exc.JsonRpcError`` and define an error code and a description message. ``pjrpc`` will be automatically
+``xjsonrpc.exc.JsonRpcError`` and define an error code and a description message. ``xjsonrpc`` will be automatically
 deserializing custom errors for you:
 
 .. code-block:: python
 
-    import pjrpc
-    from pjrpc.client.backend import requests as pjrpc_client
+    import xjsonrpc
+    from xjsonrpc.client.backend import requests as xjsonrpc_client
 
-    class UserNotFound(pjrpc.exc.JsonRpcError):
+    class UserNotFound(xjsonrpc.exc.JsonRpcError):
         code = 1
         message = 'user not found'
 
 
-    client = pjrpc_client.Client('http://localhost/api/v1')
+    client = xjsonrpc_client.Client('http://localhost/api/v1')
 
     try:
         result = client.proxy.get_user(user_id=1)
@@ -390,16 +390,16 @@ On the server side everything is also pretty straightforward:
 
     import flask
 
-    import pjrpc
-    from pjrpc.server import MethodRegistry
-    from pjrpc.server.integration import flask as integration
+    import xjsonrpc
+    from xjsonrpc.server import MethodRegistry
+    from xjsonrpc.server.integration import flask as integration
 
     app = flask.Flask(__name__)
 
-    methods = pjrpc.server.MethodRegistry()
+    methods = xjsonrpc.server.MethodRegistry()
 
 
-    class UserNotFound(pjrpc.exc.JsonRpcError):
+    class UserNotFound(xjsonrpc.exc.JsonRpcError):
         code = 1
         message = 'user not found'
 
@@ -435,7 +435,7 @@ On the server side everything is also pretty straightforward:
 Open API specification
 ______________________
 
-``pjrpc`` has built-in `OpenAPI <https://swagger.io/specification/>`_ and `OpenRPC <https://spec.open-rpc.org/#introduction>`_
+``xjsonrpc`` has built-in `OpenAPI <https://swagger.io/specification/>`_ and `OpenRPC <https://spec.open-rpc.org/#introduction>`_
 specification generation support and integrated web UI as an extra dependency. Three UI types are supported:
 
 - SwaggerUI (`<https://swagger.io/tools/swagger-ui/>`_)
@@ -446,7 +446,7 @@ Web UI extra dependency can be installed using the following code:
 
 .. code-block:: console
 
-    $ pip install pjrpc[openapi-ui-bundles]
+    $ pip install xjsonrpc[openapi-ui-bundles]
 
 The following example illustrates how to configure OpenAPI specification generation
 and Swagger UI web tool with basic auth:
@@ -462,16 +462,16 @@ and Swagger UI web tool with basic auth:
     import flask_cors
     from werkzeug import security
 
-    import pjrpc.server.specs.extractors.pydantic
-    from pjrpc.server.integration import flask as integration
-    from pjrpc.server.validators import pydantic as validators
-    from pjrpc.server.specs import extractors, openapi as specs
+    import xjsonrpc.server.specs.extractors.pydantic
+    from xjsonrpc.server.integration import flask as integration
+    from xjsonrpc.server.validators import pydantic as validators
+    from xjsonrpc.server.specs import extractors, openapi as specs
 
 
     app = flask.Flask('myapp')
     flask_cors.CORS(app, resources={"/myapp/api/v1/*": {"origins": "*"}})
 
-    methods = pjrpc.server.MethodRegistry()
+    methods = xjsonrpc.server.MethodRegistry()
     validator = validators.PydanticValidator()
 
     auth = flask_httpauth.HTTPBasicAuth()
@@ -486,11 +486,11 @@ and Swagger UI web tool with basic auth:
 
     class AuthenticatedJsonRPC(integration.JsonRPC):
         @auth.login_required
-        def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
+        def _rpc_handle(self, dispatcher: xjsonrpc.server.Dispatcher) -> flask.Response:
             return super()._rpc_handle(dispatcher)
 
 
-    class JSONEncoder(pjrpc.JSONEncoder):
+    class JSONEncoder(xjsonrpc.JSONEncoder):
         def default(self, o: Any) -> Any:
             if isinstance(o, pydantic.BaseModel):
                 return o.dict()
@@ -518,7 +518,7 @@ and Swagger UI web tool with basic auth:
         id: uuid.UUID
 
 
-    class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+    class AlreadyExistsError(xjsonrpc.exc.JsonRpcError):
         """
         User already registered error.
         """
@@ -527,7 +527,7 @@ and Swagger UI web tool with basic auth:
         message = "user already exists"
 
 
-    class NotFoundError(pjrpc.exc.JsonRpcError):
+    class NotFoundError(xjsonrpc.exc.JsonRpcError):
         """
         User not found error.
         """

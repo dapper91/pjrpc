@@ -2,12 +2,12 @@ import uuid
 from typing import Any
 
 import pydantic
-import pjrpc.server
-import pjrpc.server.specs.extractors.pydantic
-from pjrpc.server.specs import extractors, openapi as specs
+import xjsonrpc.server
+import xjsonrpc.server.specs.extractors.pydantic
+from xjsonrpc.server.specs import extractors, openapi as specs
 
 
-class JSONEncoder(pjrpc.server.JSONEncoder):
+class JSONEncoder(xjsonrpc.server.JSONEncoder):
     def default(self, o: Any) -> Any:
         if isinstance(o, pydantic.BaseModel):
             return o.dict()

@@ -5,9 +5,9 @@ import pytest
 import respx
 from aioresponses import aioresponses
 
-import pjrpc
-from pjrpc.client.backend import aiohttp as aiohttp_backend
-from pjrpc.client.backend import httpx as httpx_backend
+import xjsonrpc
+from xjsonrpc.client.backend import aiohttp as aiohttp_backend
+from xjsonrpc.client.backend import httpx as httpx_backend
 
 
 class AioHttpMocker:
@@ -69,7 +69,7 @@ async def test_call(Client, mocker):
 
         client = Client(test_url)
 
-        response = await client.send(pjrpc.Request('method', (1, 2), id=1))
+        response = await client.send(xjsonrpc.Request('method', (1, 2), id=1))
         assert response.id == 1
         assert response.result == 'result'
 
@@ -129,7 +129,7 @@ async def test_notify(Client, mocker):
 
         client = Client(test_url)
 
-        response = await client.send(pjrpc.Request('method', params=[1, 2]))
+        response = await client.send(xjsonrpc.Request('method', params=[1, 2]))
         assert response is None
         assert mock.requests[0].url == test_url
         assert json.loads(mock.requests[0].content) == {
@@ -176,10 +176,10 @@ async def test_batch(Client, mocker):
         client = Client(test_url)
 
         result = await client.batch.send(
-            pjrpc.BatchRequest(
-                pjrpc.Request('method1', params=[1, 2], id=1),
-                pjrpc.Request('method2', params=[2, 3], id=2),
-                pjrpc.Request('method3', params=[3, 4]),
+            xjsonrpc.BatchRequest(
+                xjsonrpc.Request('method1', params=[1, 2], id=1),
+                xjsonrpc.Request('method2', params=[2, 3], id=2),
+                xjsonrpc.Request('method3', params=[3, 4]),
             ),
         )
         assert len(result) == 2
@@ -308,7 +308,7 @@ async def test_context_manager(Client, mocker):
         )
 
         async with Client(test_url) as client:
-            response = await client.send(pjrpc.Request('method', (1, 2), id=1))
+            response = await client.send(xjsonrpc.Request('method', (1, 2), id=1))
 
             assert response.id == 1
             assert response.result == 'result'

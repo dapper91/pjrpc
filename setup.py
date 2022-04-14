@@ -23,7 +23,7 @@ with open('README.rst', 'r') as file:
 def parse_about():
     about_globals = {}
     this_path = pathlib.Path(__file__).parent
-    about_module_text = pathlib.Path(this_path, 'pjrpc', '__about__.py').read_text()
+    about_module_text = pathlib.Path(this_path, 'xjsonrpc', '__about__.py').read_text()
     exec(about_module_text, about_globals)
 
     return about_globals
@@ -76,7 +76,7 @@ setup(
         'starlette': ['starlette~=0.12.0', 'aiofiles~=0.7'],
         'django': ['django~=3.0'],
     },
-    entry_points={"pytest11": ["pjrpc = pjrpc.client.integrations.pytest"]},
+    entry_points={"pytest11": ["xjsonrpc = xjsonrpc.client.integrations.pytest"]},
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
@@ -90,8 +90,8 @@ setup(
         'Programming Language :: Python :: 3.10',
     ],
     project_urls={
-        "Documentation": "https://pjrpc.readthedocs.io/en/latest/",
-        'Source': 'https://github.com/dapper91/pjrpc',
+        "Documentation": "https://xjsonrpc.readthedocs.io/en/latest/",
+        'Source': 'https://github.com/bernhardkaindl/xjsonrpc',
     },
     cmdclass={'test': PyTest},
 )

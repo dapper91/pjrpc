@@ -16,18 +16,18 @@ import sys
 
 sys.path.insert(0, os.path.abspath('..'))
 
-import pjrpc  # noqa
+import xjsonrpc  # noqa
 
 
 # -- Project information -----------------------------------------------------
 
-project = pjrpc.__title__
-author = pjrpc.__author__
+project = xjsonrpc.__title__
+author = xjsonrpc.__author__
 copyright = '2019, {}'.format(author)
 
 # The full version, including alpha/beta/rc tags
-release = pjrpc.__version__
-version = pjrpc.__version__
+release = xjsonrpc.__version__
+version = xjsonrpc.__version__
 
 
 # -- General configuration ---------------------------------------------------
@@ -42,8 +42,8 @@ extensions = [
 ]
 
 html_theme_options = {
-    'github_user': 'dapper91',
-    'github_repo': 'pjrpc',
+    'github_user': 'bernhardkaindl',
+    'github_repo': 'xjsonrpc',
     'github_banner': True,
 }
 

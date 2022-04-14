@@ -1,9 +1,9 @@
 import flask
 import pytest
 
-from pjrpc import exc
-from pjrpc.common import v20
-from pjrpc.server.integration import flask as integration
+from xjsonrpc import exc
+from xjsonrpc.common import v20
+from xjsonrpc.server.integration import flask as integration
 
 from tests.common import _
 

@@ -1,10 +1,10 @@
-import pjrpc
-from pjrpc.client.backend import requests as pjrpc_client
+import xjsonrpc
+from xjsonrpc.client.backend import requests as xjsonrpc_client
 
 
-client = pjrpc_client.Client('http://localhost/api/v1')
+client = xjsonrpc_client.Client('http://localhost/api/v1')
 
-response: pjrpc.Response = client.send(pjrpc.Request('sum', params=[1, 2], id=1))
+response: xjsonrpc.Response = client.send(xjsonrpc.Request('sum', params=[1, 2], id=1))
 print(f"1 + 2 = {response.result}")
 
 result = client('sum', a=1, b=2)

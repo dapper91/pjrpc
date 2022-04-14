@@ -2,10 +2,10 @@ import uuid
 
 import werkzeug
 
-import pjrpc.server
-from pjrpc.server.integration import werkzeug as integration
+import xjsonrpc.server
+from xjsonrpc.server.integration import werkzeug as integration
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add(context='request')

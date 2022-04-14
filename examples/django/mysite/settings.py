@@ -28,7 +28,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    'pjrpc.server.integration.django',
+    'xjsonrpc.server.integration.django',
 ]
 
 ROOT_URLCONF = 'mysite.urls'

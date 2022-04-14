@@ -2,8 +2,8 @@ import uuid
 import http.server
 import socketserver
 
-import pjrpc
-import pjrpc.server
+import xjsonrpc
+import xjsonrpc.server
 
 
 class JsonRpcHandler(http.server.BaseHTTPRequestHandler):
@@ -17,7 +17,7 @@ class JsonRpcHandler(http.server.BaseHTTPRequestHandler):
         """
 
         content_type = self.headers.get('Content-Type')
-        if content_type not in pjrpc.common.REQUEST_CONTENT_TYPES:
+        if content_type not in xjsonrpc.common.REQUEST_CONTENT_TYPES:
             self.send_response(http.HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
             return
 
@@ -33,7 +33,7 @@ class JsonRpcHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(http.HTTPStatus.OK)
         else:
             self.send_response(http.HTTPStatus.OK)
-            self.send_header("Content-type", pjrpc.common.DEFAULT_CONTENT_TYPE)
+            self.send_header("Content-type", xjsonrpc.common.DEFAULT_CONTENT_TYPE)
             self.end_headers()
 
             self.wfile.write(response_text.encode())
@@ -44,12 +44,12 @@ class JsonRpcServer(http.server.HTTPServer):
     :py:class:`http.server.HTTPServer` based JSON-RPC server.
 
     :param path: JSON-RPC handler base path
-    :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
+    :param kwargs: arguments to be passed to the dispatcher :py:class:`xjsonrpc.server.Dispatcher`
     """
 
     def __init__(self, server_address, RequestHandlerClass=JsonRpcHandler, bind_and_activate=True, **kwargs):
         super().__init__(server_address, RequestHandlerClass, bind_and_activate)
-        self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
+        self._dispatcher = xjsonrpc.server.Dispatcher(**kwargs)
 
     @property
     def dispatcher(self):
@@ -60,7 +60,7 @@ class JsonRpcServer(http.server.HTTPServer):
         return self._dispatcher
 
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add(context='request')

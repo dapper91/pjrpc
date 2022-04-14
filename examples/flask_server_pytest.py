@@ -2,13 +2,13 @@ import pytest
 import flask.testing
 from unittest import mock
 
-import pjrpc.server
+import xjsonrpc.server
 import werkzeug.test
-from pjrpc.client.backend import requests as client
-from pjrpc.server.integration import flask as integration
-from pjrpc.client.integrations.pytest import PjRpcRequestsMocker
+from xjsonrpc.client.backend import requests as client
+from xjsonrpc.server.integration import flask as integration
+from xjsonrpc.client.integrations.pytest import PjRpcRequestsMocker
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 
 
 @methods.add
@@ -47,7 +47,7 @@ def app_client(http_app):
     return flask.testing.FlaskClient(http_app, Response)
 
 
-def test_pjrpc_server(aiohttp_client, http_app, jsonrpc_app, app_client):
+def test_xjsonrpc_server(aiohttp_client, http_app, jsonrpc_app, app_client):
     with PjRpcRequestsMocker(passthrough=True) as mocker:
         jsonrpc_cli = client.Client('/api/v1', session=app_client)
 

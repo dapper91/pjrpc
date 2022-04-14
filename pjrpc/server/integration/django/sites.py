@@ -11,8 +11,8 @@ from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, HttpR
 from django.utils.module_loading import import_string
 from django.views.decorators.csrf import csrf_exempt
 
-import pjrpc.server
-from pjrpc.server import specs, utils
+import xjsonrpc.server
+from xjsonrpc.server import specs, utils
 
 
 def require_http_methods(request_method_list):
@@ -38,7 +38,7 @@ class JsonRPCSite:
         self._path = path
         self._spec = spec
 
-        self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
+        self._dispatcher = xjsonrpc.server.Dispatcher(**kwargs)
         self._urls = [
             urls.path(path, self._rpc_handle),
         ]
@@ -55,7 +55,7 @@ class JsonRPCSite:
                 self._urls.extend(static(path, document_root=str(self._spec.ui.get_static_folder())))
 
     @property
-    def dispatcher(self) -> pjrpc.server.Dispatcher:
+    def dispatcher(self) -> xjsonrpc.server.Dispatcher:
         """
         JSON-RPC method dispatcher.
         """
@@ -93,7 +93,7 @@ class JsonRPCSite:
         :returns: http response
         """
 
-        if request.content_type not in pjrpc.common.REQUEST_CONTENT_TYPES:
+        if request.content_type not in xjsonrpc.common.REQUEST_CONTENT_TYPES:
             return HttpResponse(status=415)
 
         try:
@@ -105,7 +105,7 @@ class JsonRPCSite:
         if response_text is None:
             return HttpResponse()
         else:
-            return HttpResponse(response_text, content_type=pjrpc.common.DEFAULT_CONTENT_TYPE)
+            return HttpResponse(response_text, content_type=xjsonrpc.common.DEFAULT_CONTENT_TYPE)
 
 
 class JsonRPCSites(django.utils.functional.LazyObject):
@@ -113,7 +113,7 @@ class JsonRPCSites(django.utils.functional.LazyObject):
         self._wrapped = []
 
         for path, endpoint in getattr(settings, 'JSONRPC_ENDPOINTS', {}).items():
-            json_encoder = import_string(endpoint.get('JSON_ENCODER', 'pjrpc.server.dispatcher.JSONEncoder'))
+            json_encoder = import_string(endpoint.get('JSON_ENCODER', 'xjsonrpc.server.dispatcher.JSONEncoder'))
             json_decoder = import_string(endpoint.get('JSON_DECODER', 'json.JSONDecoder'))
             spec = import_string(endpoint['SPEC']) if endpoint.get('SPEC', None) else None
             middlewares = [import_string(middleware) for middleware in endpoint.get('MIDDLEWARES', [])]

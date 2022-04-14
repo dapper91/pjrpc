@@ -5,20 +5,20 @@ import flask
 import pydantic
 from flask_cors import CORS
 
-import pjrpc.server.specs.extractors.pydantic
-import pjrpc.server.specs.extractors.docstring
-from pjrpc.server.integration import flask as integration
-from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.specs import extractors, openrpc as specs
+import xjsonrpc.server.specs.extractors.pydantic
+import xjsonrpc.server.specs.extractors.docstring
+from xjsonrpc.server.integration import flask as integration
+from xjsonrpc.server.validators import pydantic as validators
+from xjsonrpc.server.specs import extractors, openrpc as specs
 
 app = flask.Flask(__name__)
 CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
 
-methods = pjrpc.server.MethodRegistry()
+methods = xjsonrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
 
 
-class JsonEncoder(pjrpc.JSONEncoder):
+class JsonEncoder(xjsonrpc.JSONEncoder):
     def default(self, o: Any) -> Any:
         if isinstance(o, pydantic.BaseModel):
             return o.dict()
@@ -46,7 +46,7 @@ class UserOut(UserIn):
     id: uuid.UUID
 
 
-class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+class AlreadyExistsError(xjsonrpc.exc.JsonRpcError):
     """
     User already registered error.
     """
@@ -55,7 +55,7 @@ class AlreadyExistsError(pjrpc.exc.JsonRpcError):
     message = "user already exists"
 
 
-class NotFoundError(pjrpc.exc.JsonRpcError):
+class NotFoundError(xjsonrpc.exc.JsonRpcError):
     """
     User not found error.
     """
