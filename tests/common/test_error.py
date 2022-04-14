@@ -41,7 +41,9 @@ def test_error_data_serialization():
 
 
 def test_custom_error_data_serialization():
-    error = xjsonrpc.exc.JsonRpcError(code=2001, message='Custom error', data='additional data')
+    error = xjsonrpc.exc.JsonRpcError(
+        code=2001, message='Custom error', data='additional data'
+    )
 
     actual_dict = error.to_json()
     expected_dict = {
@@ -68,24 +70,29 @@ def test_custom_error_data_deserialization():
 
 
 def test_error_deserialization_errors():
-    with pytest.raises(xjsonrpc.exc.DeserializationError, match="data must be of type dict"):
+    xdeser = xjsonrpc.exc.DeserializationError
+
+    with pytest.raises(xdeser, match="data must be of type dict"):
         xjsonrpc.exc.JsonRpcError.from_json([])
 
-    with pytest.raises(xjsonrpc.exc.DeserializationError, match="required field 'message' not found"):
+    with pytest.raises(xdeser, match="required field 'message' not found"):
         xjsonrpc.exc.JsonRpcError.from_json({'code': 1})
 
-    with pytest.raises(xjsonrpc.exc.DeserializationError, match="required field 'code' not found"):
+    with pytest.raises(xdeser, match="required field 'code' not found"):
         xjsonrpc.exc.JsonRpcError.from_json({'message': ""})
 
-    with pytest.raises(xjsonrpc.exc.DeserializationError, match="field 'code' must be of type integer"):
+    with pytest.raises(xdeser, match="field 'code' must be of type integer"):
         xjsonrpc.exc.JsonRpcError.from_json({'code': "1", 'message': ""})
 
-    with pytest.raises(xjsonrpc.exc.DeserializationError, match="field 'message' must be of type string"):
+    with pytest.raises(xdeser, match="field 'message' must be of type string"):
         xjsonrpc.exc.JsonRpcError.from_json({'code': 1, 'message': 2})
 
 
 def test_error_repr():
-    assert repr(xjsonrpc.exc.ServerError(data='data')) == "ServerError(code=-32000, message='Server error', data='data')"
+    assert (
+        repr(xjsonrpc.exc.ServerError(data='data'))
+        == "ServerError(code=-32000, message='Server error', data='data')"
+    )
     assert str(xjsonrpc.exc.ServerError()) == "(-32000) Server error"
 
 

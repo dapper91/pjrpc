@@ -36,13 +36,6 @@ repos:
         args:
           - --max-line-length=120
           - --diff
-  - repo: https://github.com/asottile/add-trailing-comma
-    rev: v2.1.0
-    hooks:
-      - id: add-trailing-comma
-        stages:
-          - commit
-          - push
   - repo: https://gitlab.com/pycqa/flake8
     rev: 3.9.2
     hooks:
