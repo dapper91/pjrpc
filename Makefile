@@ -16,10 +16,18 @@ test:
 coverage:
 	pipenv run py.test --verbose --cov-report term --cov=xjsonrpc tests
 
+check-publish:
+	pip install --upgrade twine build
+	python -m build
+	twine check dist/*
+	twine upload --verbose --repository testpypi dist/*
+	rm -fr build dist .egg requests.egg-info
+
 publish:
-	pip install twine
+	pip install --upgrade twine build
 	python setup.py sdist
-	twine upload dist/*
+	python -m build
+	twine upload --verbose dist/*
 	rm -fr build dist .egg requests.egg-info
 
 check-code:
