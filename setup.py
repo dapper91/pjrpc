@@ -4,23 +4,31 @@ import pathlib
 import setuptools.command.test
 import sys
 from setuptools import setup, find_packages
+from typing import Dict
 
 requirements = [
 ]
 
 test_requirements = [
     'aioresponses~=0.0',
+    'docstring_parser~=0.0',
+    'flask~=2.0',
+    'jsonschema~=3.0',
     'pytest~=6.0',
     'pytest-aiohttp~=0.0',
-    'pytest-mock~=1.0',
+    'pytest-mock~=3.0',
     'responses~=0.0',
+    'respx~=0.0',
+    'pydantic~=1.8.0',
+    'werkzeug~=2.0',
+    'openapi_ui_bundles~=0.0',
 ]
 
 with open('README.rst', 'r') as file:
     readme = file.read()
 
 
-def parse_about():
+def parse_about() -> Dict[str, str]:
     about_globals = {}
     this_path = pathlib.Path(__file__).parent
     about_module_text = pathlib.Path(this_path, 'xjsonrpc', '__about__.py').read_text()
@@ -65,7 +73,7 @@ setup(
     extras_require={
         'aiohttp': ['aiohttp~=3.0'],
         'aio-pika': ['aio-pika~=6.0'],
-        'flask': ['flask~=1.0'],
+        'flask': ['flask~=2.0'],
         'jsonschema': ['jsonschema~=3.0'],
         'kombu': ['kombu~=5.0'],
         'pydantic': ['pydantic~=1.8.0'],
@@ -75,6 +83,7 @@ setup(
         'openapi-ui-bundles': ['openapi-ui-bundles~=0.0'],
         'starlette': ['starlette~=0.12.0', 'aiofiles~=0.7'],
         'django': ['django~=3.0'],
+        'test': [test_requirements],
     },
     entry_points={"pytest11": ["xjsonrpc = xjsonrpc.client.integrations.pytest"]},
     classifiers=[
