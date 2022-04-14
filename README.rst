@@ -2,6 +2,29 @@
 xjsonrpc
 ========
 
+pjrpc upstream status:
+
+.. image:: https://static.pepy.tech/personalized-badge/pjrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
+    :target: https://pepy.tech/project/pjrpc
+    :alt: Downloads/month
+.. image:: https://travis-ci.org/dapper91/pjrpc.svg?branch=master
+    :target: https://travis-ci.org/dapper91/pjrpc
+    :alt: Build status
+.. image:: https://img.shields.io/pypi/l/pjrpc.svg
+    :target: https://pypi.org/project/pjrpc
+    :alt: License
+.. image:: https://img.shields.io/pypi/pyversions/pjrpc.svg
+    :target: https://pypi.org/project/pjrpc
+    :alt: Supported Python versions
+.. image:: https://codecov.io/gh/dapper91/pjrpc/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/dapper91/pjrpc
+    :alt: Code coverage
+.. image:: https://readthedocs.org/projects/pjrpc/badge/?version=stable&style=flat
+   :alt: ReadTheDocs status
+   :target: https://pjrpc.readthedocs.io/en/stable/
+
+bernhardkaindl/xjsonrpc status:
+
 .. image:: https://static.pepy.tech/personalized-badge/xjsonrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
     :target: https://pepy.tech/project/xjsonrpc
     :alt: Downloads/month
