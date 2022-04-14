@@ -4,7 +4,7 @@ __url__ = 'https://github.com/bernhardkaindl/xjsonrpc'
 
 __version__ = '1.4.1'
 
-__author__ = 'Dmitry Pershin'
+__author__ = 'Dmitry Pershin, Bernhard Kaindl'
 __email__ = 'bernhardkaindl7@gmail.com'
 
 __license__ = 'Public Domain License'
