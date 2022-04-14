@@ -72,7 +72,7 @@ class Client(AbstractAsyncClient):
 
         if self._result_queue_name:
             self._result_queue = aio_pika.Queue(
-                self._connection, self._channel, self._result_queue_name, **(self._result_queue_args or {})
+                self._channel, self._result_queue_name, **(self._result_queue_args or {})
             )
             await self._result_queue.declare()
             self._consumer_tag = await self._result_queue.consume(self._on_result_message, no_ack=True)
