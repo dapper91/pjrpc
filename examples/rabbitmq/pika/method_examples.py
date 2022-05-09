@@ -1,36 +1,28 @@
 #!/usr/bin/env python3
-import asyncio
-import logging
+from logging import Logger
 from typing import Any, Callable, Dict
+from pjrpc.server import MethodRegistry as Registry
 
 RpcMethods = Dict[str, Callable[..., Any]]
 
 
-def get_default_rpc_example_methods(logger: logging.Logger) -> RpcMethods:
+def register_example_methods(methods: Registry, logger: Logger) -> RpcMethods:
     """Register the example methods and run the server until it is stopped"""
     calls = {"sum": 0}
 
+    @methods.add
     def sum(a: int, b: int) -> int:
         """RPC method for aio_pika_client.py's calls to sum(1, 2) -> 3"""
         calls["sum"] += 1
         return a + b
 
+    @methods.add
     def tick() -> None:
         """RPC method for examples/aio_pika_client.py's notification 'tick'"""
         logger.info(f'Notification tick: sum() called {calls["sum"]} times')
 
-    def shutdown() -> None:
-        """RPC method to terminate the server, for restart with updated code"""
-        asyncio.get_event_loop().stop()
 
-    def schedule_shutdown() -> None:
-        """Schedule a shutdown, allows for an ack and response delivery"""
-        loop = asyncio.get_event_loop()
-        loop.call_later(0.05, loop.stop)
+if __name__ == '__main__':
+    from generic_server import run_extended_rpcserver_with_origin
 
-    return {
-        "sum": sum,
-        "tick": tick,
-        "shutdown": shutdown,
-        "schedule_shutdown": schedule_shutdown,
-    }
+    run_extended_rpcserver_with_origin()

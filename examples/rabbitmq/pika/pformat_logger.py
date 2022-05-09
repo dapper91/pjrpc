@@ -1,11 +1,11 @@
+#!/usr/bin/env python
 # Module implementing the pretty printing log function pplog() for nice logs
 import inspect
 import os
 import pprint
-import rich.logging
-import rich.traceback
 from logging import basicConfig, Filter, getLogger, INFO, Logger, LogRecord
 from pathlib import Path
+from rich.logging import RichHandler
 from typing import Any
 
 
@@ -19,9 +19,7 @@ def get_terminal_width() -> int:
         return 110  # For AREPL(it does not emulate a tty terminal)
 
 
-class UpStackedLogger:
-    """Helper class for custom log functions to log the call site of them."""
-
+class up_stacked_logger:
     def __init__(self, logger: Logger, n: int) -> None:
         self.logger = logger
 
@@ -46,9 +44,9 @@ class UpStackedLogger:
 
 
 def pplog(msg: Any, logger: Logger = getLogger(), **kwargs: Any) -> None:
-    """pretty print log function which records its call site as log location"""
-    with UpStackedLogger(logger, n=1) as logger:
-        logger.info(pprint.pformat(msg, width=get_terminal_width(), **kwargs))
+    with up_stacked_logger(logger, n=1) as logger:
+        w = get_terminal_width() - 15  # RichHandler reserves room for locaion
+        logger.info(pprint.pformat(msg, sort_dicts=False, width=w, **kwargs))
 
 
 if __name__ == "__main__":
@@ -57,6 +55,6 @@ if __name__ == "__main__":
     basicConfig(
         level=INFO,
         format="%(message)s",
-        handlers=[rich.logging.RichHandler(show_time=False, show_level=False)],
+        handlers=[RichHandler(show_time=False, show_level=False)],
     )
     pplog(obj)

@@ -12,7 +12,7 @@
 #
 import asyncio
 from pjrpc.client.backend import aio_pika as pjrpc_client
-from pprint_log import pplog
+from pformat_logger import pplog
 from logging import basicConfig, INFO
 from rich.logging import RichHandler
 from rich.traceback import install
