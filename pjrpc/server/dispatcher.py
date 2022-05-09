@@ -14,6 +14,7 @@ from . import validators
 logger = logging.getLogger(__package__)
 
 default_validator = validators.base.BaseValidator()
+RpcMethod = Callable[..., Any]
 
 
 class Method:
@@ -25,7 +26,12 @@ class Method:
     :param context: context name
     """
 
-    def __init__(self, method: Callable, name: Optional[str] = None, context: Optional[Any] = None):
+    def __init__(
+        self,
+        method: RpcMethod,
+        name: Optional[str] = None,
+        context: Optional[Any] = None,
+    ):
         self.method = method
         self.name = name or method.__name__
         self.context = context
@@ -34,7 +40,11 @@ class Method:
 
         self.validator, self.validator_args = meta.get('validator', default_validator), meta.get('validator_args', {})
 
-    def bind(self, params: Optional[Union[list, dict]], context: Optional[Any] = None) -> Callable:
+    def bind(
+        self,
+        params: Optional[Union[list, dict]],
+        context: Optional[Any] = None,
+    ) -> RpcMethod:
         method_params = self.validator.validate_method(
             self.method, params, exclude=(self.context,) if self.context else (), **self.validator_args
         )
@@ -44,15 +54,17 @@ class Method:
 
         return ft.partial(self.method, **method_params)
 
-    def copy(self, **kwargs) -> 'Method':
+    def copy(self, **kwargs: Any) -> "Method":
+        # sourcery skip: dict-assign-update-to-union
         cls_kwargs = dict(name=self.name, context=self.context)
         cls_kwargs.update(kwargs)
 
         return Method(method=self.method, **cls_kwargs)
 
     def __eq__(self, other: Any) -> bool:
+        # sourcery skip: assign-if-exp, reintroduce-else, swap-if-expression
         if not isinstance(other, Method):
-            return NotImplemented
+            return False
 
         return (self.method, self.name, self.context) == (other.method, other.name, other.context)
 
@@ -86,7 +98,8 @@ class ViewMethod(Method):
 
         return ft.partial(method, **method_params)
 
-    def copy(self, **kwargs) -> 'ViewMethod':
+    def copy(self, **kwargs: Any) -> 'ViewMethod':
+        # sourcery skip: dict-assign-update-to-union
         cls_kwargs = dict(name=self.name, context=self.context)
         cls_kwargs.update(kwargs)
 
@@ -99,7 +112,7 @@ class ViewMixin:
     """
 
     @classmethod
-    def __methods__(cls):
+    def __methods__(cls) -> Any:
         for attr_name in filter(lambda name: not name.startswith('_'), dir(cls)):
             attr = getattr(cls, attr_name)
             if callable(attr):
@@ -155,29 +168,27 @@ class MethodRegistry:
         return self._registry.get(item)
 
     def add(
-        self, maybe_method: Optional[Callable] = None, name: Optional[str] = None, context: Optional[Any] = None,
-    ) -> Callable:
+        self,
+        rpc_method: RpcMethod,
+        name: Optional[str] = None,
+        context: Optional[Any] = None,
+    ) -> RpcMethod:
         """
         Decorator adding decorated method to the registry.
-
-        :param maybe_method: method or `None`
+        :param rpc_method: method
         :param name: method name to be used instead of `__name__` attribute
         :param context: parameter name to be used as an application context
         :returns: decorated method or decorator
         """
 
-        def decorator(method: Callable) -> Callable:
-            full_name = '.'.join(filter(None, (self._prefix, name or method.__name__)))
+        def decorator(method: RpcMethod) -> RpcMethod:
+            full_name = ".".join(filter(None, (self._prefix, name or method.__name__)))
             self.add_methods(Method(method, full_name, context))
-
             return method
 
-        if maybe_method is None:
-            return decorator
-        else:
-            return decorator(maybe_method)
+        return decorator(rpc_method)
 
-    def add_methods(self, *methods: Union[Callable, Method]) -> None:
+    def add_methods(self, *methods: Union[RpcMethod, Method]) -> None:
         """
         Adds methods to the registry.
 
@@ -244,7 +255,7 @@ class JSONEncoder(pjrpc.JSONEncoder):
 
     def default(self, o: Any) -> Any:
         if isinstance(o, validators.base.ValidationError):
-            return [err for err in o.args]
+            return list(o.args)
 
         return super().default(o)
 
@@ -296,7 +307,12 @@ class Dispatcher:
     def registry(self) -> MethodRegistry:
         return self._registry
 
-    def add(self, method: Callable, name: Optional[str] = None, context: Optional[Any] = None) -> None:
+    def add(
+        self,
+        method: RpcMethod,
+        name: Optional[str] = None,
+        context: Optional[Any] = None,
+    ) -> None:
         """
         Adds method to the registry.
 
