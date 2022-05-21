@@ -16,7 +16,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath('..'))
 
-import pjrpc  # noqa
+import pjrpc.typedefs  # noqa
 
 # -- Project information -----------------------------------------------------
 
@@ -80,7 +80,12 @@ intersphinx_mapping = {
 
 autodoc_mock_imports = ['attrs']
 autodoc_typehints = 'description'
+autodoc_typehints_format = 'short'
 autodoc_member_order = 'bysource'
+autodoc_type_aliases = {
+    type_name: f'{pjrpc.typedefs.__name__}.{type_name}'
+    for type_name in pjrpc.typedefs.__all__
+}
 
 
 def maybe_skip_member(app, what, name, obj, skip, options):

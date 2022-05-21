@@ -9,6 +9,13 @@ Developer Interface
 .. automodule:: pjrpc
 
 
+Types
+-----
+
+.. automodule:: pjrpc.typedefs
+    :members:
+
+
 Common
 ------
 

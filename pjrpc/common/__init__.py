@@ -8,8 +8,13 @@ from .common import UNSET, JSONEncoder, UnsetType
 from .v20 import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response
 
 DEFAULT_CONTENT_TYPE = 'application/json'
+'''default JSON-RPC client/server content type'''  # for sphinx autodoc
+
 REQUEST_CONTENT_TYPES = ('application/json', 'application/json-rpc', 'application/jsonrequest')
+'''allowed JSON-RPC server requests content types'''  # for sphinx autodoc
+
 RESPONSE_CONTENT_TYPES = ('application/json', 'application/json-rpc')
+'''allowed JSON-RPC client responses content types'''  # for sphinx autodoc
 
 
 def set_default_content_type(content_type: str) -> None:
