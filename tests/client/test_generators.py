@@ -3,6 +3,7 @@ import string
 import uuid
 
 import pytest
+
 from pjrpc.common import generators
 
 

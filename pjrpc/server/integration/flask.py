@@ -2,8 +2,8 @@
 Flask JSON-RPC extension.
 """
 
-import json
 import functools as ft
+import json
 from typing import Any, Dict, Optional, Union
 
 import flask

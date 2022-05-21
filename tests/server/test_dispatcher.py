@@ -1,6 +1,6 @@
 import json
-from pjrpc.server import dispatcher, validators, Method, ViewMixin
 
+from pjrpc.server import Method, ViewMixin, dispatcher, validators
 from tests.common import _
 
 

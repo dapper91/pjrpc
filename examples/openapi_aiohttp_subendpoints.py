@@ -7,8 +7,9 @@ from aiohttp import web
 import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import aiohttp as integration
+from pjrpc.server.specs import extractors
+from pjrpc.server.specs import openapi as specs
 from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.specs import extractors, openapi as specs
 
 user_methods = pjrpc.server.MethodRegistry()
 post_methods = pjrpc.server.MethodRegistry()

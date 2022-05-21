@@ -18,7 +18,6 @@ sys.path.insert(0, os.path.abspath('..'))
 
 import pjrpc  # noqa
 
-
 # -- Project information -----------------------------------------------------
 
 project = pjrpc.__title__

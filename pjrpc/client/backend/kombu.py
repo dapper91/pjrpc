@@ -4,8 +4,8 @@ from typing import Any, Dict, Optional
 import kombu.mixins
 
 import pjrpc
-from pjrpc.common import UNSET
 from pjrpc.client import AbstractClient
+from pjrpc.common import UNSET
 
 logger = logging.getLogger(__package__)
 

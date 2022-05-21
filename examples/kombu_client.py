@@ -1,7 +1,6 @@
 import pjrpc
 from pjrpc.client.backend import kombu as pjrpc_client
 
-
 client = pjrpc_client.Client(
     'amqp://guest:guest@localhost:5672/v1',
     'jsonrpc',

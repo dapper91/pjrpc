@@ -11,11 +11,10 @@ except ImportError:
 import itertools as it
 from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
 
-from pjrpc.common import exceptions, UNSET
-from pjrpc.server import utils, Method
+from pjrpc.common import UNSET, exceptions
+from pjrpc.server import Method, utils
 
-from . import extractors
-from . import Specification
+from . import Specification, extractors
 
 Json = Union[str, int, float, dict, bool, list, tuple, set, None]
 

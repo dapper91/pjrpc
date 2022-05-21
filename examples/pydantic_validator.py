@@ -6,8 +6,8 @@ import pydantic
 from aiohttp import web
 
 import pjrpc.server
-from pjrpc.server.validators import pydantic as validators
 from pjrpc.server.integration import aiohttp
+from pjrpc.server.validators import pydantic as validators
 
 methods = pjrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()

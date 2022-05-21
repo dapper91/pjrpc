@@ -12,16 +12,13 @@ import enum
 import functools as ft
 import pathlib
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
 
-from pjrpc.common import exceptions
-from pjrpc.server import utils, Method
+from pjrpc.common import UNSET, exceptions
+from pjrpc.server import Method, utils
 
-from pjrpc.common import UNSET
-from . import extractors
-from .extractors import Schema, ErrorExample, Error
-from . import BaseUI, Specification
-
+from . import BaseUI, Specification, extractors
+from .extractors import Error, ErrorExample, Schema
 
 RESULT_SCHEMA = {
     'type': 'object',

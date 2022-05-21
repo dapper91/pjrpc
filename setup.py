@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 import pathlib
-import setuptools.command.test
 import sys
-from setuptools import setup, find_packages
+
+import setuptools.command.test
+from setuptools import find_packages, setup
 
 requirements = [
 ]

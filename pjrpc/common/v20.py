@@ -2,13 +2,13 @@
 JSON-RPC version 2.0 protocol implementation.
 """
 
-import operator as op
 import functools as ft
 import itertools as it
-from typing import Any, Dict, Union, Iterable, Iterator, List, Set, Type, Tuple, Optional
+import operator as op
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple, Type, Union
 
-from .exceptions import DeserializationError, JsonRpcError, IdentityError
 from .common import UNSET, Json, UnsetType
+from .exceptions import DeserializationError, IdentityError, JsonRpcError
 
 
 class Response:

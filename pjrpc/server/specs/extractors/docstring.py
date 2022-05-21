@@ -2,8 +2,8 @@ from typing import Callable, Dict, Iterable, List, Optional, Union
 
 import docstring_parser
 
-from pjrpc.common import exceptions, UNSET, UnsetType
-from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Example, Schema, Tag, JsonRpcError
+from pjrpc.common import UNSET, UnsetType, exceptions
+from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Example, JsonRpcError, Schema, Tag
 
 
 class DocstringSchemaExtractor(BaseSchemaExtractor):

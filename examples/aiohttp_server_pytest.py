@@ -1,11 +1,12 @@
+from unittest import mock
+
 import pytest
 from aiohttp import web
-from unittest import mock
 
 import pjrpc.server
 from pjrpc.client.backend import aiohttp as async_client
-from pjrpc.server.integration import aiohttp as integration
 from pjrpc.client.integrations.pytest import PjRpcAiohttpMocker
+from pjrpc.server.integration import aiohttp as integration
 
 methods = pjrpc.server.MethodRegistry()
 

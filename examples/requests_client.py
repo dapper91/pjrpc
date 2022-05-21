@@ -1,7 +1,6 @@
 import pjrpc
 from pjrpc.client.backend import requests as pjrpc_client
 
-
 client = pjrpc_client.Client('http://localhost/api/v1')
 
 response: pjrpc.Response = client.send(pjrpc.Request('sum', params=[1, 2], id=1))

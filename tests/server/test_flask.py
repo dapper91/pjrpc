@@ -4,7 +4,6 @@ import pytest
 from pjrpc import exc
 from pjrpc.common import v20
 from pjrpc.server.integration import flask as integration
-
 from tests.common import _
 
 

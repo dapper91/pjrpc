@@ -1,9 +1,10 @@
-import pytest
 from unittest import mock
 
+import pytest
+
 import pjrpc
-from pjrpc.client.integrations.pytest import PjRpcRequestsMocker
 from pjrpc.client.backend import requests as requests_client
+from pjrpc.client.integrations.pytest import PjRpcRequestsMocker
 
 
 def test_using_fixture(pjrpc_requests_mocker):

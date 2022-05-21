@@ -4,7 +4,6 @@ from aiohttp import web
 from pjrpc import exc
 from pjrpc.common import v20
 from pjrpc.server.integration import aiohttp as integration
-
 from tests.common import _
 
 
