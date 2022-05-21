@@ -87,6 +87,7 @@ class Client(AbstractClient):
         )
 
         with kombu.Producer(self._connection) as producer:
+            result_queue.declare(channel=self._connection.default_channel)
             producer.publish(
                 request_text,
                 exchange=self._exchange or '',
