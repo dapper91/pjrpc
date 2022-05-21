@@ -1,8 +1,9 @@
 import json
-from pjrpc.common import BatchRequest, BatchResponse, Request, Response
-from pjrpc import client
 
 import pytest
+
+from pjrpc import client
+from pjrpc.common import BatchRequest, BatchResponse, Request, Response
 
 
 @pytest.mark.parametrize(

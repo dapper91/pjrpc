@@ -1,5 +1,6 @@
 import opentracing
 from opentracing import tags
+
 from pjrpc.client import tracer
 from pjrpc.client.backend import requests as pjrpc_client
 

@@ -1,4 +1,4 @@
-from typing import Any, Dict, Callable
+from typing import Any, Callable, Dict
 
 import werkzeug
 from werkzeug import exceptions

@@ -1,6 +1,7 @@
 import time
 
 import prometheus_client as prom_cli
+
 from pjrpc.client import tracer
 from pjrpc.client.backend import requests as pjrpc_client
 

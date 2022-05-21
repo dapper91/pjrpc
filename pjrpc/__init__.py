@@ -2,21 +2,8 @@
 Extensible `JSON-RPC <https://www.jsonrpc.org>`_ client/server library.
 """
 
-from pjrpc.common import exceptions
-from pjrpc.common import Request, BatchRequest
-from pjrpc.common import Response, BatchResponse
-from pjrpc.common import JSONEncoder
-
-
-from pjrpc.__about__ import (
-    __title__,
-    __description__,
-    __url__,
-    __version__,
-    __author__,
-    __email__,
-    __license__,
-)
+from pjrpc.__about__ import __author__, __description__, __email__, __license__, __title__, __url__, __version__
+from pjrpc.common import BatchRequest, BatchResponse, JSONEncoder, Request, Response, exceptions
 
 # shortcuts
 exc = exceptions

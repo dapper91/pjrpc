@@ -1,11 +1,11 @@
 import json
-import werkzeug
+
 import pytest
+import werkzeug
 
 from pjrpc import exc
 from pjrpc.common import v20
 from pjrpc.server.integration import werkzeug as integration
-
 from tests.common import _
 
 
@@ -70,7 +70,7 @@ def test_notify(json_rpc, path, mocker):
 
     cli = werkzeug.test.Client(json_rpc)
     test_response = cli.post(
-        path, json=v20.Request(method=method_name, params=params).to_json()
+        path, json=v20.Request(method=method_name, params=params).to_json(),
     )
     if type(test_response) == tuple:  # werkzeug 1.0
         body_iter, code, header = test_response
@@ -129,7 +129,7 @@ def test_errors(json_rpc, path, mocker):
 
     # malformed json
     test_response = cli.post(
-        path, headers={'Content-Type': 'application/json'}, data=''
+        path, headers={'Content-Type': 'application/json'}, data='',
     )
     if type(test_response) == tuple:  # werkzeug 1.0
         body_iter, code, header = test_response

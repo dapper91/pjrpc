@@ -5,7 +5,6 @@ import flask
 import pjrpc.server
 from pjrpc.server.integration import flask as integration
 
-
 methods_v1 = pjrpc.server.MethodRegistry()
 
 

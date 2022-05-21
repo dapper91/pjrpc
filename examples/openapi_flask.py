@@ -2,17 +2,17 @@ import uuid
 from typing import Any, Optional
 
 import flask
+import flask_cors
 import flask_httpauth
 import pydantic
-import flask_cors
 from werkzeug import security
 
 import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import flask as integration
+from pjrpc.server.specs import extractors
+from pjrpc.server.specs import openapi as specs
 from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.specs import extractors, openapi as specs
-
 
 app = flask.Flask('myapp')
 flask_cors.CORS(app, resources={"/myapp/api/v1/*": {"origins": "*"}})

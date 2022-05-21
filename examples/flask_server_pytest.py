@@ -1,12 +1,13 @@
-import pytest
-import flask.testing
 from unittest import mock
 
-import pjrpc.server
+import flask.testing
+import pytest
 import werkzeug.test
+
+import pjrpc.server
 from pjrpc.client.backend import requests as client
-from pjrpc.server.integration import flask as integration
 from pjrpc.client.integrations.pytest import PjRpcRequestsMocker
+from pjrpc.server.integration import flask as integration
 
 methods = pjrpc.server.MethodRegistry()
 

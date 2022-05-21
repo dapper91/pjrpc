@@ -5,8 +5,9 @@ import logging
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, Generator, Iterable, Optional, Tuple, Type, Union
 
-from pjrpc import common, Request, Response, BatchRequest, BatchResponse
-from pjrpc.common import generators, exceptions, v20
+from pjrpc import BatchRequest, BatchResponse, Request, Response, common
+from pjrpc.common import exceptions, generators, v20
+
 from .tracer import Tracer
 
 logger = logging.getLogger(__package__)

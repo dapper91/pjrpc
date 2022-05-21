@@ -1,6 +1,6 @@
-import uuid
 import http.server
 import socketserver
+import uuid
 
 import pjrpc
 import pjrpc.server

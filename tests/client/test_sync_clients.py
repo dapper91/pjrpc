@@ -5,8 +5,8 @@ import responses
 import respx
 
 import pjrpc
-from pjrpc.client.backend import requests as requests_backend
 from pjrpc.client.backend import httpx as httpx_backend
+from pjrpc.client.backend import requests as requests_backend
 
 
 class ResponsesMocker(responses.RequestsMock):

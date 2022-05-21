@@ -4,8 +4,8 @@ and agnostic to any transport protocol layer (http, socket, amqp) and server-sid
 """
 
 from . import generators
-from .common import UNSET, UnsetType, JSONEncoder
-from .v20 import Request, Response, BatchRequest, BatchResponse
+from .common import UNSET, JSONEncoder, UnsetType
+from .v20 import BatchRequest, BatchResponse, Request, Response
 
 DEFAULT_CONTENT_TYPE = 'application/json'
 REQUEST_CONTENT_TYPES = ('application/json', 'application/json-rpc', 'application/jsonrequest')

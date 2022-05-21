@@ -3,8 +3,8 @@ import uuid
 from aiohttp import web
 
 import pjrpc.server
-from pjrpc.server.validators import jsonschema as validators
 from pjrpc.server.integration import aiohttp
+from pjrpc.server.validators import jsonschema as validators
 
 methods = pjrpc.server.MethodRegistry()
 validator = validators.JsonSchemaValidator()

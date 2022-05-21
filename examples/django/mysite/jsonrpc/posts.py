@@ -5,8 +5,8 @@ import pydantic
 from django.http.request import HttpRequest
 
 import pjrpc.server.specs.extractors.pydantic
-from pjrpc.server.validators import pydantic as validators
 from pjrpc.server.specs import openapi as specs
+from pjrpc.server.validators import pydantic as validators
 
 methods = pjrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
