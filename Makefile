@@ -1,19 +1,13 @@
 
 init:
-	pip install pipenv --upgrade
-	pipenv install --dev
+	pip install poetry --upgrade
+	poetry install --no-root
 
 test:
-	pipenv run py.test
+	poetry run py.test
 
 coverage:
-	pipenv run py.test --verbose --cov-report term --cov=pjrpc tests
-
-publish:
-	pip install twine
-	python setup.py sdist
-	twine upload dist/*
-	rm -fr build dist .egg requests.egg-info
+	poetry run py.test --verbose --cov-report term --cov=pjrpc tests
 
 check-code:
 	pre-commit run --all-file
