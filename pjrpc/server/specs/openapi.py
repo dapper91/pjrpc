@@ -26,7 +26,7 @@ RESULT_SCHEMA: Dict[str, Any] = {
     'properties': {
         'jsonrpc': {
             'type': 'string',
-            'enum': ['1.0', '2.0'],
+            'enum': ['2.0', '1.0'],
         },
         'id': {
             'anyOf': [
@@ -46,7 +46,7 @@ ERROR_SCHEMA: Dict[str, Any] = {
     'properties': {
         'jsonrpc': {
             'type': 'string',
-            'enum': ['1.0', '2.0'],
+            'enum': ['2.0', '1.0'],
         },
         'id': {
             'anyOf': [
@@ -81,7 +81,7 @@ REQUEST_SCHEMA: Dict[str, Any] = {
     'properties': {
         'jsonrpc': {
             'type': 'string',
-            'enum': ['1.0', '2.0'],
+            'enum': ['2.0', '1.0'],
         },
         'id': {
             'anyOf': [
