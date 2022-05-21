@@ -26,8 +26,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install pipenv --upgrade
         pipenv install --python ${{ matrix.python-version }} --dev
-    - name: Run linter
-      run: pipenv run flake8 .
+    - name: Run pre-commit hooks
+      run: pipenv run pre-commit run --hook-stage merge-commit --all-files
     - name: Run tests
       run: PYTHONPATH="$(pwd):$PYTHONPATH" pipenv run py.test --cov=pjrpc --cov-report=xml tests
     - name: Upload coverage to Codecov
