@@ -1,7 +1,15 @@
 import json
-from typing import Any, Union
+import sys
+from typing import Any
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+    FalseType = Literal[False]
+else:
+    FalseType = bool
 
 import pjrpc
+from pjrpc.typedefs import Json  # noqa: for back compatibility
 
 
 class UnsetType:
@@ -10,7 +18,7 @@ class UnsetType:
     Used to distinct unset (missing) values from ``None`` ones.
     """
 
-    def __bool__(self) -> bool:
+    def __bool__(self) -> FalseType:
         return False
 
     def __repr__(self) -> str:
@@ -46,6 +54,3 @@ class JSONEncoder(json.JSONEncoder):
             return o.to_json()
 
         return super().default(o)
-
-
-Json = Union[str, int, float, dict, bool, list, tuple, set, None]

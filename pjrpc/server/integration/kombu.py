@@ -3,11 +3,12 @@ kombu JSON-RPC server integration.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 
 import kombu.mixins
+from kombu.transport import virtual
 
-import pjrpc
+import pjrpc.server
 
 logger = logging.getLogger(__package__)
 
@@ -51,9 +52,10 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
 
         return self._dispatcher
 
-    def get_consumers(self, Consumer, channel) -> List[kombu.Consumer]:
+    def get_consumers(self, Consumer: Type[kombu.Consumer], channel: virtual.AbstractChannel) -> List[kombu.Consumer]:
         return [
             Consumer(
+                channel=channel,
                 queues=[self._rpc_queue],
                 on_message=self._rpc_handle,
                 accept={pjrpc.common.DEFAULT_CONTENT_TYPE},

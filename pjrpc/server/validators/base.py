@@ -1,8 +1,9 @@
 import functools as ft
 import inspect
-from typing import Any, Callable, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 from pjrpc.server import utils
+from pjrpc.typedefs import JsonRpcParams, MethodType
 
 
 class ValidationError(Exception):
@@ -16,7 +17,7 @@ class BaseValidator:
     Base method parameters validator. Uses :py:func:`inspect.signature` for validation.
     """
 
-    def validate(self, maybe_method: Optional[Callable] = None, **kwargs: Any) -> Callable:
+    def validate(self, maybe_method: Optional[MethodType] = None, **kwargs: Any) -> MethodType:
         """
         Decorator marks a method the parameters of which to be validated when calling it using JSON-RPC protocol.
 
@@ -24,7 +25,7 @@ class BaseValidator:
         :param kwargs: validator arguments
         """
 
-        def decorator(method: Callable) -> Callable:
+        def decorator(method: MethodType) -> MethodType:
             utils.set_meta(method, validator=self, validator_args=kwargs)
             return method
 
@@ -36,7 +37,7 @@ class BaseValidator:
             return decorator(maybe_method)
 
     def validate_method(
-        self, method: Callable, params: Optional[Union[list, dict]], exclude: Iterable[str] = (), **kwargs: Any,
+        self, method: MethodType, params: Optional['JsonRpcParams'], exclude: Iterable[str] = (), **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Validates params against method signature.
@@ -50,10 +51,10 @@ class BaseValidator:
         :returns: bound method parameters
         """
 
-        signature = self.signature(method, exclude)
+        signature = self.signature(method, tuple(exclude))
         return self.bind(signature, params).arguments
 
-    def bind(self, signature: inspect.Signature, params: Optional[Union[list, dict]]) -> inspect.BoundArguments:
+    def bind(self, signature: inspect.Signature, params: Optional['JsonRpcParams']) -> inspect.BoundArguments:
         """
         Binds parameters to method.
         :param signature: method to bind parameters to
@@ -72,7 +73,7 @@ class BaseValidator:
             raise ValidationError(str(e)) from e
 
     @ft.lru_cache(None)
-    def signature(self, method: Callable, exclude: Iterable[str]) -> inspect.Signature:
+    def signature(self, method: MethodType, exclude: Tuple[str]) -> inspect.Signature:
         """
         Returns method signature.
 
@@ -86,4 +87,4 @@ class BaseValidator:
         for item in exclude:
             parameters.pop(item, None)
 
-        return signature.replace(parameters=parameters.values())
+        return signature.replace(parameters=tuple(parameters.values()))

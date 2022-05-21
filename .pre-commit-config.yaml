@@ -52,7 +52,7 @@ repos:
         args:
           - --line-length=120
           - --multi-line=9
-          - --project=crontools
+          - --project=pjrpc
       - id: isort
         name: check import order
         stages:
@@ -61,4 +61,13 @@ repos:
           - --check-only
           - --line-length=120
           - --multi-line=9
-          - --project=crontools
+          - --project=pjrpc
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v0.942
+    hooks:
+      - id: mypy
+        stages:
+          - commit
+        name: mypy
+        pass_filenames: false
+        args: ["--package", "pjrpc"]

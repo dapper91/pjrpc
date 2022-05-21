@@ -1,6 +1,8 @@
-from typing import Any, Callable, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, Optional
 
 import jsonschema
+
+from pjrpc.typedefs import JsonRpcParams, MethodType
 
 from . import base
 
@@ -17,7 +19,7 @@ class JsonSchemaValidator(base.BaseValidator):
         self.default_kwargs = kwargs
 
     def validate_method(
-        self, method: Callable, params: Optional[Union[list, dict]], exclude: Iterable[str] = (), **kwargs: Any
+        self, method: MethodType, params: Optional['JsonRpcParams'], exclude: Iterable[str] = (), **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Validates params against method using ``pydantic`` validator.

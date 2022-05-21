@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 import aio_pika
 
-import pjrpc
+import pjrpc.server
 
 logger = logging.getLogger(__package__)
 
@@ -47,18 +47,18 @@ class Executor:
         """
 
         await self._connection.connect()
-        self._channel = await self._connection.channel()
+        self._channel = channel = await self._connection.channel()
 
-        self._queue = await self._channel.declare_queue(self._queue_name, **(queue_args or {}))
-        await self._channel.set_qos(prefetch_count=self._prefetch_count)
-        self._consumer_tag = await self._queue.consume(self._rpc_handle)
+        self._queue = queue = await channel.declare_queue(self._queue_name, **(queue_args or {}))
+        await channel.set_qos(prefetch_count=self._prefetch_count)
+        self._consumer_tag = await queue.consume(self._rpc_handle)
 
     async def shutdown(self) -> None:
         """
         Stops executor.
         """
 
-        if self._consumer_tag:
+        if self._consumer_tag and self._queue:
             await self._queue.cancel(self._consumer_tag)
         if self._channel:
             await self._channel.close()
@@ -74,7 +74,7 @@ class Executor:
 
         try:
             reply_to = message.reply_to
-            response_text = await self._dispatcher.dispatch(message.body, context=message)
+            response_text = await self._dispatcher.dispatch(message.body.decode(), context=message)
 
             if response_text is not None:
                 if reply_to is None:

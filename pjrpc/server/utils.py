@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable, TypeVar
 
 
 def get_meta(instance: Any) -> Dict[str, Any]:
@@ -9,7 +9,7 @@ def get_meta(instance: Any) -> Dict[str, Any]:
     return getattr(instance, '__pjrpc_meta__', {})
 
 
-def set_meta(instance: Any, **meta) -> Dict[str, Any]:
+def set_meta(instance: Any, **meta: Any) -> Dict[str, Any]:
     """
     Updates object pjrpc metadata.
     """
@@ -52,7 +52,7 @@ def remove_suffix(s: str, suffix: str) -> str:
         return s
 
 
-def join_path(path, *paths) -> str:
+def join_path(path: str, *paths: str) -> str:
     result = path
     for path in paths:
         if path:
@@ -61,8 +61,12 @@ def join_path(path, *paths) -> str:
     return result
 
 
-def unique(*iterables, key: Callable) -> Iterable:
-    items_map = {}
+T = TypeVar('T')
+K = TypeVar('K')
+
+
+def unique(*iterables: Iterable[T], key: Callable[[T], K]) -> Iterable[T]:
+    items_map: Dict[K, T] = {}
     for iterable in iterables:
         for item in iterable:
             items_map[key(item)] = item

@@ -5,7 +5,7 @@ and agnostic to any transport protocol layer (http, socket, amqp) and server-sid
 
 from . import generators
 from .common import UNSET, JSONEncoder, UnsetType
-from .v20 import BatchRequest, BatchResponse, Request, Response
+from .v20 import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response
 
 DEFAULT_CONTENT_TYPE = 'application/json'
 REQUEST_CONTENT_TYPES = ('application/json', 'application/json-rpc', 'application/jsonrequest')
@@ -23,6 +23,8 @@ def set_default_content_type(content_type: str) -> None:
 
 
 __all__ = [
+    'AbstractRequest',
+    'AbstractResponse',
     'Request',
     'Response',
     'BatchRequest',
