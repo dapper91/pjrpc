@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -29,7 +29,7 @@ class Client(AbstractClient):
         :returns: response text
         """
 
-        kwargs = {
+        kwargs: Dict[str, Any] = {
             'headers': {'Content-Type': pjrpc.common.DEFAULT_CONTENT_TYPE},
             **kwargs,
         }
@@ -57,8 +57,8 @@ class Client(AbstractClient):
         self._client.__enter__()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self._client.__exit__(exc_type, exc_val, exc_tb)
+    def __exit__(self, *args: Any) -> None:
+        self._client.__exit__(*args)
 
 
 class AsyncClient(AbstractAsyncClient):
@@ -84,7 +84,7 @@ class AsyncClient(AbstractAsyncClient):
         :returns: response text
         """
 
-        kwargs = {
+        kwargs: Dict[str, Any] = {
             'headers': {'Content-Type': pjrpc.common.DEFAULT_CONTENT_TYPE},
             **kwargs,
         }
@@ -117,5 +117,5 @@ class AsyncClient(AbstractAsyncClient):
         await self._client.__aenter__()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        await self._client.__aexit__(exc_type, exc_val, exc_tb)
+    async def __aexit__(self, *args: Any) -> None:
+        await self._client.__aexit__(*args)

@@ -9,10 +9,11 @@ except ImportError:
     raise AssertionError("python 3.7 or later is required")
 
 import itertools as it
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Type, Union
 
-from pjrpc.common import UNSET, exceptions
+from pjrpc.common import UNSET, UnsetType, exceptions
 from pjrpc.server import Method, utils
+from pjrpc.typedefs import Func
 
 from . import Specification, extractors
 
@@ -29,9 +30,9 @@ class Contact:
     :param email: the email address of the contact person/organization
     """
 
-    name: str = UNSET
-    url: str = UNSET
-    email: str = UNSET
+    name: Union[str, UnsetType] = UNSET
+    url: Union[str, UnsetType] = UNSET
+    email: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -44,7 +45,7 @@ class License:
     """
 
     name: str
-    url: str = UNSET
+    url: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -62,10 +63,10 @@ class Info:
 
     title: str
     version: str
-    description: str = UNSET
-    contact: Contact = UNSET
-    license: License = UNSET
-    termsOfService: str = UNSET
+    description: Union[str, UnsetType] = UNSET
+    contact: Union[Contact, UnsetType] = UNSET
+    license: Union[License, UnsetType] = UNSET
+    termsOfService: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -81,8 +82,8 @@ class Server:
 
     name: str
     url: str
-    summary: str = UNSET
-    description: str = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -95,7 +96,7 @@ class ExternalDocumentation:
     """
 
     url: str
-    description: str = UNSET
+    description: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -111,9 +112,9 @@ class Tag:
     """
 
     name: str
-    summary: str = UNSET
-    description: str = UNSET
-    externalDocs: ExternalDocumentation = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
+    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -129,8 +130,8 @@ class ExampleObject:
 
     value: Json
     name: str
-    summary: str = UNSET
-    description: str = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -148,8 +149,8 @@ class MethodExample:
     name: str
     params: List[ExampleObject]
     result: ExampleObject
-    summary: str = UNSET
-    description: str = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -169,10 +170,10 @@ class ContentDescriptor:
 
     name: str
     schema: Dict[str, Any]
-    summary: str = UNSET
-    description: str = UNSET
-    required: bool = UNSET
-    deprecated: bool = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
+    required: Union[bool, UnsetType] = UNSET
+    deprecated: Union[bool, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -187,7 +188,7 @@ class Error:
 
     code: int
     message: str
-    data: Dict[str, Any] = UNSET
+    data: Union[Dict[str, Any], UnsetType] = UNSET
 
 
 class ParamStructure(str, enum.Enum):
@@ -222,15 +223,15 @@ class MethodInfo:
     name: str
     params: List[Union[ContentDescriptor, dict]]
     result: Union[ContentDescriptor, dict]
-    errors: List[Error] = UNSET
-    paramStructure: ParamStructure = UNSET
-    examples: List[MethodExample] = UNSET
-    summary: str = UNSET
-    description: str = UNSET
-    tags: List[Tag] = UNSET
-    deprecated: bool = UNSET
-    externalDocs: ExternalDocumentation = UNSET
-    servers: List[Server] = UNSET
+    errors: Union[List[Error], UnsetType] = UNSET
+    paramStructure: Union[ParamStructure, UnsetType] = UNSET
+    examples: Union[List[MethodExample], UnsetType] = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
+    tags: Union[List[Tag], UnsetType] = UNSET
+    deprecated: Union[bool, UnsetType] = UNSET
+    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
+    servers: Union[List[Server], UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -245,15 +246,15 @@ class Components:
 
 
 def annotate(
-    params_schema: List[ContentDescriptor] = UNSET,
-    result_schema: ContentDescriptor = UNSET,
-    errors: List[Union[Error, Type[exceptions.JsonRpcError]]] = UNSET,
-    examples: List[MethodExample] = UNSET,
-    summary: str = UNSET,
-    description: str = UNSET,
-    tags: List[Union[Tag, str]] = UNSET,
-    deprecated: bool = UNSET,
-):
+    params_schema: Union[List[ContentDescriptor], UnsetType] = UNSET,
+    result_schema: Union[ContentDescriptor, UnsetType] = UNSET,
+    errors: Union[List[Union[Error, Type[exceptions.JsonRpcError]]], UnsetType] = UNSET,
+    examples: Union[List[MethodExample], UnsetType] = UNSET,
+    summary: Union[str, UnsetType] = UNSET,
+    description: Union[str, UnsetType] = UNSET,
+    tags: Union[List[Union[Tag, str]], UnsetType] = UNSET,
+    deprecated: Union[bool, UnsetType] = UNSET,
+) -> Callable[[Func], Func]:
     """
     Adds JSON-RPC method to the API specification.
 
@@ -267,7 +268,7 @@ def annotate(
     :param deprecated: declares this method to be deprecated
     """
 
-    def decorator(method: Callable) -> Callable:
+    def decorator(method: Func) -> Func:
         utils.set_meta(
             method,
             openrpc_spec=dict(
@@ -307,18 +308,18 @@ class OpenRPC(Specification):
     """
 
     info: Info
+    components: Components
     methods: List[MethodInfo] = dc.field(default_factory=list)
-    servers: List[Server] = UNSET
-    externalDocs: ExternalDocumentation = UNSET
+    servers: Union[List[Server], UnsetType] = UNSET
+    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
     openrpc: str = '1.0.0'
-    components: Components = UNSET
 
     def __init__(
         self,
         info: Info,
         path: str = '/openrpc.json',
-        servers: List[Server] = UNSET,
-        external_docs: Optional[ExternalDocumentation] = UNSET,
+        servers: Union[List[Server], UnsetType] = UNSET,
+        external_docs: Union[ExternalDocumentation, UnsetType] = UNSET,
         openrpc: str = '1.0.0',
         schema_extractor: Optional[extractors.BaseSchemaExtractor] = None,
     ):
@@ -331,18 +332,26 @@ class OpenRPC(Specification):
         self.methods = []
         self.components = Components()
 
-        self._schema_extractor = schema_extractor
+        self._schema_extractor = schema_extractor or extractors.BaseSchemaExtractor()
 
-    def schema(self, path: str, methods: Iterable[Method] = (), methods_map: Dict[str, Iterable[Method]] = {}) -> dict:
+    def schema(
+        self,
+        path: str,
+        methods: Iterable[Method] = (),
+        methods_map: Mapping[str, Iterable[Method]] = {},
+    ) -> Dict[str, Any]:
         for method in it.chain(methods, methods_map.get('', [])):
             method_name = method.name
 
             method_meta = utils.get_meta(method.method)
             annotated_spec = method_meta.get('openrpc_spec', {})
 
-            params_schema = self._schema_extractor.extract_params_schema(method.method, exclude=[method.context])
+            params_schema = self._schema_extractor.extract_params_schema(
+                method.method,
+                exclude=[method.context] if method.context else [],
+            )
             result_schema = self._schema_extractor.extract_result_schema(method.method)
-            extracted_spec = dict(
+            extracted_spec: Dict[str, Any] = dict(
                 params_schema=[
                     ContentDescriptor(
                         name=name,
@@ -368,7 +377,7 @@ class OpenRPC(Specification):
                 tags=self._schema_extractor.extract_tags(method.method),
                 examples=[
                     MethodExample(
-                        name=example.summary,
+                        name=example.summary or f'Example#{i}',
                         params=[
                             ExampleObject(
                                 value=param_value,
@@ -383,10 +392,10 @@ class OpenRPC(Specification):
                         summary=example.summary,
                         description=example.description,
                     )
-                    for example in self._schema_extractor.extract_examples(method.method) or []
+                    for i, example in enumerate(self._schema_extractor.extract_examples(method.method) or [])
                 ],
             )
-            method_spec = extracted_spec.copy()
+            method_spec: Dict[str, Any] = extracted_spec.copy()
             method_spec.update((k, v) for k, v in annotated_spec.items() if v is not UNSET)
 
             self.methods.append(
@@ -404,15 +413,15 @@ class OpenRPC(Specification):
             )
 
             for param_schema in params_schema.values():
-                if param_schema.definitions:
+                if not isinstance(param_schema.definitions, UnsetType):
                     self.components.schemas.update(param_schema.definitions)
 
-            if result_schema.definitions:
+            if not isinstance(result_schema.definitions, UnsetType):
                 self.components.schemas.update(result_schema.definitions)
 
         return dc.asdict(
             self,
             dict_factory=lambda iterable: dict(
-                filter(lambda item: item[1] is not UNSET, iterable),
+                filter(lambda item: not isinstance(item[1], UnsetType), iterable),
             ),
         )

@@ -4,7 +4,7 @@ aiohttp JSON-RPC server integration.
 
 import functools as ft
 import json
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Mapping, Optional, cast
 
 from starlette import exceptions, routing
 from starlette.applications import Starlette
@@ -14,14 +14,15 @@ from starlette.staticfiles import StaticFiles
 
 import pjrpc
 from pjrpc.server import specs, utils
+from pjrpc.typedefs import Func
 
 
-def async_partial(func: Callable, *bound_args, **bound_kwargs) -> Callable:
+def async_partial(func: Func, *bound_args: Any, **bound_kwargs: Any) -> Func:
     @ft.wraps(func)
-    async def wrapped(*args, **kwargs):
+    async def wrapped(*args: Any, **kwargs: Any) -> Any:
         return await func(*bound_args, *args, **bound_kwargs, **kwargs)
 
-    return wrapped
+    return cast(Func, wrapped)
 
 
 class Application:
@@ -69,7 +70,7 @@ class Application:
         return self._app
 
     @property
-    def dispatcher(self) -> pjrpc.server.Dispatcher:
+    def dispatcher(self) -> pjrpc.server.AsyncDispatcher:
         """
         JSON-RPC method dispatcher.
         """
@@ -77,14 +78,14 @@ class Application:
         return self._dispatcher
 
     @property
-    def endpoints(self) -> Dict[str, pjrpc.server.Dispatcher]:
+    def endpoints(self) -> Mapping[str, pjrpc.server.AsyncDispatcher]:
         """
         JSON-RPC application registered endpoints.
         """
 
         return self._endpoints
 
-    def add_endpoint(self, prefix: str, **kwargs: Any) -> pjrpc.server.Dispatcher:
+    def add_endpoint(self, prefix: str, **kwargs: Any) -> pjrpc.server.AsyncDispatcher:
         """
         Adds additional endpoint.
 
@@ -105,6 +106,8 @@ class Application:
         return dispatcher
 
     async def _generate_spec(self, request: Request) -> Response:
+        assert self._spec is not None, "spec is not set"
+
         endpoint_path = utils.remove_suffix(request.url.path, suffix=self._spec.path)
 
         methods = {path: dispatcher.registry.values() for path, dispatcher in self._endpoints.items()}
@@ -116,6 +119,8 @@ class Application:
         )
 
     async def _ui_index_page(self, request: Request) -> Response:
+        assert self._spec is not None and self._spec.ui is not None, "spec is not set"
+
         app_path = request.url.path.rsplit(self._spec.ui_path, maxsplit=1)[0]
         spec_full_path = utils.join_path(app_path, self._spec.path)
 

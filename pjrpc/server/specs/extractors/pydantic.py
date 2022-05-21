@@ -1,11 +1,12 @@
 import inspect
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 import pydantic as pd
 
 from pjrpc.common import UNSET, UnsetType
 from pjrpc.common.exceptions import JsonRpcError
 from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Schema
+from pjrpc.typedefs import MethodType
 
 
 class PydanticSchemaExtractor(BaseSchemaExtractor):
@@ -16,11 +17,11 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
     def __init__(self, ref_template: str = '#/components/schemas/{model}'):
         self._ref_template = ref_template
 
-    def extract_params_schema(self, method: Callable, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
+    def extract_params_schema(self, method: MethodType, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
         exclude = set(exclude)
         signature = inspect.signature(method)
 
-        field_definitions = {}
+        field_definitions: Dict[str, Any] = {}
         for param in signature.parameters.values():
             if param.name in exclude:
                 continue
@@ -49,7 +50,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
 
         return parameters_schema
 
-    def extract_result_schema(self, method: Callable) -> Schema:
+    def extract_result_schema(self, method: MethodType) -> Schema:
         result = inspect.signature(method)
 
         if result.return_annotation is inspect.Parameter.empty:
@@ -73,20 +74,20 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
             description=result_schema.get('description', UNSET),
             deprecated=result_schema.get('deprecated', UNSET),
             required=required,
-            definitions=model_schema.get('definitions'),
+            definitions=model_schema.get('definitions', UNSET),
         )
 
         return result_schema
 
     def extract_errors_schema(
         self,
-        method: Callable,
-        errors: Optional[Iterable[JsonRpcError]] = None,
+        method: MethodType,
+        errors: Optional[Iterable[Type[JsonRpcError]]] = None,
     ) -> Union[UnsetType, List[Error]]:
         if errors:
             errors_schema = []
             for error in errors:
-                field_definitions = {}
+                field_definitions: Dict[str, Any] = {}
                 for field_name, annotation in self._get_annotations(error).items():
                     if field_name.startswith('_'):
                         continue
@@ -125,8 +126,8 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
         return field_schema
 
     @staticmethod
-    def _get_annotations(cls: Type):
-        annotations = {}
+    def _get_annotations(cls: Type) -> Dict[str, Any]:
+        annotations: Dict[str, Any] = {}
         for patent in cls.mro():
             annotations.update(**getattr(patent, '__annotations__', {}))
 

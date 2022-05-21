@@ -1,17 +1,112 @@
 """
 JSON-RPC version 2.0 protocol implementation.
 """
+from __future__ import annotations
 
-import functools as ft
+import abc
 import itertools as it
 import operator as op
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple, Type, Union
 
-from .common import UNSET, Json, UnsetType
+from pjrpc.typedefs import Json, JsonRpcParams, JsonRpcRequestId
+
+from .common import UNSET, UnsetType
 from .exceptions import DeserializationError, IdentityError, JsonRpcError
 
 
-class Response:
+class AbstractRequest(abc.ABC):
+    """
+    JSON-RPC version 2.0 abstract request.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def from_json(cls, json_data: Json) -> 'AbstractRequest':
+        pass
+
+    @abc.abstractmethod
+    def __str__(self) -> str:
+        pass
+
+    @abc.abstractmethod
+    def __repr__(self) -> str:
+        pass
+
+    @abc.abstractmethod
+    def __eq__(self, other: Any) -> bool:
+        pass
+
+    @abc.abstractmethod
+    def to_json(self) -> Json:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def is_notification(self) -> bool:
+        pass
+
+
+class AbstractResponse(abc.ABC):
+    """
+    JSON-RPC version 2.0 abstract response.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def from_json(cls, json_data: Json, error_cls: Type[JsonRpcError] = JsonRpcError) -> 'AbstractResponse':
+        pass
+
+    @abc.abstractmethod
+    def __str__(self) -> str:
+        pass
+
+    @abc.abstractmethod
+    def __repr__(self) -> str:
+        pass
+
+    @abc.abstractmethod
+    def __eq__(self, other: Any) -> bool:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def result(self) -> Any:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def error(self) -> Union[UnsetType, JsonRpcError]:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def is_success(self) -> bool:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def is_error(self) -> bool:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def related(self) -> Optional[AbstractRequest]:
+        pass
+
+    @related.setter
+    def related(self, request: Optional[AbstractRequest]) -> None:
+        pass
+
+    @abc.abstractmethod
+    def get_error(self) -> JsonRpcError:
+        pass
+
+    @abc.abstractmethod
+    def to_json(self) -> Json:
+        pass
+
+
+class Response(AbstractResponse):
     """
     JSON-RPC version 2.0 response.
 
@@ -59,8 +154,39 @@ class Response:
         except KeyError as e:
             raise DeserializationError(f"required field {e} not found") from e
 
+    def __init__(
+        self,
+        id: Optional[JsonRpcRequestId],
+        result: Union[UnsetType, Any] = UNSET,
+        error: Union[UnsetType, JsonRpcError] = UNSET,
+    ):
+        assert result is not UNSET or error is not UNSET, "result or error argument must be provided"
+        assert result is UNSET or error is UNSET, "result and error arguments are mutually exclusive"
+
+        self._id = id
+        self._result = result
+        self._error = error
+        self._related: Optional['Request'] = None
+
+    def __str__(self) -> str:
+        return f"{self.result if self.is_success else self.error}"
+
+    def __repr__(self) -> str:
+        return "{class_name}(id={id}, result={result}, error={error})".format(
+            class_name=self.__class__.__name__, id=self._id, result=repr(self._result), error=repr(self._error),
+        )
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, Response):
+            return NotImplemented
+
+        if self.is_success:
+            return (self.id, self.result) == (other.id, other.result)
+        else:
+            return (self.id, self.error) == (other.id, other.error)
+
     @property
-    def id(self) -> Optional[Union[int, str]]:
+    def id(self) -> Optional[JsonRpcRequestId]:
         """
         Response identifier.
         """
@@ -74,7 +200,7 @@ class Response:
         """
 
         if self._error is not UNSET:
-            raise self._error
+            raise self.get_error()
 
         return self._result
 
@@ -119,36 +245,13 @@ class Response:
 
         self._related = request
 
-    def __init__(
-        self,
-        id: Optional[Union[int, str]],
-        result: Union[UnsetType, Any] = UNSET,
-        error: Union[UnsetType, JsonRpcError] = UNSET,
-    ):
-        assert result is not UNSET or error is not UNSET, "result or error argument must be provided"
-        assert result is UNSET or error is UNSET, "result and error arguments are mutually exclusive"
+    def get_error(self) -> JsonRpcError:
+        """
+        Returns error. If error is not set raises and exception.
+        """
 
-        self._id = id
-        self._result = result
-        self._error = error
-        self._related: Optional['Request'] = None
-
-    def __str__(self) -> str:
-        return f"{self.result if self.is_success else self.error}"
-
-    def __repr__(self) -> str:
-        return "{class_name}(id={id}, result={result}, error={error})".format(
-            class_name=self.__class__.__name__, id=self._id, result=repr(self._result), error=repr(self._error),
-        )
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, Response):
-            return NotImplemented
-
-        if self.is_success:
-            return (self.id, self.result) == (other.id, other.result)
-        else:
-            return (self.id, self.error) == (other.id, other.error)
+        assert not isinstance(self._error, UnsetType), "error is not set"
+        return self._error
 
     def to_json(self) -> Json:
         """
@@ -157,19 +260,19 @@ class Response:
         :returns: json data
         """
 
-        json_data: Dict[str, Json] = {
+        json_data: Dict[str, Any] = {
             'jsonrpc': self.version,
             'id': self._id,
         }
         if self._result is not UNSET:
             json_data.update(result=self.result)
         if self._error is not UNSET:
-            json_data.update(error=self.error.to_json())
+            json_data.update(error=self.get_error().to_json())
 
         return json_data
 
 
-class Request:
+class Request(AbstractRequest):
     """
     JSON-RPC version 2.0 request.
 
@@ -215,7 +318,7 @@ class Request:
             raise DeserializationError(f"required field {e} not found") from e
 
     @property
-    def id(self) -> Optional[Union[int, str]]:
+    def id(self) -> Optional[JsonRpcRequestId]:
         """
         Request identifier.
         """
@@ -231,14 +334,19 @@ class Request:
         return self._method
 
     @property
-    def params(self) -> Optional[Union[list, dict]]:
+    def params(self) -> Optional[JsonRpcParams]:
         """
         Request method parameters.
         """
 
         return self._params
 
-    def __init__(self, method: str, params: Optional[Union[list, dict]] = None, id: Optional[Union[int, str]] = None):
+    def __init__(
+        self,
+        method: str,
+        params: Optional[JsonRpcParams] = None,
+        id: Optional[JsonRpcRequestId] = None,
+    ):
         self._method = method
         self._params = params
         self._id = id
@@ -271,7 +379,7 @@ class Request:
         :returns: json data
         """
 
-        json_data: Dict[str, Json] = {
+        json_data: Dict[str, Any] = {
             'jsonrpc': self.version,
             'method': self._method,
         }
@@ -291,7 +399,7 @@ class Request:
         return self.id is None
 
 
-class BatchResponse:
+class BatchResponse(AbstractResponse):
     """
     JSON-RPC 2.0 batch response.
 
@@ -328,6 +436,47 @@ class BatchResponse:
             raise DeserializationError(f"required field {e} not found") from e
 
         return cls(*(Response.from_json(item) for item in json_data))
+
+    def __init__(self, *responses: Response, error: Union[UnsetType, JsonRpcError] = UNSET, strict: bool = True):
+        self._responses: List[Response] = []
+        self._ids: Set[JsonRpcRequestId] = set()
+        self._error = error
+        self._strict = strict
+        self._related: Optional['BatchRequest'] = None
+
+        self.extend(responses)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({','.join(map(repr, self._responses))}, error={repr(self._error)})"
+
+    def __str__(self) -> str:
+        return f"[{', '.join(map(str, self._responses))}]" if self.is_success else str(self.error)
+
+    def __getitem__(self, idx: int) -> Response:
+        """
+        Returns a request at index `idx`.
+        """
+
+        return self._responses[idx]
+
+    def __iter__(self) -> Iterator[Response]:
+        return iter(self._responses)
+
+    def __len__(self) -> int:
+        return len(self._responses)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, BatchResponse):
+            return NotImplemented
+
+        return all(
+            it.starmap(
+                op.eq, zip(
+                    sorted(self, key=op.attrgetter('id')),
+                    sorted(other, key=op.attrgetter('id')),
+                ),
+            ),
+        )
 
     @property
     def error(self) -> Union[UnsetType, JsonRpcError]:
@@ -371,13 +520,13 @@ class BatchResponse:
         """
 
         if self.is_error:
-            raise self._error
+            raise self.get_error()
 
         result = []
 
         for response in self._responses:
             if response.is_error:
-                raise response.error
+                raise response.get_error()
             result.append(response.result)
 
         return tuple(result)
@@ -399,46 +548,13 @@ class BatchResponse:
 
         self._related = request
 
-    def __init__(self, *responses: Response, error: Union[UnsetType, JsonRpcError] = UNSET, strict: bool = True):
-        self._responses: List[Response] = []
-        self._ids: Set[Union[int, str]] = set()
-        self._error = error
-        self._strict = strict
-        self._related: Optional['BatchRequest'] = None
-
-        self.extend(responses)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({','.join(map(repr, self._responses))}, error={repr(self._error)})"
-
-    def __str__(self) -> str:
-        return f"[{', '.join(map(str, self._responses))}]" if self.is_success else str(self.error)
-
-    def __getitem__(self, idx: int) -> Response:
+    def get_error(self) -> JsonRpcError:
         """
-        Returns a request at index `idx`.
+        Returns error. If error is not set raises and exception.
         """
 
-        return self._responses[idx]
-
-    def __iter__(self) -> Iterator[Response]:
-        return iter(self._responses)
-
-    def __len__(self) -> int:
-        return len(self._responses)
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, BatchResponse):
-            return NotImplemented
-
-        return all(
-            it.starmap(
-                op.eq, zip(
-                    sorted(self, key=op.attrgetter('id')),
-                    sorted(other, key=op.attrgetter('id')),
-                ),
-            ),
-        )
+        assert not isinstance(self._error, UnsetType), "error is not set"
+        return self._error
 
     def append(self, response: Response) -> None:
         """
@@ -468,11 +584,13 @@ class BatchResponse:
 
         return [response.to_json() for response in self._responses]
 
-    def _add_ids(self, *ids: Optional[Union[int, str]]) -> None:
+    def _add_ids(self, *ids: Optional[JsonRpcRequestId]) -> None:
         if self._strict:
             new_ids = self._ids.copy()
 
-            for id in filter(ft.partial(op.is_not, None), ids):
+            for id in ids:
+                if id is None:
+                    continue
                 if id in new_ids:
                     raise IdentityError(f"response id duplicates found: {id}")
                 else:
@@ -481,7 +599,7 @@ class BatchResponse:
             self._ids = new_ids
 
 
-class BatchRequest:
+class BatchRequest(AbstractRequest):
     """
     JSON-RPC 2.0 batch request.
 
@@ -511,7 +629,7 @@ class BatchRequest:
     def __init__(self, *requests: Request, strict: bool = True):
         self._strict = strict
         self._requests: List[Request] = []
-        self._ids: Set[Union[int, str]] = set()
+        self._ids: Set[JsonRpcRequestId] = set()
 
         self.extend(requests)
 
@@ -580,11 +698,13 @@ class BatchRequest:
 
         return all(map(op.attrgetter('is_notification'), self._requests))
 
-    def _add_ids(self, *ids: Optional[Union[int, str]]) -> None:
+    def _add_ids(self, *ids: Optional[JsonRpcRequestId]) -> None:
         if self._strict:
             new_ids = self._ids.copy()
 
-            for id in filter(ft.partial(op.is_not, None), ids):
+            for id in ids:
+                if id is None:
+                    continue
                 if id in new_ids:
                     raise IdentityError(f"request id duplicates found: {id}")
                 else:

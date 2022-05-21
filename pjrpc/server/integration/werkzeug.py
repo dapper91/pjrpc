@@ -1,9 +1,9 @@
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Iterable
 
 import werkzeug
 from werkzeug import exceptions
 
-import pjrpc
+import pjrpc.server
 
 
 class JsonRPC:
@@ -18,10 +18,10 @@ class JsonRPC:
         self._path = path
         self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
 
-    def __call__(self, environ: Dict[str, Any], start_response: Callable):
+    def __call__(self, environ: Dict[str, Any], start_response: Callable) -> Iterable[bytes]:
         return self.wsgi_app(environ, start_response)
 
-    def wsgi_app(self, environ: Dict[str, Any], start_response: Callable):
+    def wsgi_app(self, environ: Dict[str, Any], start_response: Callable) -> Iterable[bytes]:
         environ['app'] = self
         request = werkzeug.Request(environ)
         response = self._rpc_handle(request)

@@ -69,7 +69,8 @@ class JsonRPC:
         dispatcher = pjrpc.server.Dispatcher(**kwargs)
 
         self._endpoints[prefix] = dispatcher
-        self._blueprints[prefix] = blueprint
+        if blueprint is not None:
+            self._blueprints[prefix] = blueprint
 
         return dispatcher
 
@@ -107,6 +108,8 @@ class JsonRPC:
                 app.add_url_rule(f'{path}/<path:filename>', methods=['GET'], view_func=self._ui_static)
 
     def _generate_spec(self) -> flask.Response:
+        assert self._spec is not None, "spec is not set"
+
         endpoint_path = utils.remove_suffix(flask.request.path, suffix=self._spec.path)
         methods = {path: dispatcher.registry.values() for path, dispatcher in self._endpoints.items()}
         schema = self._spec.schema(path=endpoint_path, methods_map=methods)
@@ -117,6 +120,8 @@ class JsonRPC:
         )
 
     def _ui_index_page(self) -> flask.Response:
+        assert self._spec is not None and self._spec.ui is not None, "spec is not set"
+
         app_path = flask.request.path.rsplit(self._spec.ui_path, maxsplit=1)[0]
         spec_full_path = utils.join_path(app_path, self._spec.path)
 
@@ -126,6 +131,8 @@ class JsonRPC:
         )
 
     def _ui_static(self, filename: str) -> flask.Response:
+        assert self._spec is not None and self._spec.ui is not None, "spec is not set"
+
         return flask.send_from_directory(self._spec.ui.get_static_folder(), filename)
 
     def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
