@@ -42,4 +42,5 @@ __all__ = [
     'RESPONSE_CONTENT_TYPES',
     'generators',
     'typedefs',
+    'set_default_content_type',
 ]
