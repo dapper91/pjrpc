@@ -1,6 +1,7 @@
 import pathlib
-import pytest
 from typing import Callable, Optional
+
+import pytest
 
 THIS_DIR = pathlib.Path(__file__).parent
 

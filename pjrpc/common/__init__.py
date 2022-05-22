@@ -3,13 +3,18 @@ Client and server common functions, types and classes that implements JSON-RPC p
 and agnostic to any transport protocol layer (http, socket, amqp) and server-side implementation.
 """
 
-from . import generators
-from .common import UNSET, UnsetType, JSONEncoder
-from .v20 import Request, Response, BatchRequest, BatchResponse
+from . import generators, typedefs
+from .common import UNSET, JSONEncoder, UnsetType
+from .v20 import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response
 
 DEFAULT_CONTENT_TYPE = 'application/json'
+'''default JSON-RPC client/server content type'''  # for sphinx autodoc
+
 REQUEST_CONTENT_TYPES = ('application/json', 'application/json-rpc', 'application/jsonrequest')
+'''allowed JSON-RPC server requests content types'''  # for sphinx autodoc
+
 RESPONSE_CONTENT_TYPES = ('application/json', 'application/json-rpc')
+'''allowed JSON-RPC client responses content types'''  # for sphinx autodoc
 
 
 def set_default_content_type(content_type: str) -> None:
@@ -23,6 +28,8 @@ def set_default_content_type(content_type: str) -> None:
 
 
 __all__ = [
+    'AbstractRequest',
+    'AbstractResponse',
     'Request',
     'Response',
     'BatchRequest',
@@ -34,4 +41,6 @@ __all__ = [
     'REQUEST_CONTENT_TYPES',
     'RESPONSE_CONTENT_TYPES',
     'generators',
+    'typedefs',
+    'set_default_content_type',
 ]

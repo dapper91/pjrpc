@@ -2,9 +2,11 @@ import uuid
 from typing import Any
 
 import pydantic
+
 import pjrpc.server
 import pjrpc.server.specs.extractors.pydantic
-from pjrpc.server.specs import extractors, openapi as specs
+from pjrpc.server.specs import extractors
+from pjrpc.server.specs import openapi as specs
 
 
 class JSONEncoder(pjrpc.server.JSONEncoder):

@@ -2,9 +2,12 @@
 Definition of package exceptions and JSON-RPC protocol errors.
 """
 
+import typing
 from typing import Any, Dict, Optional, Type, Union
 
-from .common import UNSET, Json, UnsetType
+from pjrpc.common.typedefs import Json
+
+from .common import UNSET, UnsetType
 
 
 class BaseError(Exception):
@@ -36,7 +39,7 @@ class JsonRpcErrorMeta(type):
     __errors_mapping__: Dict[int, Type['JsonRpcError']] = {}
 
     def __new__(mcs, name: str, bases: tuple, dct: dict) -> Type['JsonRpcError']:
-        cls: Type[JsonRpcError] = super().__new__(mcs, name, bases, dct)
+        cls: Type['JsonRpcError'] = typing.cast(Type['JsonRpcError'], super().__new__(mcs, name, bases, dct))
         if hasattr(cls, 'code') and cls.code is not None:
             mcs.__errors_mapping__[cls.code] = cls
 
@@ -55,14 +58,14 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
     """
 
     # a number that indicates the error type that occurred
-    code = None
+    code: int = None  # type: ignore[assignment]
 
     # a string providing a short description of the error.
     # the message SHOULD be limited to a concise single sentence.
-    message = None
+    message: str = None  # type: ignore[assignment]
 
     @classmethod
-    def from_json(cls, json_data: Json) -> 'JsonRpcError':
+    def from_json(cls, json_data: 'Json') -> 'JsonRpcError':
         """
         Deserializes an error from json data. If data format is not correct :py:class:`ValueError` is raised.
 
@@ -91,15 +94,15 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
             raise DeserializationError(f"required field {e} not found") from e
 
     @classmethod
-    def get_error_cls(cls, code: int, default: Any) -> Type['JsonRpcError']:
+    def get_error_cls(cls, code: int, default: Type['JsonRpcError']) -> Type['JsonRpcError']:
         return type(cls).__errors_mapping__.get(code, default)
 
     def __init__(self, code: Optional[int] = None, message: Optional[str] = None, data: Union[UnsetType, Any] = UNSET):
         assert code or self.code, "code is not provided"
         assert message or self.message, "message is not provided"
 
-        self.code = self.code or code
-        self.message = self.message or message
+        self.code = code or self.code
+        self.message = message or self.message
         self.data = data
 
         super().__init__(code, message)
@@ -118,14 +121,14 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
 
         return (self.code, self.message, self.data) == (other.code, other.message, other.data)
 
-    def to_json(self) -> Json:
+    def to_json(self) -> 'Json':
         """
         Serializes the error to a dict.
 
         :returns: serialized error
         """
 
-        json: Dict[str, Json] = {
+        json: Dict[str, Any] = {
             'code': self.code,
             'message': self.message,
         }

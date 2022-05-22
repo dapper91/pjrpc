@@ -1,9 +1,10 @@
-from typing import Callable, Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Type, Union
 
 import docstring_parser
 
-from pjrpc.common import exceptions, UNSET, UnsetType
-from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Example, Schema, Tag, JsonRpcError
+from pjrpc.common import UNSET, UnsetType, exceptions
+from pjrpc.common.typedefs import MethodType
+from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Example, JsonRpcError, Schema, Tag
 
 
 class DocstringSchemaExtractor(BaseSchemaExtractor):
@@ -11,7 +12,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
     docstring method specification generator.
     """
 
-    def extract_params_schema(self, method: Callable, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
+    def extract_params_schema(self, method: MethodType, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
         exclude = set(exclude)
         parameters_schema = {}
 
@@ -30,7 +31,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
 
         return parameters_schema
 
-    def extract_result_schema(self, method: Callable) -> Schema:
+    def extract_result_schema(self, method: MethodType) -> Schema:
         result_schema = Schema(schema={})
 
         if method.__doc__:
@@ -47,8 +48,8 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
 
     def extract_errors_schema(
         self,
-        method: Callable,
-        errors: Optional[Iterable[JsonRpcError]] = None,
+        method: MethodType,
+        errors: Optional[Iterable[Type[JsonRpcError]]] = None,
     ) -> Union[UnsetType, List[Error]]:
         errors_schema = []
 
@@ -60,7 +61,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
 
             doc = docstring_parser.parse(method.__doc__)
             for error in doc.raises:
-                error_cls = error_map.get(error.type_name)
+                error_cls = error_map.get(error.type_name or '')
                 if error_cls:
                     errors_schema.append(
                         Error(
@@ -71,7 +72,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
 
         return errors_schema or UNSET
 
-    def extract_description(self, method: Callable) -> Union[UnsetType, str]:
+    def extract_description(self, method: MethodType) -> Union[UnsetType, str]:
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
             description = doc.long_description or UNSET
@@ -80,7 +81,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
 
         return description
 
-    def extract_summary(self, method: Callable) -> Union[UnsetType, str]:
+    def extract_summary(self, method: MethodType) -> Union[UnsetType, str]:
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
             description = doc.short_description or UNSET
@@ -89,13 +90,14 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
 
         return description
 
-    def extract_tags(self, method: Callable) -> Union[UnsetType, List[Tag]]:
+    def extract_tags(self, method: MethodType) -> Union[UnsetType, List[Tag]]:
         return UNSET
 
-    def extract_examples(self, method: Callable) -> Union[UnsetType, List[Example]]:
+    def extract_examples(self, method: MethodType) -> Union[UnsetType, List[Example]]:
         return UNSET
 
-    def extract_deprecation_status(self, method: Callable) -> Union[UnsetType, bool]:
+    def extract_deprecation_status(self, method: MethodType) -> Union[UnsetType, bool]:
+        is_deprecated: Union[UnsetType, bool]
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
             is_deprecated = bool(doc.deprecation)

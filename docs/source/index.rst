@@ -86,7 +86,7 @@ The API Documentation
 .. toctree::
    :maxdepth: 3
 
-   pjrpc/api
+   pjrpc/api/index
 
 
 Development

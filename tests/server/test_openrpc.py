@@ -6,8 +6,8 @@ import pydantic
 import pjrpc.common.exceptions
 import pjrpc.server.specs.extractors.docstring
 from pjrpc.server import Method
-from pjrpc.server.specs import openrpc as specs
 from pjrpc.server.specs import extractors
+from pjrpc.server.specs import openrpc as specs
 
 
 def test_openapi_schema_generator(resources):

@@ -1,4 +1,5 @@
 from typing import Any, Optional
+
 import requests
 
 import pjrpc
@@ -56,5 +57,5 @@ class Client(AbstractClient):
         self._session.__enter__()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self._session.__exit__(exc_type, exc_val, exc_tb)
+    def __exit__(self, *args: Any) -> None:
+        self._session.__exit__(*args)

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 import aio_pika
 
@@ -48,13 +48,13 @@ class Client(AbstractAsyncClient):
         self._exchange_args = exchange_args
         self._exchange: Optional[aio_pika.Exchange] = None
 
-        self._routing_key = routing_key or queue_name
+        self._routing_key = cast(str, routing_key or queue_name)
         self._result_queue_name = result_queue_name
         self._result_queue_args = result_queue_args
         self._result_queue: Optional[aio_pika.Queue] = None
         self._consumer_tag: Optional[str] = None
 
-        self._futures = {}
+        self._futures: Dict[str, asyncio.Future] = {}
 
     async def connect(self) -> None:
         """
@@ -62,17 +62,17 @@ class Client(AbstractAsyncClient):
         """
 
         await self._connection.connect()
-        self._channel = await self._connection.channel()
+        self._channel = channel = await self._connection.channel()
 
         if self._exchange_name:
             self._exchange = aio_pika.Exchange(
-                self._connection, self._channel, self._exchange_name, **(self._exchange_args or {})
+                self._connection, channel, self._exchange_name, **(self._exchange_args or {})
             )
             await self._exchange.declare()
 
         if self._result_queue_name:
             self._result_queue = aio_pika.Queue(
-                self._connection, self._channel, self._result_queue_name, **(self._result_queue_args or {})
+                self._connection, channel, self._result_queue_name, **(self._result_queue_args or {})
             )
             await self._result_queue.declare()
             self._consumer_tag = await self._result_queue.consume(self._on_result_message, no_ack=True)
@@ -81,6 +81,10 @@ class Client(AbstractAsyncClient):
         """
         Closes current broker connection.
         """
+
+        assert self._channel is not None, "client is not initialized"
+        assert self._connection is not None, "client is not initialized"
+        assert self._result_queue is not None, "client is not initialized"
 
         if self._consumer_tag:
             await self._result_queue.cancel(self._consumer_tag)
@@ -110,7 +114,7 @@ class Client(AbstractAsyncClient):
         else:
             future.set_result(message.body.decode(message.content_encoding or 'utf8'))
 
-    async def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> None:
+    async def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> Optional[str]:
         if is_notification:
             async with self._connection.channel() as channel:
                 message = aio_pika.message.Message(
@@ -121,7 +125,7 @@ class Client(AbstractAsyncClient):
                 )
                 exchange = self._exchange or channel.default_exchange
                 await exchange.publish(message, routing_key=self._routing_key)
-                return
+                return None
 
         request_id = str(uuid.uuid4())
 
@@ -143,7 +147,8 @@ class Client(AbstractAsyncClient):
                 **kwargs,
             )
 
-            self._futures[request_id] = future = asyncio.Future()
+            future: asyncio.Future = asyncio.Future()
+            self._futures[request_id] = future
 
             try:
                 exchange = self._exchange or channel.default_exchange

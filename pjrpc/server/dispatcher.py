@@ -1,14 +1,17 @@
 import asyncio
-import collections
 import functools as ft
-import json
 import itertools as it
+import json
 import logging
-from typing import Any, Callable, Dict, ItemsView, KeysView, List, Optional, Type, Iterator, Iterable, Union, ValuesView
+from typing import Any, Awaitable, Callable, Dict, Generator, ItemsView, Iterable, Iterator, KeysView, List, Optional
+from typing import Type, Union, ValuesView, cast
 
 import pjrpc
-from pjrpc.common import v20, BatchRequest, BatchResponse, Request, Response, UNSET, UnsetType
+from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, Request, Response, UnsetType, v20
+from pjrpc.common.typedefs import JsonRpcParams, MethodType
 from pjrpc.server import utils
+from pjrpc.server.typedefs import AsyncErrorHandlerType, AsyncMiddlewareType, ErrorHandlerType, MiddlewareType
+
 from . import validators
 
 logger = logging.getLogger(__package__)
@@ -25,7 +28,7 @@ class Method:
     :param context: context name
     """
 
-    def __init__(self, method: Callable, name: Optional[str] = None, context: Optional[Any] = None):
+    def __init__(self, method: MethodType, name: Optional[str] = None, context: Optional[str] = None):
         self.method = method
         self.name = name or method.__name__
         self.context = context
@@ -34,7 +37,7 @@ class Method:
 
         self.validator, self.validator_args = meta.get('validator', default_validator), meta.get('validator_args', {})
 
-    def bind(self, params: Optional[Union[list, dict]], context: Optional[Any] = None) -> Callable:
+    def bind(self, params: Optional['JsonRpcParams'], context: Optional[Any] = None) -> MethodType:
         method_params = self.validator.validate_method(
             self.method, params, exclude=(self.context,) if self.context else (), **self.validator_args
         )
@@ -44,7 +47,7 @@ class Method:
 
         return ft.partial(self.method, **method_params)
 
-    def copy(self, **kwargs) -> 'Method':
+    def copy(self, **kwargs: Any) -> 'Method':
         cls_kwargs = dict(name=self.name, context=self.context)
         cls_kwargs.update(kwargs)
 
@@ -78,7 +81,7 @@ class ViewMethod(Method):
         self.view_cls = view_cls
         self.method_name = method_name
 
-    def bind(self, params: Optional[Union[list, dict]], context: Optional[Any] = None) -> Callable:
+    def bind(self, params: Optional['JsonRpcParams'], context: Optional[Any] = None) -> MethodType:
         view = self.view_cls(context) if self.context else self.view_cls()
         method = getattr(view, self.method_name)
 
@@ -86,7 +89,7 @@ class ViewMethod(Method):
 
         return ft.partial(method, **method_params)
 
-    def copy(self, **kwargs) -> 'ViewMethod':
+    def copy(self, **kwargs: Any) -> 'ViewMethod':
         cls_kwargs = dict(name=self.name, context=self.context)
         cls_kwargs.update(kwargs)
 
@@ -98,8 +101,11 @@ class ViewMixin:
     Simple class based method handler mixin. Exposes all public methods.
     """
 
+    def __init__(self, context: Optional[Any] = None):
+        pass
+
     @classmethod
-    def __methods__(cls):
+    def __methods__(cls) -> Generator[Callable, None, None]:
         for attr_name in filter(lambda name: not name.startswith('_'), dir(cls)):
             attr = getattr(cls, attr_name)
             if callable(attr):
@@ -155,8 +161,8 @@ class MethodRegistry:
         return self._registry.get(item)
 
     def add(
-        self, maybe_method: Optional[Callable] = None, name: Optional[str] = None, context: Optional[Any] = None,
-    ) -> Callable:
+        self, maybe_method: Optional[MethodType] = None, name: Optional[str] = None, context: Optional[Any] = None,
+    ) -> MethodType:
         """
         Decorator adding decorated method to the registry.
 
@@ -166,7 +172,7 @@ class MethodRegistry:
         :returns: decorated method or decorator
         """
 
-        def decorator(method: Callable) -> Callable:
+        def decorator(method: MethodType) -> MethodType:
             full_name = '.'.join(filter(None, (self._prefix, name or method.__name__)))
             self.add_methods(Method(method, full_name, context))
 
@@ -249,7 +255,7 @@ class JSONEncoder(pjrpc.JSONEncoder):
         return super().default(o)
 
 
-class Dispatcher:
+class BaseDispatcher:
     """
     Method dispatcher.
 
@@ -332,6 +338,39 @@ class Dispatcher:
 
         self._registry.view(view)
 
+
+class Dispatcher(BaseDispatcher):
+    """
+    Synchronous method dispatcher.
+    """
+
+    def __init__(
+        self,
+        *,
+        request_class: Type[Request] = v20.Request,
+        response_class: Type[Response] = v20.Response,
+        batch_request: Type[BatchRequest] = v20.BatchRequest,
+        batch_response: Type[BatchResponse] = v20.BatchResponse,
+        json_loader: Callable = json.loads,
+        json_dumper: Callable = json.dumps,
+        json_encoder: Type[JSONEncoder] = JSONEncoder,
+        json_decoder: Optional[Type[json.JSONDecoder]] = None,
+        middlewares: Iterable['MiddlewareType'] = (),
+        error_handlers: Dict[Union[None, int, Exception], List['ErrorHandlerType']] = {},
+    ):
+        super().__init__(
+            request_class=request_class,
+            response_class=response_class,
+            batch_request=batch_request,
+            batch_response=batch_response,
+            json_loader=json_loader,
+            json_dumper=json_dumper,
+            json_encoder=json_encoder,
+            json_decoder=json_decoder,
+            middlewares=middlewares,
+            error_handlers=error_handlers,
+        )
+
     def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[str]:
         """
         Deserializes request, dispatches it to the required method and serializes the result.
@@ -343,8 +382,10 @@ class Dispatcher:
 
         logger.getChild('request').debug("request received: %s", request_text)
 
+        response: Union[AbstractResponse, UnsetType]
         try:
             request_json = self._json_loader(request_text, cls=self._json_decoder)
+            request: Union[Request, BatchRequest]
             if isinstance(request_json, (list, tuple)):
                 request = self._batch_request.from_json(request_json)
             else:
@@ -357,30 +398,31 @@ class Dispatcher:
             response = self._response_class(id=None, error=pjrpc.exceptions.InvalidRequestError(data=str(e)))
 
         else:
-            if isinstance(request, collections.abc.Iterable):
+            if isinstance(request, BatchRequest):
                 response = self._batch_response(
-                    *filter(
-                        lambda resp: resp is not UNSET, (
-                            self._handle_request(request, context) for request in request
-                        ),
+                    *(
+                        resp for resp in (self._handle_request(request, context) for request in request)
+                        if not isinstance(resp, UnsetType)
                     )
                 )
-
             else:
                 response = self._handle_request(request, context)
 
-        if response is not UNSET:
+        if not isinstance(response, UnsetType):
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
             logger.getChild('response').debug("response sent: %s", response_text)
 
             return response_text
 
+        return None
+
     def _handle_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
         try:
-            handler = self._handle_rpc_request
+            HandlerType = Callable[[Request, Optional[Any]], Union[UnsetType, Response]]
+            handler: HandlerType = self._handle_rpc_request
 
             for middleware in reversed(self._middlewares):
-                handler = ft.partial(middleware, handler=handler)
+                handler = cast(HandlerType, ft.partial(middleware, handler=handler))
 
             return handler(request, context)
 
@@ -392,8 +434,8 @@ class Dispatcher:
             logger.exception("internal server error: %r", e)
             error = pjrpc.exceptions.InternalError()
 
-        for handler in it.chain(self._error_handlers.get(None, []), self._error_handlers.get(error.code, [])):
-            error = handler(request, context, error)
+        for error_handler in it.chain(self._error_handlers.get(None, []), self._error_handlers.get(error.code, [])):
+            error = error_handler(request, context, error)
 
         if request.id is None:
             return UNSET
@@ -407,18 +449,23 @@ class Dispatcher:
 
         return self._response_class(id=request.id, result=result)
 
-    def _handle_rpc_method(self, method_name: str, params: Optional[Union[list, dict]], context: Optional[Any]) -> Any:
+    def _handle_rpc_method(
+        self,
+        method_name: str,
+        params: Optional[JsonRpcParams],
+        context: Optional[Any],
+    ) -> Any:
         method = self._registry.get(method_name)
         if method is None:
             raise pjrpc.exceptions.MethodNotFoundError(data=f"method '{method_name}' not found")
 
         try:
-            method = method.bind(params, context=context)
+            bound_method = method.bind(params, context=context)
         except validators.ValidationError as e:
             raise pjrpc.exceptions.InvalidParamsError(data=e) from e
 
         try:
-            return method()
+            return bound_method()
 
         except pjrpc.exceptions.JsonRpcError:
             raise
@@ -428,10 +475,37 @@ class Dispatcher:
             raise pjrpc.exceptions.ServerError() from e
 
 
-class AsyncDispatcher(Dispatcher):
+class AsyncDispatcher(BaseDispatcher):
     """
     Asynchronous method dispatcher.
     """
+
+    def __init__(
+        self,
+        *,
+        request_class: Type[Request] = v20.Request,
+        response_class: Type[Response] = v20.Response,
+        batch_request: Type[BatchRequest] = v20.BatchRequest,
+        batch_response: Type[BatchResponse] = v20.BatchResponse,
+        json_loader: Callable = json.loads,
+        json_dumper: Callable = json.dumps,
+        json_encoder: Type[JSONEncoder] = JSONEncoder,
+        json_decoder: Optional[Type[json.JSONDecoder]] = None,
+        middlewares: Iterable['AsyncMiddlewareType'] = (),
+        error_handlers: Dict[Union[None, int, Exception], List['AsyncErrorHandlerType']] = {},
+    ):
+        super().__init__(
+            request_class=request_class,
+            response_class=response_class,
+            batch_request=batch_request,
+            batch_response=batch_response,
+            json_loader=json_loader,
+            json_dumper=json_dumper,
+            json_encoder=json_encoder,
+            json_decoder=json_decoder,
+            middlewares=middlewares,
+            error_handlers=error_handlers,
+        )
 
     async def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[str]:
         """
@@ -444,8 +518,10 @@ class AsyncDispatcher(Dispatcher):
 
         logger.getChild('request').debug("request received: %s", request_text)
 
+        response: Union[AbstractResponse, UnsetType]
         try:
             request_json = self._json_loader(request_text, cls=self._json_decoder)
+            request: Union[Request, BatchRequest]
             if isinstance(request_json, (list, tuple)):
                 request = self._batch_request.from_json(request_json)
             else:
@@ -458,7 +534,7 @@ class AsyncDispatcher(Dispatcher):
             response = self._response_class(id=None, error=pjrpc.exceptions.InvalidRequestError(data=str(e)))
 
         else:
-            if isinstance(request, collections.Iterable):
+            if isinstance(request, BatchRequest):
                 response = self._batch_response(
                     *filter(
                         lambda resp: resp is not UNSET, await asyncio.gather(
@@ -470,18 +546,21 @@ class AsyncDispatcher(Dispatcher):
             else:
                 response = await self._handle_request(request, context)
 
-        if response is not UNSET:
+        if not isinstance(response, UnsetType):
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
             logger.getChild('response').debug("response sent: %s", response_text)
 
             return response_text
 
+        return None
+
     async def _handle_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
         try:
-            handler = self._handle_rpc_request
+            HandlerType = Callable[[Request, Optional[Any]], Awaitable[Union[UnsetType, Response]]]
+            handler: HandlerType = self._handle_rpc_request
 
             for middleware in reversed(self._middlewares):
-                handler = ft.partial(middleware, handler=handler)
+                handler = cast(HandlerType, ft.partial(middleware, handler=handler))
 
             return await handler(request, context)
 
@@ -493,8 +572,8 @@ class AsyncDispatcher(Dispatcher):
             logger.exception("internal server error: %r", e)
             error = pjrpc.exceptions.InternalError()
 
-        for handler in it.chain(self._error_handlers.get(None, []), self._error_handlers.get(error.code, [])):
-            error = await handler(request, context, error)
+        for error_handler in it.chain(self._error_handlers.get(None, []), self._error_handlers.get(error.code, [])):
+            error = await error_handler(request, context, error)
 
         if request.id is None:
             return UNSET
@@ -509,19 +588,19 @@ class AsyncDispatcher(Dispatcher):
         return self._response_class(id=request.id, result=result)
 
     async def _handle_rpc_method(
-        self, method_name: str, params: Optional[Union[list, dict]], context: Optional[Any],
+        self, method_name: str, params: Optional[JsonRpcParams], context: Optional[Any],
     ) -> Any:
         method = self._registry.get(method_name)
         if method is None:
             raise pjrpc.exceptions.MethodNotFoundError(data=f"method '{method_name}' not found")
 
         try:
-            method = method.bind(params, context=context)
+            bound_method = method.bind(params, context=context)
         except validators.ValidationError as e:
             raise pjrpc.exceptions.InvalidParamsError(data=e) from e
 
         try:
-            result = method()
+            result = bound_method()
             if asyncio.iscoroutine(result):
                 result = await result
 

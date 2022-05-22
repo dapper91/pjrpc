@@ -1,6 +1,6 @@
 import functools as ft
 import json
-from typing import Any, List, Optional
+from typing import Any, Callable, List, Optional, cast
 
 import django.utils.functional
 import django.utils.log
@@ -12,13 +12,14 @@ from django.utils.module_loading import import_string
 from django.views.decorators.csrf import csrf_exempt
 
 import pjrpc.server
+from pjrpc.common.typedefs import Func
 from pjrpc.server import specs, utils
 
 
-def require_http_methods(request_method_list):
-    def decorator(func):
+def require_http_methods(request_method_list: List[str]) -> Callable[[Func], Func]:
+    def decorator(func: Func) -> Func:
         @ft.wraps(func)
-        def inner(self, request, *args, **kwargs):
+        def inner(self: 'JsonRPCSite', request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
             if request.method not in request_method_list:
                 response = HttpResponseNotAllowed(request_method_list)
                 django.utils.log.log_response(
@@ -28,7 +29,7 @@ def require_http_methods(request_method_list):
                 )
                 return response
             return func(self, request, *args, **kwargs)
-        return inner
+        return cast(Func, inner)
     return decorator
 
 
@@ -68,6 +69,8 @@ class JsonRPCSite:
 
     @require_http_methods(['GET'])
     def _generate_spec(self, request: HttpRequest) -> HttpResponse:
+        assert self._spec is not None, "spec is not set"
+
         endpoint_path = utils.remove_suffix(request.path, suffix=self._spec.path)
         schema = self._spec.schema(path=endpoint_path, methods=self._dispatcher.registry.values())
 
@@ -78,6 +81,8 @@ class JsonRPCSite:
 
     @require_http_methods(['GET'])
     def _ui_index_page(self, request: HttpRequest) -> HttpResponse:
+        assert self._spec is not None and self._spec.ui is not None, "spec is not set"
+
         app_path = request.path.rsplit(self._spec.ui_path, maxsplit=1)[0]
         spec_full_path = utils.join_path(app_path, self._spec.path)
 
@@ -109,7 +114,7 @@ class JsonRPCSite:
 
 
 class JsonRPCSites(django.utils.functional.LazyObject):
-    def _setup(self):
+    def _setup(self) -> None:
         self._wrapped = []
 
         for path, endpoint in getattr(settings, 'JSONRPC_ENDPOINTS', {}).items():

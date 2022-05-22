@@ -1,11 +1,11 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import kombu.mixins
 
 import pjrpc
-from pjrpc.common import UNSET
 from pjrpc.client import AbstractClient
+from pjrpc.common import UNSET, UnsetType
 
 logger = logging.getLogger(__package__)
 
@@ -87,6 +87,7 @@ class Client(AbstractClient):
         )
 
         with kombu.Producer(self._connection) as producer:
+            result_queue.declare(channel=self._connection.default_channel)
             producer.publish(
                 request_text,
                 exchange=self._exchange or '',
@@ -97,7 +98,7 @@ class Client(AbstractClient):
                 **kwargs,
             )
 
-        response = UNSET
+        response: Optional[Union[UnsetType, str, Exception]] = UNSET
 
         def on_response(message: kombu.Message) -> None:
             nonlocal response
@@ -121,4 +122,5 @@ class Client(AbstractClient):
         if isinstance(response, Exception):
             raise response
 
+        assert not isinstance(response, UnsetType), "response is unset"
         return response

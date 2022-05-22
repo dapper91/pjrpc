@@ -1,8 +1,10 @@
 import functools as ft
 import inspect
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import pydantic
+
+from pjrpc.common.typedefs import JsonRpcParams
 
 from . import base
 
@@ -25,7 +27,7 @@ class PydanticValidator(base.BaseValidator):
         self._model_config = type('ModelConfig', (pydantic.BaseConfig,), config_args)
 
     def validate_method(
-        self, method: Callable, params: Optional[Union[list, dict]], exclude: Iterable[str] = (), **kwargs: Any,
+        self, method: Callable, params: Optional['JsonRpcParams'], exclude: Iterable[str] = (), **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Validates params against method using ``pydantic`` validator.
@@ -38,7 +40,7 @@ class PydanticValidator(base.BaseValidator):
         :raises: ValidationError
         """
 
-        signature = self.signature(method, exclude)
+        signature = self.signature(method, tuple(exclude))
         schema = self.build_validation_schema(signature)
 
         params_model = pydantic.create_model(method.__name__, **schema, __config__=self._model_config)
@@ -65,12 +67,14 @@ class PydanticValidator(base.BaseValidator):
         for param in signature.parameters.values():
             if param.kind is inspect.Parameter.VAR_KEYWORD:
                 field_definitions[param.name] = (
-                    Optional[Dict[str, param.annotation]] if param.annotation is not inspect.Parameter.empty else Any,
+                    Optional[Dict[str, param.annotation]]  # type: ignore
+                    if param.annotation is not inspect.Parameter.empty else Any,
                     param.default if param.default is not inspect.Parameter.empty else None,
                 )
             elif param.kind is inspect.Parameter.VAR_POSITIONAL:
                 field_definitions[param.name] = (
-                    Optional[List[param.annotation]] if param.annotation is not inspect.Parameter.empty else Any,
+                    Optional[List[param.annotation]]  # type: ignore
+                    if param.annotation is not inspect.Parameter.empty else Any,
                     param.default if param.default is not inspect.Parameter.empty else None,
                 )
             else:

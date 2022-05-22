@@ -1,8 +1,13 @@
 import pjrpc
 from pjrpc.client.backend import kombu as pjrpc_client
 
-
-client = pjrpc_client.Client('amqp://guest:guest@localhost:5672/v1', 'jsonrpc')
+client = pjrpc_client.Client(
+    'amqp://guest:guest@localhost:5672/v1',
+    'jsonrpc',
+    # Compatible with queue of examples/aio_pika_*
+    # and works better with examples/kombu_server.py:
+    result_queue_args={"durable": False},
+)
 
 
 response: pjrpc.Response = client.send(pjrpc.Request('sum', params=[1, 2], id=1))

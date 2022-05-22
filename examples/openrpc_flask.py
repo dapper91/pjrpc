@@ -5,11 +5,12 @@ import flask
 import pydantic
 from flask_cors import CORS
 
-import pjrpc.server.specs.extractors.pydantic
 import pjrpc.server.specs.extractors.docstring
+import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import flask as integration
+from pjrpc.server.specs import extractors
+from pjrpc.server.specs import openrpc as specs
 from pjrpc.server.validators import pydantic as validators
-from pjrpc.server.specs import extractors, openrpc as specs
 
 app = flask.Flask(__name__)
 CORS(app, resources={r"/api/v1/*": {"origins": "*"}})

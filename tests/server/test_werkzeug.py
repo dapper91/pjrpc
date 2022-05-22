@@ -1,11 +1,11 @@
 import json
-import werkzeug
+
 import pytest
+import werkzeug
 
 from pjrpc import exc
 from pjrpc.common import v20
 from pjrpc.server.integration import werkzeug as integration
-
 from tests.common import _
 
 
@@ -40,10 +40,14 @@ def test_request(json_rpc, path, mocker, request_id, params, result):
     json_rpc.dispatcher.add(mock, method_name)
 
     cli = werkzeug.test.Client(json_rpc)
-    body_iter, code, header = cli.post(
+    test_response = cli.post(
         path, json=v20.Request(method=method_name, params=params, id=request_id).to_json(),
     )
-    body = b''.join(body_iter)
+    if type(test_response) == tuple:  # werkzeug 1.0
+        body_iter, code, header = test_response
+        body = b''.join(body_iter)
+    else:  # werkzeug >= 2.1
+        body, code = (test_response.data, test_response.status)
     assert code == '200 OK'
 
     resp = v20.Response.from_json(json.loads(body))
@@ -65,8 +69,14 @@ def test_notify(json_rpc, path, mocker):
     json_rpc.dispatcher.add(mock, method_name)
 
     cli = werkzeug.test.Client(json_rpc)
-    body_iter, code, header = cli.post(path, json=v20.Request(method=method_name, params=params).to_json())
-    body = b''.join(body_iter)
+    test_response = cli.post(
+        path, json=v20.Request(method=method_name, params=params).to_json(),
+    )
+    if type(test_response) == tuple:  # werkzeug 1.0
+        body_iter, code, header = test_response
+        body = b''.join(body_iter)
+    else:  # werkzeug >= 2.1
+        body, code = (test_response.data, test_response.status)
     assert code == '200 OK'
     assert body == b''
 
@@ -85,10 +95,14 @@ def test_errors(json_rpc, path, mocker):
 
     cli = werkzeug.test.Client(json_rpc)
     # method not found
-    body_iter, code, header = cli.post(
+    test_response = cli.post(
         path, json=v20.Request(method='unknown_method', params=params, id=request_id).to_json(),
     )
-    body = b''.join(body_iter)
+    if type(test_response) == tuple:  # werkzeug 1.0
+        body_iter, code, header = test_response
+        body = b''.join(body_iter)
+    else:  # werkzeug >= 2.1
+        body, code = (test_response.data, test_response.status)
     assert code == '200 OK'
 
     resp = v20.Response.from_json(json.loads(body))
@@ -97,10 +111,14 @@ def test_errors(json_rpc, path, mocker):
     assert resp.error == exc.MethodNotFoundError(data="method 'unknown_method' not found")
 
     # customer error
-    body_iter, code, header = cli.post(
+    test_response = cli.post(
         path, json=v20.Request(method=method_name, params=params, id=request_id).to_json(),
     )
-    body = b''.join(body_iter)
+    if type(test_response) == tuple:  # werkzeug 1.0
+        body_iter, code, header = test_response
+        body = b''.join(body_iter)
+    else:  # werkzeug >= 2.1
+        body, code = (test_response.data, test_response.status)
     assert code == '200 OK'
 
     resp = v20.Response.from_json(json.loads(body))
@@ -110,8 +128,14 @@ def test_errors(json_rpc, path, mocker):
     assert resp.error == exc.JsonRpcError(code=1, message='message')
 
     # malformed json
-    body_iter, code, header = cli.post(path, headers={'Content-Type': 'application/json'}, data='')
-    body = b''.join(body_iter)
+    test_response = cli.post(
+        path, headers={'Content-Type': 'application/json'}, data='',
+    )
+    if type(test_response) == tuple:  # werkzeug 1.0
+        body_iter, code, header = test_response
+        body = b''.join(body_iter)
+    else:
+        body, code = (test_response.data, test_response.status)
     assert code == '200 OK'
     resp = v20.Response.from_json(json.loads(body))
     assert resp.id is None

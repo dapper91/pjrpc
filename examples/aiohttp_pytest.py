@@ -1,9 +1,10 @@
-import pytest
 from unittest import mock
 
+import pytest
+
 import pjrpc
-from pjrpc.client.integrations.pytest import PjRpcAiohttpMocker
 from pjrpc.client.backend import aiohttp as aiohttp_client
+from pjrpc.client.integrations.pytest import PjRpcAiohttpMocker
 
 
 async def test_using_fixture(pjrpc_aiohttp_mocker):

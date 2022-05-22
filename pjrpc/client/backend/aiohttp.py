@@ -1,4 +1,5 @@
 from typing import Any, Dict, Optional
+
 from aiohttp import client
 
 import pjrpc
@@ -62,5 +63,5 @@ class Client(AbstractAsyncClient):
         await self._session.__aenter__()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        await self._session.__aexit__(exc_type, exc_val, exc_tb)
+    async def __aexit__(self, *args: Any) -> None:
+        await self._session.__aexit__(*args)

@@ -1,8 +1,8 @@
 import asyncio
 
 import opentracing
-from opentracing import tags
 from aiohttp import web
+from opentracing import tags
 
 import pjrpc.server
 from pjrpc.server.integration import aiohttp

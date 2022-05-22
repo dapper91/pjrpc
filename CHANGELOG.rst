@@ -1,6 +1,18 @@
 Changelog
 =========
 
+
+1.5.0 (2022-05-22)
+------------------
+
+- python 3.10 support added
+- pipenv replaced by poetry
+- mypy type checker added
+- kombu client hanging bug fixed
+- openapi json-rpc versions reordered so that version 2.0 will be the default example version
+- set_default_content_type function exposed
+- documentation fixed
+
 1.4.1 (2022-03-06)
 ------------------
 

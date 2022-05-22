@@ -1,10 +1,11 @@
 import dataclasses as dc
 import inspect
 import itertools as it
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from pjrpc.common import UNSET, UnsetType
 from pjrpc.common.exceptions import JsonRpcError
+from pjrpc.common.typedefs import MethodType
 
 
 @dc.dataclass(frozen=True)
@@ -15,10 +16,10 @@ class Schema:
 
     schema: Dict[str, Any]
     required: bool = True
-    summary: str = UNSET
-    description: str = UNSET
-    deprecated: bool = UNSET
-    definitions: Dict[str, Any] = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
+    deprecated: Union[bool, UnsetType] = UNSET
+    definitions: Union[Dict[str, Any], UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -30,8 +31,8 @@ class Example:
     params: Dict[str, Any]
     result: Any
     version: str = '2.0'
-    summary: str = UNSET
-    description: str = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -42,9 +43,9 @@ class ErrorExample:
 
     code: int
     message: str
-    data: Optional[Any] = UNSET
-    summary: str = UNSET
-    description: str = UNSET
+    data: Union[Optional[Any], UnsetType] = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -54,8 +55,8 @@ class Tag:
     """
 
     name: str
-    description: str = UNSET
-    externalDocs: str = UNSET
+    description: Union[str, UnsetType] = UNSET
+    externalDocs: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -66,12 +67,12 @@ class Error:
 
     code: int
     message: str
-    data: Dict[str, Any] = UNSET
-    data_required: bool = UNSET
-    title: str = UNSET
-    description: str = UNSET
-    deprecated: bool = UNSET
-    definitions: Dict[str, Any] = UNSET
+    data: Union[Dict[str, Any], UnsetType] = UNSET
+    data_required: Union[bool, UnsetType] = UNSET
+    title: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
+    deprecated: Union[bool, UnsetType] = UNSET
+    definitions: Union[Dict[str, Any], UnsetType] = UNSET
 
 
 class BaseSchemaExtractor:
@@ -79,25 +80,26 @@ class BaseSchemaExtractor:
     Base method schema extractor.
     """
 
-    def extract_params_schema(self, method: Callable, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
+    def extract_params_schema(self, method: MethodType, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
         """
         Extracts method parameters schema.
         """
 
         return {}
 
-    def extract_result_schema(self, method: Callable) -> Schema:
+    def extract_result_schema(self, method: MethodType) -> Schema:
         """
         Extracts method result schema.
         """
 
         return Schema(schema={})
 
-    def extract_description(self, method: Callable) -> Union[UnsetType, str]:
+    def extract_description(self, method: MethodType) -> Union[UnsetType, str]:
         """
         Extracts method description.
         """
 
+        description: Union[UnsetType, str]
         if method.__doc__:
             doc = inspect.cleandoc(method.__doc__)
             description = '\n'.join(it.takewhile(lambda line: line, doc.split('\n')))
@@ -106,13 +108,15 @@ class BaseSchemaExtractor:
 
         return description
 
-    def extract_summary(self, method: Callable) -> Union[UnsetType, str]:
+    def extract_summary(self, method: MethodType) -> Union[UnsetType, str]:
         """
         Extracts method summary.
         """
 
         description = self.extract_description(method)
-        if description:
+
+        summary: Union[UnsetType, str]
+        if not isinstance(description, UnsetType):
             summary = description.split('.')[0]
         else:
             summary = UNSET
@@ -121,8 +125,8 @@ class BaseSchemaExtractor:
 
     def extract_errors_schema(
         self,
-        method: Callable,
-        errors: Optional[Iterable[JsonRpcError]] = None,
+        method: MethodType,
+        errors: Optional[Iterable[Type[JsonRpcError]]] = None,
     ) -> Union[UnsetType, List[Error]]:
         """
         Extracts method errors schema.
@@ -130,14 +134,14 @@ class BaseSchemaExtractor:
 
         return UNSET
 
-    def extract_tags(self, method: Callable) -> Union[UnsetType, List[Tag]]:
+    def extract_tags(self, method: MethodType) -> Union[UnsetType, List[Tag]]:
         """
         Extracts method tags.
         """
 
         return UNSET
 
-    def extract_examples(self, method: Callable) -> Union[UnsetType, List[Example]]:
+    def extract_examples(self, method: MethodType) -> Union[UnsetType, List[Example]]:
         """
         Extracts method usage examples.
         """
@@ -146,8 +150,8 @@ class BaseSchemaExtractor:
 
     def extract_error_examples(
         self,
-        method: Callable,
-        errors: Optional[Iterable[JsonRpcError]] = None,
+        method: MethodType,
+        errors: Optional[Iterable[Type[JsonRpcError]]] = None,
     ) -> Union[UnsetType, List[ErrorExample]]:
         """
         Extracts method error examples.
@@ -158,7 +162,7 @@ class BaseSchemaExtractor:
             for error in errors
         ] if errors else UNSET
 
-    def extract_deprecation_status(self, method: Callable) -> Union[UnsetType, bool]:
+    def extract_deprecation_status(self, method: MethodType) -> Union[UnsetType, bool]:
         """
         Extracts method deprecation status.
         """

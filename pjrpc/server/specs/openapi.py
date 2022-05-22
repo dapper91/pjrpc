@@ -12,23 +12,21 @@ import enum
 import functools as ft
 import pathlib
 import re
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, Union
 
-from pjrpc.common import exceptions
-from pjrpc.server import utils, Method
+from pjrpc.common import UNSET, UnsetType, exceptions
+from pjrpc.common.typedefs import Func
+from pjrpc.server import Method, utils
 
-from pjrpc.common import UNSET
-from . import extractors
-from .extractors import Schema, ErrorExample, Error
-from . import BaseUI, Specification
+from . import BaseUI, Specification, extractors
+from .extractors import Error, ErrorExample, Schema
 
-
-RESULT_SCHEMA = {
+RESULT_SCHEMA: Dict[str, Any] = {
     'type': 'object',
     'properties': {
         'jsonrpc': {
             'type': 'string',
-            'enum': ['1.0', '2.0'],
+            'enum': ['2.0', '1.0'],
         },
         'id': {
             'anyOf': [
@@ -43,12 +41,12 @@ RESULT_SCHEMA = {
     'description': 'JSON-RPC success',
 }
 
-ERROR_SCHEMA = {
+ERROR_SCHEMA: Dict[str, Any] = {
     'type': 'object',
     'properties': {
         'jsonrpc': {
             'type': 'string',
-            'enum': ['1.0', '2.0'],
+            'enum': ['2.0', '1.0'],
         },
         'id': {
             'anyOf': [
@@ -71,19 +69,19 @@ ERROR_SCHEMA = {
     'description': 'JSON-RPC error',
 }
 
-RESPONSE_SCHEMA = {
+RESPONSE_SCHEMA: Dict[str, Any] = {
     'oneOf': [RESULT_SCHEMA, ERROR_SCHEMA],
 }
 
 RESULT_SCHEMA_IDX = 0
 ERROR_SCHEMA_IDX = 1
 
-REQUEST_SCHEMA = {
+REQUEST_SCHEMA: Dict[str, Any] = {
     'type': 'object',
     'properties': {
         'jsonrpc': {
             'type': 'string',
-            'enum': ['1.0', '2.0'],
+            'enum': ['2.0', '1.0'],
         },
         'id': {
             'anyOf': [
@@ -106,7 +104,7 @@ JSONRPC_HTTP_CODE = '200'
 JSONRPC_MEDIATYPE = 'application/json'
 
 
-def drop_unset(obj: Any):
+def drop_unset(obj: Any) -> Any:
     if isinstance(obj, dict):
         return dict((drop_unset(k), drop_unset(v)) for k, v in obj.items() if k is not UNSET and v is not UNSET)
     if isinstance(obj, (tuple, list, set)):
@@ -125,9 +123,9 @@ class Contact:
     :param email: the email address of the contact person/organization
     """
 
-    name: str = UNSET
-    url: str = UNSET
-    email: str = UNSET
+    name: Union[str, UnsetType] = UNSET
+    url: Union[str, UnsetType] = UNSET
+    email: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -140,7 +138,7 @@ class License:
     """
 
     name: str
-    url: str = UNSET
+    url: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -158,10 +156,10 @@ class Info:
 
     title: str
     version: str
-    description: str = UNSET
-    contact: Contact = UNSET
-    license: License = UNSET
-    termsOfService: str = UNSET
+    description: Union[str, UnsetType] = UNSET
+    contact: Union[Contact, UnsetType] = UNSET
+    license: Union[License, UnsetType] = UNSET
+    termsOfService: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -175,8 +173,8 @@ class ServerVariable:
     """
 
     default: str
-    enum: List[str] = UNSET
-    description: str = UNSET
+    enum: Union[List[str], UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -189,8 +187,8 @@ class Server:
     """
 
     url: str
-    description: str = UNSET
-    variables: Dict[str, ServerVariable] = UNSET
+    description: Union[str, UnsetType] = UNSET
+    variables: Union[Dict[str, ServerVariable], UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -203,7 +201,7 @@ class ExternalDocumentation:
     """
 
     url: str
-    description: str = UNSET
+    description: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -218,8 +216,8 @@ class Tag:
     """
 
     name: str
-    description: str = UNSET
-    externalDocs: ExternalDocumentation = UNSET
+    description: Union[str, UnsetType] = UNSET
+    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
 
 
 class SecuritySchemeType(str, enum.Enum):
@@ -257,7 +255,7 @@ class OAuthFlow:
     authorizationUrl: str
     tokenUrl: str
     scopes: Dict[str, str]
-    refreshUrl: str = UNSET
+    refreshUrl: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -271,10 +269,10 @@ class OAuthFlows:
     :param authorizationCode: configuration for the OAuth Authorization Code flow
     """
 
-    implicit: OAuthFlow = UNSET
-    password: OAuthFlow = UNSET
-    clientCredentials: OAuthFlow = UNSET
-    authorizationCode: OAuthFlow = UNSET
+    implicit: Union[OAuthFlow, UnsetType] = UNSET
+    password: Union[OAuthFlow, UnsetType] = UNSET
+    clientCredentials: Union[OAuthFlow, UnsetType] = UNSET
+    authorizationCode: Union[OAuthFlow, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -294,14 +292,14 @@ class SecurityScheme:
 
     type: SecuritySchemeType
     scheme: str
-    name: str = UNSET
-    location: ApiKeyLocation = UNSET  # `in` field
-    bearerFormat: str = UNSET
-    flows: OAuthFlows = UNSET
-    openIdConnectUrl: str = UNSET
-    description: str = UNSET
+    name: Union[str, UnsetType] = UNSET
+    location: Union[ApiKeyLocation, UnsetType] = UNSET  # `in` field
+    bearerFormat: Union[str, UnsetType] = UNSET
+    flows: Union[OAuthFlows, UnsetType] = UNSET
+    openIdConnectUrl: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # `in` field name is not allowed in python
         self.__dict__['in'] = self.__dict__['location']
         self.__dataclass_fields__['location'].name = 'in'  # noqa
@@ -316,7 +314,7 @@ class Components:
     :param schemas: the definition of input and output data types
     """
 
-    securitySchemes: Dict[str, SecurityScheme] = UNSET
+    securitySchemes: Union[Dict[str, SecurityScheme], UnsetType] = UNSET
     schemas: Dict[str, Dict[str, Any]] = dc.field(default_factory=dict)
 
 
@@ -335,8 +333,8 @@ class MethodExample:
     params: Dict[str, Any]
     result: Any
     version: str = '2.0'
-    summary: str = UNSET
-    description: str = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -351,9 +349,9 @@ class ExampleObject:
     """
 
     value: Any
-    summary: str = UNSET
-    description: str = UNSET
-    externalValue: str = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
+    externalValue: Union[str, UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -366,7 +364,7 @@ class MediaType:
     """
 
     schema: Dict[str, Any]
-    examples: Dict[str, ExampleObject] = UNSET
+    examples: Union[Dict[str, ExampleObject], UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -379,7 +377,7 @@ class Response:
     """
 
     description: str
-    content: Dict[str, MediaType] = UNSET
+    content: Union[Dict[str, MediaType], UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -393,8 +391,8 @@ class RequestBody:
     """
 
     content: Dict[str, MediaType]
-    required: bool = UNSET
-    description: str = UNSET
+    required: Union[bool, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
 
 
 class ParameterLocation(str, enum.Enum):
@@ -445,18 +443,18 @@ class Parameter:
 
     name: str
     location: ParameterLocation  # `in` field
-    description: str = UNSET
-    required: bool = UNSET
-    deprecated: bool = UNSET
-    allowEmptyValue: bool = UNSET
-    style: StyleType = UNSET
-    explode: bool = UNSET
-    allowReserved: bool = UNSET
-    schema: Dict[str, Any] = UNSET
-    examples:  Dict[str, ExampleObject] = UNSET
-    content: Dict[str, MediaType] = UNSET
+    description: Union[str, UnsetType] = UNSET
+    required: Union[bool, UnsetType] = UNSET
+    deprecated: Union[bool, UnsetType] = UNSET
+    allowEmptyValue: Union[bool, UnsetType] = UNSET
+    style: Union[StyleType, UnsetType] = UNSET
+    explode: Union[bool, UnsetType] = UNSET
+    allowReserved: Union[bool, UnsetType] = UNSET
+    schema: Union[Dict[str, Any], UnsetType] = UNSET
+    examples:  Union[Dict[str, ExampleObject], UnsetType] = UNSET
+    content: Union[Dict[str, MediaType], UnsetType] = UNSET
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # `in` field name is not allowed in python
         self.__dict__['in'] = self.__dict__['location']
         self.__dataclass_fields__['location'].name = 'in'  # noqa
@@ -479,15 +477,15 @@ class Operation:
     """
 
     responses: Dict[str, Response]
-    requestBody: RequestBody = UNSET
-    tags: List[str] = UNSET
-    summary: str = UNSET
-    description: str = UNSET
-    externalDocs: ExternalDocumentation = UNSET
-    deprecated: bool = UNSET
-    servers: List[Server] = UNSET
-    security: List[Dict[str, List[str]]] = UNSET
-    parameters: List[Parameter] = UNSET
+    requestBody: Union[RequestBody, UnsetType] = UNSET
+    tags: Union[List[str], UnsetType] = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
+    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
+    deprecated: Union[bool, UnsetType] = UNSET
+    servers: Union[List[Server], UnsetType] = UNSET
+    security: Union[List[Dict[str, List[str]]], UnsetType] = UNSET
+    parameters: Union[List[Parameter], UnsetType] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -500,34 +498,34 @@ class Path:
     :param servers: an alternative server array to service all operations in this path
     """
 
-    get: Operation = UNSET
-    put: Operation = UNSET
-    post: Operation = UNSET
-    delete: Operation = UNSET
-    options: Operation = UNSET
-    head: Operation = UNSET
-    patch: Operation = UNSET
-    trace: Operation = UNSET
-    summary: str = UNSET
-    description: str = UNSET
-    servers: List[Server] = UNSET
+    get: Union[Operation, UnsetType] = UNSET
+    put: Union[Operation, UnsetType] = UNSET
+    post: Union[Operation, UnsetType] = UNSET
+    delete: Union[Operation, UnsetType] = UNSET
+    options: Union[Operation, UnsetType] = UNSET
+    head: Union[Operation, UnsetType] = UNSET
+    patch: Union[Operation, UnsetType] = UNSET
+    trace: Union[Operation, UnsetType] = UNSET
+    summary: Union[str, UnsetType] = UNSET
+    description: Union[str, UnsetType] = UNSET
+    servers: Union[List[Server], UnsetType] = UNSET
 
 
 def annotate(
-    params_schema: Dict[str, Schema] = UNSET,
-    result_schema: Schema = UNSET,
-    errors_schema: List[Error] = UNSET,
-    errors: List[Type[exceptions.JsonRpcError]] = UNSET,
-    examples: List[MethodExample] = UNSET,
-    error_examples: List[ErrorExample] = UNSET,
-    tags: List[str] = UNSET,
-    summary: str = UNSET,
-    description: str = UNSET,
-    external_docs: ExternalDocumentation = UNSET,
-    deprecated: bool = UNSET,
-    security: List[Dict[str, List[str]]] = UNSET,
-    parameters: List[Parameter] = UNSET,
-):
+    params_schema: Union[Dict[str, Schema], UnsetType] = UNSET,
+    result_schema: Union[Schema, UnsetType] = UNSET,
+    errors_schema: Union[List[Error], UnsetType] = UNSET,
+    errors: Union[List[Type[exceptions.JsonRpcError]], UnsetType] = UNSET,
+    examples: Union[List[MethodExample], UnsetType] = UNSET,
+    error_examples: Union[List[ErrorExample], UnsetType] = UNSET,
+    tags: Union[List[str], UnsetType] = UNSET,
+    summary: Union[str, UnsetType] = UNSET,
+    description: Union[str, UnsetType] = UNSET,
+    external_docs: Union[ExternalDocumentation, UnsetType] = UNSET,
+    deprecated: Union[bool, UnsetType] = UNSET,
+    security: Union[List[Dict[str, List[str]]], UnsetType] = UNSET,
+    parameters: Union[List[Parameter], UnsetType] = UNSET,
+) -> Callable[[Func], Func]:
     """
     Adds Open Api specification annotation to the method.
 
@@ -546,7 +544,7 @@ def annotate(
     :param parameters: a list of parameters that are applicable for the method
     """
 
-    def decorator(method: Callable) -> Callable:
+    def decorator(method: Func) -> Func:
         utils.set_meta(
             method,
             openapi_spec=dict(
@@ -556,7 +554,7 @@ def annotate(
                 errors=errors,
                 examples=examples,
                 error_examples=error_examples,
-                tags=[Tag(name=tag) for tag in tags] if tags else UNSET,
+                tags=[Tag(name=tag) for tag in tags] if not isinstance(tags, UnsetType) else UNSET,
                 summary=summary,
                 description=description,
                 external_docs=external_docs,
@@ -593,22 +591,22 @@ class OpenAPI(Specification):
 
     info: Info
     paths: Dict[str, Path]
-    servers: List[Server] = UNSET
-    externalDocs: ExternalDocumentation = UNSET
-    tags: List[Tag] = UNSET
-    security: List[Dict[str, List[str]]] = UNSET
-    components: Components = UNSET
+    components: Components
+    servers: Union[List[Server], UnsetType] = UNSET
+    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
+    tags: Union[List[Tag], UnsetType] = UNSET
+    security: Union[List[Dict[str, List[str]]], UnsetType] = UNSET
     openapi: str = '3.0.0'
 
     def __init__(
         self,
         info: Info,
         path: str = '/openapi.json',
-        servers: List[Server] = UNSET,
-        external_docs: Optional[ExternalDocumentation] = UNSET,
-        tags: List[Tag] = UNSET,
-        security: List[Dict[str, List[str]]] = UNSET,
-        security_schemes: Dict[str, SecurityScheme] = UNSET,
+        servers: Union[List[Server], UnsetType] = UNSET,
+        external_docs: Union[ExternalDocumentation, UnsetType] = UNSET,
+        tags: Union[List[Tag], UnsetType] = UNSET,
+        security: Union[List[Dict[str, List[str]]], UnsetType] = UNSET,
+        security_schemes: Union[Dict[str, SecurityScheme], UnsetType] = UNSET,
         openapi: str = '3.0.0',
         schema_extractor: Optional[extractors.BaseSchemaExtractor] = None,
         schema_extractors: Iterable[extractors.BaseSchemaExtractor] = (),
@@ -628,7 +626,12 @@ class OpenAPI(Specification):
 
         self._schema_extractors = list(schema_extractors) or [schema_extractor or extractors.BaseSchemaExtractor()]
 
-    def schema(self, path: str, methods: Iterable[Method] = (), methods_map: Dict[str, Iterable[Method]] = {}) -> dict:
+    def schema(
+        self,
+        path: str,
+        methods: Iterable[Method] = (),
+        methods_map: Mapping[str, Iterable[Method]] = {},
+    ) -> dict:
         methods_list: List[Tuple[str, Method]] = []
         methods_list.extend((path, method) for method in methods)
         methods_list.extend(
@@ -660,7 +663,10 @@ class OpenAPI(Specification):
             for schema_extractor in self._schema_extractors:
                 specs.append(
                     dict(
-                        params_schema=schema_extractor.extract_params_schema(method.method, exclude=[method.context]),
+                        params_schema=schema_extractor.extract_params_schema(
+                            method.method,
+                            exclude=[method.context] if method.context else [],
+                        ),
                         result_schema=schema_extractor.extract_result_schema(method.method),
                         errors_schema=schema_extractor.extract_errors_schema(
                             method.method, annotated_spec.get('errors') or [],
@@ -680,7 +686,7 @@ class OpenAPI(Specification):
             request_schema = self._build_request_schema(method.name, method_spec)
             response_schema = self._build_response_schema(method_spec)
 
-            request_examples = {
+            request_examples: Dict[str, Any] = {
                 example.summary or f'Example#{i}': ExampleObject(
                     summary=example.summary,
                     description=example.description,
@@ -693,7 +699,7 @@ class OpenAPI(Specification):
                 ) for i, example in enumerate(method_spec.get('examples') or [])
             }
 
-            response_success_examples = {
+            response_success_examples: Dict[str, Any] = {
                 example.summary or f'Example#{i}': ExampleObject(
                     summary=example.summary,
                     description=example.description,
@@ -705,7 +711,7 @@ class OpenAPI(Specification):
                 ) for i, example in enumerate(method_spec.get('examples') or [])
             }
 
-            response_error_examples = {
+            response_error_examples: Dict[str, Any] = {
                 example.message or f'Error#{i}': ExampleObject(
                     summary=example.summary,
                     description=example.description,
@@ -767,7 +773,7 @@ class OpenAPI(Specification):
 
     def _merge_specs(self, specs: List[Dict[str, Any]]) -> Dict[str, Any]:
         specs = reversed(specs)
-        result = next(specs, {})
+        result: Dict[str, Any] = next(specs, {})
 
         for spec in specs:
             if spec.get('errors_schema', UNSET) is not UNSET:
@@ -838,7 +844,7 @@ class OpenAPI(Specification):
         return result
 
     def _build_request_schema(self, method_name: str, method_spec: Dict[str, Any]) -> Dict[str, Any]:
-        request_schema = copy.deepcopy(REQUEST_SCHEMA)
+        request_schema: Dict[str, Any] = copy.deepcopy(REQUEST_SCHEMA)
         request_schema['properties']['method']['enum'] = [method_name]
 
         for param_name, param_schema in method_spec['params_schema'].items():
@@ -859,7 +865,7 @@ class OpenAPI(Specification):
         return request_schema
 
     def _build_response_schema(self, method_spec: Dict[str, Any]) -> Dict[str, Any]:
-        response_schema = copy.deepcopy(RESPONSE_SCHEMA)
+        response_schema: Dict[str, Any] = copy.deepcopy(RESPONSE_SCHEMA)
         result_schema = method_spec['result_schema']
 
         response_schema['oneOf'][RESULT_SCHEMA_IDX]['properties']['result'] = result_schema.schema
@@ -867,7 +873,7 @@ class OpenAPI(Specification):
             self.components.schemas.update(result_schema.definitions)
 
         if method_spec['errors_schema']:
-            errors_schema = []
+            errors_schema: List[Dict[str, Any]] = []
             response_schema['oneOf'][ERROR_SCHEMA_IDX]['properties']['error'] = {'oneOf': errors_schema}
 
             for schema in utils.unique(
@@ -904,7 +910,7 @@ class SwaggerUI(BaseUI):
                    (see https://github.com/swagger-api/swagger-ui/blob/master/docs/usage/configuration.md).
     """
 
-    def __init__(self, **configs):
+    def __init__(self, **configs: Any):
         try:
             import openapi_ui_bundles
         except ImportError:
@@ -945,7 +951,7 @@ class RapiDoc(BaseUI):
                    for example: parameter `heading-text` should be passed as `heading_text`)
     """
 
-    def __init__(self, **configs):
+    def __init__(self, **configs: Any):
         try:
             import openapi_ui_bundles.rapidoc
         except ImportError:
@@ -986,7 +992,7 @@ class ReDoc(BaseUI):
                    for example: parameter `heading-text` should be passed as `heading_text`)
     """
 
-    def __init__(self, **configs):
+    def __init__(self, **configs: Any):
         try:
             import openapi_ui_bundles.redoc
         except ImportError:

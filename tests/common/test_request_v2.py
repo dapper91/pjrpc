@@ -1,7 +1,7 @@
 import pytest
 
 import pjrpc
-from pjrpc.common import v20, exceptions
+from pjrpc.common import exceptions, v20
 
 
 @pytest.mark.parametrize(
