@@ -50,6 +50,7 @@ pydantic = { version = "^1.7.0", optional = true }
 requests = { version = "^2.0", optional = true }
 starlette = { version = "^0.12.0", optional = true }
 werkzeug = { version = "~=2.0", optional = true}
+sphinx = { version = "~=4.5", optional = true}
 
 [tool.poetry.extras]
 aio-pika = ['aio-pika']
@@ -65,6 +66,7 @@ pydantic = ['pydantic']
 requests = ['requests']
 starlette = ['starlette', 'aiofiles']
 werkzeug = ['werkzeug']
+docgen = ['sphinx', 'aiohttp', 'aio-pika', 'flask', 'jsonschema', 'pydantic', 'requests', 'kombu']
 
 [tool.poetry.dev-dependencies]
 aioresponses = "^0.7"

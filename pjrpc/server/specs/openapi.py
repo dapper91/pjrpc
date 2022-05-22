@@ -15,8 +15,8 @@ import re
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, Union
 
 from pjrpc.common import UNSET, UnsetType, exceptions
+from pjrpc.common.typedefs import Func
 from pjrpc.server import Method, utils
-from pjrpc.typedefs import Func
 
 from . import BaseUI, Specification, extractors
 from .extractors import Error, ErrorExample, Schema

@@ -12,8 +12,8 @@ from django.utils.module_loading import import_string
 from django.views.decorators.csrf import csrf_exempt
 
 import pjrpc.server
+from pjrpc.common.typedefs import Func
 from pjrpc.server import specs, utils
-from pjrpc.typedefs import Func
 
 
 def require_http_methods(request_method_list: List[str]) -> Callable[[Func], Func]:

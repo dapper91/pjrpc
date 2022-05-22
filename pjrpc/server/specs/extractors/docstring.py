@@ -3,8 +3,8 @@ from typing import Dict, Iterable, List, Optional, Type, Union
 import docstring_parser
 
 from pjrpc.common import UNSET, UnsetType, exceptions
+from pjrpc.common.typedefs import MethodType
 from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Example, JsonRpcError, Schema, Tag
-from pjrpc.typedefs import MethodType
 
 
 class DocstringSchemaExtractor(BaseSchemaExtractor):

@@ -2,7 +2,7 @@ from typing import Any, Dict, Iterable, Optional
 
 import jsonschema
 
-from pjrpc.typedefs import JsonRpcParams, MethodType
+from pjrpc.common.typedefs import JsonRpcParams, MethodType
 
 from . import base
 

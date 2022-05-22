@@ -1,71 +1,16 @@
-.. _api:
+.. _api_server:
 
-Developer Interface
-===================
-
-.. currentmodule:: pjrpc
-
-
-.. automodule:: pjrpc
-
-
-Common
-------
-
-.. automodule:: pjrpc.common
-    :members:
-
-Exceptions
-~~~~~~~~~~
-
-.. automodule:: pjrpc.common.exceptions
-    :members:
-
-Identifier generators
-~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: pjrpc.common.generators
-    :members:
-
-
-Client
-------
-
-.. automodule:: pjrpc.client
-    :members:
-
-Backends
-~~~~~~~~
-
-.. automodule:: pjrpc.client.backend.requests
-    :members:
-
-.. automodule:: pjrpc.client.backend.aiohttp
-    :members:
-
-.. automodule:: pjrpc.client.backend.kombu
-    :members:
-
-.. automodule:: pjrpc.client.backend.aio_pika
-    :members:
-
-Tracer
-~~~~~~
-
-.. automodule:: pjrpc.client.tracer
-    :members:
-
-
-Integrations
-~~~~~~~~~~~~
-
-.. automodule:: pjrpc.client.integrations.pytest
-    :members:
 
 Server
 ------
 
 .. automodule:: pjrpc.server
+    :members:
+
+Types
+~~~~~
+
+.. automodule:: pjrpc.server.typedefs
     :members:
 
 
