@@ -11,12 +11,14 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
 import enum
-import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath('..'))
+THIS_PATH = Path(__file__).parent
+sys.path.insert(0, str(THIS_PATH.parent.parent))
 
-import pjrpc.typedefs  # noqa
+import pjrpc.common.typedefs  # noqa
+import pjrpc.server.typedefs  # noqa
 
 # -- Project information -----------------------------------------------------
 
@@ -82,9 +84,15 @@ autodoc_mock_imports = ['attrs']
 autodoc_typehints = 'description'
 autodoc_typehints_format = 'short'
 autodoc_member_order = 'bysource'
+autodoc_default_options = {
+    'show-inheritance': True,
+}
 autodoc_type_aliases = {
-    type_name: f'{pjrpc.typedefs.__name__}.{type_name}'
-    for type_name in pjrpc.typedefs.__all__
+    type_name: f'{pjrpc.common.typedefs.__name__}.{type_name}'
+    for type_name in pjrpc.common.typedefs.__all__
+} | {
+    type_name: f'{pjrpc.server.typedefs.__name__}.{type_name}'
+    for type_name in pjrpc.server.typedefs.__all__
 }
 
 
