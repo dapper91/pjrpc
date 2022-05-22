@@ -2,6 +2,7 @@
 JSON-RPC server package.
 """
 
+from . import typedefs
 from .dispatcher import AsyncDispatcher, BaseDispatcher, Dispatcher, JSONEncoder, Method, MethodRegistry, ViewMixin
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     'Method',
     'MethodRegistry',
     'ViewMixin',
+    'typedefs',
 ]

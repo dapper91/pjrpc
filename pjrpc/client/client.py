@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable, Dict, Generator, Iterable, Optional
 
 from pjrpc import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response, common
 from pjrpc.common import exceptions, generators, v20
-from pjrpc.typedefs import JsonRpcRequestId, MethodType
+from pjrpc.common.typedefs import JsonRpcRequestId, MethodType
 
 from .tracer import Tracer
 

@@ -8,8 +8,9 @@ from typing import Type, Union, ValuesView, cast
 
 import pjrpc
 from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, Request, Response, UnsetType, v20
+from pjrpc.common.typedefs import JsonRpcParams, MethodType
 from pjrpc.server import utils
-from pjrpc.typedefs import JsonRpcParams, MethodType
+from pjrpc.server.typedefs import AsyncErrorHandlerType, AsyncMiddlewareType, ErrorHandlerType, MiddlewareType
 
 from . import validators
 
@@ -338,17 +339,6 @@ class BaseDispatcher:
         self._registry.view(view)
 
 
-MiddlewareType = Callable[
-    [Request, Optional[Any], Callable[[Request, Optional[Any]], Union[UnsetType, Response]]],
-    Union[UnsetType, Response],
-]
-
-ErrorHandlerType = Callable[
-    [Request, Optional[Any], pjrpc.exceptions.JsonRpcError],
-    pjrpc.exceptions.JsonRpcError,
-]
-
-
 class Dispatcher(BaseDispatcher):
     """
     Synchronous method dispatcher.
@@ -365,8 +355,8 @@ class Dispatcher(BaseDispatcher):
         json_dumper: Callable = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
-        middlewares: Iterable[MiddlewareType] = (),
-        error_handlers: Dict[Union[None, int, Exception], List[ErrorHandlerType]] = {},
+        middlewares: Iterable['MiddlewareType'] = (),
+        error_handlers: Dict[Union[None, int, Exception], List['ErrorHandlerType']] = {},
     ):
         super().__init__(
             request_class=request_class,
@@ -485,17 +475,6 @@ class Dispatcher(BaseDispatcher):
             raise pjrpc.exceptions.ServerError() from e
 
 
-AsyncMiddlewareType = Callable[
-    [Request, Optional[Any], Callable[[Request, Optional[Any]], Union[UnsetType, Response]]],
-    Awaitable[Union[UnsetType, Response]],
-]
-
-AsyncErrorHandlerType = Callable[
-    [Request, Optional[Any], pjrpc.exceptions.JsonRpcError],
-    Awaitable[pjrpc.exceptions.JsonRpcError],
-]
-
-
 class AsyncDispatcher(BaseDispatcher):
     """
     Asynchronous method dispatcher.
@@ -512,8 +491,8 @@ class AsyncDispatcher(BaseDispatcher):
         json_dumper: Callable = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
-        middlewares: Iterable[AsyncMiddlewareType] = (),
-        error_handlers: Dict[Union[None, int, Exception], List[AsyncErrorHandlerType]] = {},
+        middlewares: Iterable['AsyncMiddlewareType'] = (),
+        error_handlers: Dict[Union[None, int, Exception], List['AsyncErrorHandlerType']] = {},
     ):
         super().__init__(
             request_class=request_class,

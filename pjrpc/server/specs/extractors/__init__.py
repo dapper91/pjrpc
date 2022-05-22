@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from pjrpc.common import UNSET, UnsetType
 from pjrpc.common.exceptions import JsonRpcError
-from pjrpc.typedefs import MethodType
+from pjrpc.common.typedefs import MethodType
 
 
 @dc.dataclass(frozen=True)

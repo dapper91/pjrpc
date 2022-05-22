@@ -9,7 +9,7 @@ else:
     FalseType = bool
 
 import pjrpc
-from pjrpc.typedefs import Json  # noqa: for back compatibility
+from pjrpc.common.typedefs import Json  # noqa: for back compatibility
 
 
 class UnsetType:

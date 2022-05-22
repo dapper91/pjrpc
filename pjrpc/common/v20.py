@@ -8,7 +8,7 @@ import itertools as it
 import operator as op
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple, Type, Union
 
-from pjrpc.typedefs import Json, JsonRpcParams, JsonRpcRequestId
+from pjrpc.common.typedefs import Json, JsonRpcParams, JsonRpcRequestId
 
 from .common import UNSET, UnsetType
 from .exceptions import DeserializationError, IdentityError, JsonRpcError

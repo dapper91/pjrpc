@@ -13,8 +13,8 @@ from starlette.responses import Response
 from starlette.staticfiles import StaticFiles
 
 import pjrpc
+from pjrpc.common.typedefs import Func
 from pjrpc.server import specs, utils
-from pjrpc.typedefs import Func
 
 
 def async_partial(func: Func, *bound_args: Any, **bound_kwargs: Any) -> Func:

@@ -3,7 +3,7 @@ Client and server common functions, types and classes that implements JSON-RPC p
 and agnostic to any transport protocol layer (http, socket, amqp) and server-side implementation.
 """
 
-from . import generators
+from . import generators, typedefs
 from .common import UNSET, JSONEncoder, UnsetType
 from .v20 import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response
 
@@ -41,4 +41,5 @@ __all__ = [
     'REQUEST_CONTENT_TYPES',
     'RESPONSE_CONTENT_TYPES',
     'generators',
+    'typedefs',
 ]

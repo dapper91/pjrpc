@@ -16,7 +16,7 @@ import pytest
 import pjrpc
 from pjrpc import Response
 from pjrpc.common import UNSET, UnsetType
-from pjrpc.typedefs import JsonRpcParams, JsonRpcRequestId
+from pjrpc.common.typedefs import JsonRpcParams, JsonRpcRequestId
 
 CallType = Dict[Tuple[str, str], unittest.mock.Mock]
 MatchType = Dict[Tuple[str, str], List['Match']]

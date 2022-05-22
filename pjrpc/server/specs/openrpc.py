@@ -12,8 +12,8 @@ import itertools as it
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Type, Union
 
 from pjrpc.common import UNSET, UnsetType, exceptions
+from pjrpc.common.typedefs import Func
 from pjrpc.server import Method, utils
-from pjrpc.typedefs import Func
 
 from . import Specification, extractors
 

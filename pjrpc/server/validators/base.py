@@ -2,8 +2,8 @@ import functools as ft
 import inspect
 from typing import Any, Dict, Iterable, Optional, Tuple
 
+from pjrpc.common.typedefs import JsonRpcParams, MethodType
 from pjrpc.server import utils
-from pjrpc.typedefs import JsonRpcParams, MethodType
 
 
 class ValidationError(Exception):

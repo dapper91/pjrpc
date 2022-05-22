@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import pydantic
 
-from pjrpc.typedefs import JsonRpcParams
+from pjrpc.common.typedefs import JsonRpcParams
 
 from . import base
 

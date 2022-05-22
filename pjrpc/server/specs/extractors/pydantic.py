@@ -5,8 +5,8 @@ import pydantic as pd
 
 from pjrpc.common import UNSET, UnsetType
 from pjrpc.common.exceptions import JsonRpcError
+from pjrpc.common.typedefs import MethodType
 from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Schema
-from pjrpc.typedefs import MethodType
 
 
 class PydanticSchemaExtractor(BaseSchemaExtractor):

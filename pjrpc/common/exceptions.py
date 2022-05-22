@@ -5,7 +5,7 @@ Definition of package exceptions and JSON-RPC protocol errors.
 import typing
 from typing import Any, Dict, Optional, Type, Union
 
-from pjrpc.typedefs import Json
+from pjrpc.common.typedefs import Json
 
 from .common import UNSET, UnsetType
 
