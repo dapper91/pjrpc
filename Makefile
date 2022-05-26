@@ -1,8 +1,12 @@
 
 init:
 	pip install poetry --upgrade
-	poetry install --no-root
+	@# Updates poetry.lock in case pyproject.toml was updated for install:
+	poetry update
 
+# For tests to always find pjrpc and other test modules, PYTHONPATH is needed:
+export PYTHONPATH=$(CURDIR)
+export PYTHONWARNINGS=ignore::DeprecationWarning
 test:
 	poetry run py.test
 

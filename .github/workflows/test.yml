@@ -25,8 +25,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install poetry
-        poetry install --no-root -E aiohttp -E flask -E httpx -E jsonschema -E pydantic -E requests \
-                                 -E docstring-parser -E werkzeug -E openapi-ui-bundles
+        poetry install --no-root
     - name: Run pre-commit hooks
       run: poetry run pre-commit run --hook-stage merge-commit --all-files
     - name: Run tests
