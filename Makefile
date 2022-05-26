@@ -1,8 +1,11 @@
 
 init:
 	pip install poetry --upgrade
-	poetry install --no-root
+	# Updates poetry.lock in case pyproject.toml was updated for install:
+	poetry update
+	poetry install --no-root --extras test
 
+export PYTHONWARNINGS=ignore::DeprecationWarning
 test:
 	poetry run py.test
 

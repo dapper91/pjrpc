@@ -65,6 +65,7 @@ openapi-ui-bundles = ['openapi-ui-bundles']
 pydantic = ['pydantic']
 requests = ['requests']
 starlette = ['starlette', 'aiofiles']
+test = ['docstring-parser', 'flask', 'jsonschema', 'openapi-ui-bundles', 'pydantic', 'werkzeug']
 werkzeug = ['werkzeug']
 docgen = ['sphinx', 'aiohttp', 'aio-pika', 'flask', 'jsonschema', 'pydantic', 'requests', 'kombu']
 
