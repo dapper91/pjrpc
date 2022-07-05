@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pjrpc"
-version = "1.5.0"
+version = "1.6.0"
 description = "Extensible JSON-RPC library"
 authors = ["Dmitry Pershin <dapper1291@gmail.com>"]
 license = "Unlicense"
@@ -65,7 +65,7 @@ openapi-ui-bundles = ['openapi-ui-bundles']
 pydantic = ['pydantic']
 requests = ['requests']
 starlette = ['starlette', 'aiofiles']
-test = ['aiohttp', 'httpx', 'requests', 'docstring-parser', 'flask', 'jsonschema', 'openapi-ui-bundles', 'pydantic', 'werkzeug']
+test = ['docstring-parser', 'flask', 'jsonschema', 'openapi-ui-bundles', 'pydantic', 'werkzeug']
 werkzeug = ['werkzeug']
 docgen = ['sphinx', 'aiohttp', 'aio-pika', 'flask', 'jsonschema', 'pydantic', 'requests', 'kombu']
 
