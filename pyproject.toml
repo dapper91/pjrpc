@@ -78,7 +78,7 @@ pytest-aiohttp = "^0.3"
 pytest-cov = "^2.0"
 pytest-mock = "^1.0"
 responses = "^0.14"
-respx = "^0.16"
+respx = "^0.19.2"
 mypy = "^0.942"
 pre-commit = "^2.19"
 
