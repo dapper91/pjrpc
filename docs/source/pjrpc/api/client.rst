@@ -29,6 +29,13 @@ Tracer
     :members:
 
 
+Retry
+~~~~~
+
+.. automodule:: pjrpc.client.retry
+    :members:
+
+
 Integrations
 ~~~~~~~~~~~~
 

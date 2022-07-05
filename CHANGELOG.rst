@@ -1,6 +1,14 @@
 Changelog
 =========
 
+1.6.0 (2022-07-05)
+------------------
+
+- JSON-RPC client requests retry support added
+- aio-pika integration and backend updated for aio-pika 8.0
+- type aliases for middlewares added
+- httpx minimal version updated due to found vulnerability
+
 
 1.5.0 (2022-05-22)
 ------------------

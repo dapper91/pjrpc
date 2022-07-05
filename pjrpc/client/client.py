@@ -6,7 +6,8 @@ from types import SimpleNamespace
 from typing import Any, Awaitable, Callable, Dict, Generator, Iterable, Optional, Tuple, Type, Union, cast
 
 from pjrpc import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response, common
-from pjrpc.common import exceptions, generators, v20
+from pjrpc.client import retry
+from pjrpc.common import UNSET, UnsetType, exceptions, generators, v20
 from pjrpc.common.typedefs import JsonRpcRequestId, MethodType
 
 from .tracer import Tracer
@@ -264,13 +265,16 @@ class BaseAbstractClient(abc.ABC):
     :param response_class: response class
     :param batch_request_class: batch request class
     :param batch_response_class: batch response class
+    :param error_cls: JSON-RPC error base class
     :param id_gen_impl: identifier generator
     :param json_loader: json loader
     :param json_dumper: json dumper
     :param json_encoder: json encoder
     :param json_decoder: json decoder
-    :param error_cls: JSON-RPC error base class
     :param strict: if ``True`` checks that a request and a response identifiers match
+    :param request_args: backend request argument
+    :param tracers: request tracers list
+    :param retry_strategy: request retry strategy
     """
 
     class Proxy:
@@ -301,6 +305,7 @@ class BaseAbstractClient(abc.ABC):
         strict: bool = True,
         request_args: Optional[Dict[str, Any]] = None,
         tracers: Iterable[Tracer] = (),
+        retry_strategy: Optional[retry.RetryStrategy] = None,
     ):
         self.request_class = request_class
         self.response_class = response_class
@@ -315,6 +320,7 @@ class BaseAbstractClient(abc.ABC):
         self.strict = strict
         self._request_args = request_args or {}
         self._tracers = tracers
+        self._retry_strategy = retry_strategy
 
     def __call__(
         self,
@@ -448,7 +454,11 @@ class AbstractClient(BaseAbstractClient):
         return response.result
 
     def send(
-        self, request: Request, _trace_ctx: SimpleNamespace = SimpleNamespace(), **kwargs: Any,
+        self,
+        request: Request,
+        _trace_ctx: SimpleNamespace = SimpleNamespace(),
+        _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+        **kwargs: Any,
     ) -> Optional[Response]:
         """
         Sends a JSON-RPC request.
@@ -456,6 +466,7 @@ class AbstractClient(BaseAbstractClient):
         :param request: request instance
         :param kwargs: additional client request argument
         :param _trace_ctx: tracers request context
+        :param _retry_strategy: request retry strategy
         :returns: response instance
         """
 
@@ -465,6 +476,7 @@ class AbstractClient(BaseAbstractClient):
                 response_class=self.response_class,
                 validator=self._relate,
                 _trace_ctx=_trace_ctx,
+                _retry_strategy=_retry_strategy,
                 **kwargs,
             ),
         )
@@ -477,6 +489,10 @@ class AbstractClient(BaseAbstractClient):
             _trace_ctx: SimpleNamespace,
             **kwargs: Any,
         ) -> Optional[AbstractResponse]:
+            """
+            Adds tracing logic to the method.
+            """
+
             for tracer in self._tracers:
                 tracer.on_request_begin(_trace_ctx, request)
 
@@ -494,6 +510,31 @@ class AbstractClient(BaseAbstractClient):
 
         return wrapper
 
+    def retried(method: Callable[..., Any]) -> Callable[..., Any]:
+        @ft.wraps(method)
+        def wrapper(
+            self: 'AbstractClient',
+            request: AbstractRequest,
+            _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+            **kwargs: Any,
+        ) -> Optional[AbstractResponse]:
+            """
+            Adds retrying logic to the method.
+            """
+
+            retry_strategy = self._retry_strategy if isinstance(_retry_strategy, UnsetType) else _retry_strategy
+            if retry_strategy:
+                wrapped_method = retry.retry(method, retry_strategy)
+            else:
+                wrapped_method = method
+
+            response = wrapped_method(self, request, **kwargs)
+
+            return response
+
+        return wrapper
+
+    @retried
     @traced
     def _send(
         self,
@@ -545,7 +586,11 @@ class AbstractAsyncClient(BaseAbstractClient):
         """
 
     async def send(
-        self, request: Request, _trace_ctx: SimpleNamespace = SimpleNamespace(), **kwargs: Any,
+        self,
+        request: Request,
+        _trace_ctx: SimpleNamespace = SimpleNamespace(),
+        _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+        **kwargs: Any,
     ) -> Optional[Response]:
         """
         Sends a JSON-RPC request.
@@ -553,12 +598,18 @@ class AbstractAsyncClient(BaseAbstractClient):
         :param request: request instance
         :param kwargs: additional client request argument
         :param _trace_ctx: tracers request context
+        :param _retry_strategy: request retry strategy
         :returns: response instance
         """
 
         return cast(
             Response, await self._send(
-                request, _trace_ctx=_trace_ctx, response_class=self.response_class, validator=self._relate, **kwargs,
+                request,
+                _trace_ctx=_trace_ctx,
+                _retry_strategy=_retry_strategy,
+                response_class=self.response_class,
+                validator=self._relate,
+                **kwargs,
             ),
         )
 
@@ -570,6 +621,10 @@ class AbstractAsyncClient(BaseAbstractClient):
             _trace_ctx: SimpleNamespace = SimpleNamespace(),
             **kwargs: Any,
         ) -> Response:
+            """
+            Adds tracing logic to the method.
+            """
+
             for tracer in self._tracers:
                 tracer.on_request_begin(_trace_ctx, request)
 
@@ -587,6 +642,31 @@ class AbstractAsyncClient(BaseAbstractClient):
 
         return wrapper
 
+    def retried(method: Callable[..., Awaitable[Any]]) -> Callable[..., Any]:
+        @ft.wraps(method)
+        async def wrapper(
+            self: 'AbstractClient',
+            request: AbstractRequest,
+            _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+            **kwargs: Any,
+        ) -> Optional[AbstractResponse]:
+            """
+            Adds retrying logic to the method.
+            """
+
+            retry_strategy = self._retry_strategy if isinstance(_retry_strategy, UnsetType) else _retry_strategy
+            if retry_strategy:
+                wrapped_method = retry.retry_async(method, retry_strategy)
+            else:
+                wrapped_method = method
+
+            response = await wrapped_method(self, request, **kwargs)
+
+            return response
+
+        return wrapper
+
+    @retried
     @traced
     async def _send(
         self,
