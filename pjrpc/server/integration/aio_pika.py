@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, Optional
 
 import aio_pika
+from yarl import URL
 
 import pjrpc.server
 
@@ -18,15 +19,15 @@ class Executor:
     :param kwargs: dispatcher additional arguments
     """
 
-    def __init__(self, broker_url: str, queue_name: str, prefetch_count: int = 0, **kwargs: Any):
+    def __init__(self, broker_url: URL, queue_name: str, prefetch_count: int = 0, **kwargs: Any):
         self._broker_url = broker_url
         self._queue_name = queue_name
         self._prefetch_count = prefetch_count
 
         self._connection = aio_pika.connection.Connection(broker_url)
-        self._channel: Optional[aio_pika.Channel] = None
+        self._channel: Optional[aio_pika.abc.AbstractChannel] = None
 
-        self._queue: Optional[aio_pika.Queue] = None
+        self._queue: Optional[aio_pika.abc.AbstractQueue] = None
         self._consumer_tag: Optional[str] = None
 
         self._dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
@@ -65,7 +66,7 @@ class Executor:
 
         await self._connection.close()
 
-    async def _rpc_handle(self, message: aio_pika.IncomingMessage) -> None:
+    async def _rpc_handle(self, message: aio_pika.abc.AbstractIncomingMessage) -> None:
         """
         Handles JSON-RPC request.
 

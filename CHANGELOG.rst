@@ -1,6 +1,7 @@
 Changelog
 =========
 
+- aio-pika integration and backend updated for aio-pika 8.0
 
 1.5.0 (2022-05-22)
 ------------------
