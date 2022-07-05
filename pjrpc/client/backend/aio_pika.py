@@ -48,7 +48,7 @@ class Client(AbstractAsyncClient):
 
         self._exchange_name = exchange_name
         self._exchange_args = exchange_args
-        self._exchange: Optional[aio_pika.Exchange] = None
+        self._exchange: Optional[aio_pika.abc.AbstractExchange] = None
 
         self._routing_key = cast(str, routing_key or queue_name)
         self._result_queue_name = result_queue_name
@@ -67,10 +67,7 @@ class Client(AbstractAsyncClient):
         self._channel = channel = await self._connection.channel()
 
         if self._exchange_name:
-            self._exchange = aio_pika.Exchange(
-                self._connection, channel, self._exchange_name, **(self._exchange_args or {})
-            )
-            await self._exchange.declare()
+            self._exchange = await channel.declare_exchange(self._exchange_name, **(self._exchange_args or {}))
 
         if self._result_queue_name:
             assert channel
