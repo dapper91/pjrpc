@@ -160,7 +160,7 @@ def retry_async(
     retry_strategy: RetryStrategy,
 ) -> Callable[..., Awaitable[AbstractResponse]]:
     """
-    Synchronous function retry decorator.
+    Asynchronous function retry decorator.
 
     :param func: function to be retried
     :param retry_strategy: retry strategy to be applied

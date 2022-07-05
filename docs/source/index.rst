@@ -75,6 +75,7 @@ The User Guide
    pjrpc/extending
    pjrpc/testing
    pjrpc/tracing
+   pjrpc/retries
    pjrpc/specification
    pjrpc/webui
    pjrpc/examples
