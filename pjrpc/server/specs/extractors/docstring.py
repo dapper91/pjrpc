@@ -1,8 +1,8 @@
-from typing import Dict, Iterable, List, Optional, Type, Union
+from typing import Dict, Iterable, List, Optional, Type
 
 import docstring_parser
 
-from pjrpc.common import UNSET, UnsetType, exceptions
+from pjrpc.common import UNSET, MaybeSet, exceptions
 from pjrpc.common.typedefs import MethodType
 from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Example, JsonRpcError, Schema, Tag
 
@@ -50,7 +50,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
         self,
         method: MethodType,
         errors: Optional[Iterable[Type[JsonRpcError]]] = None,
-    ) -> Union[UnsetType, List[Error]]:
+    ) -> MaybeSet[List[Error]]:
         errors_schema = []
 
         if method.__doc__:
@@ -72,7 +72,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
 
         return errors_schema or UNSET
 
-    def extract_description(self, method: MethodType) -> Union[UnsetType, str]:
+    def extract_description(self, method: MethodType) -> MaybeSet[str]:
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
             description = doc.long_description or UNSET
@@ -81,7 +81,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
 
         return description
 
-    def extract_summary(self, method: MethodType) -> Union[UnsetType, str]:
+    def extract_summary(self, method: MethodType) -> MaybeSet[str]:
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
             description = doc.short_description or UNSET
@@ -90,14 +90,14 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
 
         return description
 
-    def extract_tags(self, method: MethodType) -> Union[UnsetType, List[Tag]]:
+    def extract_tags(self, method: MethodType) -> MaybeSet[List[Tag]]:
         return UNSET
 
-    def extract_examples(self, method: MethodType) -> Union[UnsetType, List[Example]]:
+    def extract_examples(self, method: MethodType) -> MaybeSet[List[Example]]:
         return UNSET
 
-    def extract_deprecation_status(self, method: MethodType) -> Union[UnsetType, bool]:
-        is_deprecated: Union[UnsetType, bool]
+    def extract_deprecation_status(self, method: MethodType) -> MaybeSet[bool]:
+        is_deprecated: MaybeSet[bool]
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
             is_deprecated = bool(doc.deprecation)

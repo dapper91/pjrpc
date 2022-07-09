@@ -1,9 +1,9 @@
 import inspect
-from typing import Any, Dict, Iterable, List, Optional, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Type
 
 import pydantic as pd
 
-from pjrpc.common import UNSET, UnsetType
+from pjrpc.common import UNSET, MaybeSet
 from pjrpc.common.exceptions import JsonRpcError
 from pjrpc.common.typedefs import MethodType
 from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Schema
@@ -83,7 +83,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
         self,
         method: MethodType,
         errors: Optional[Iterable[Type[JsonRpcError]]] = None,
-    ) -> Union[UnsetType, List[Error]]:
+    ) -> MaybeSet[List[Error]]:
         if errors:
             errors_schema = []
             for error in errors:

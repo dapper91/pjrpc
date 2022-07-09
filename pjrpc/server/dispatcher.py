@@ -7,7 +7,8 @@ from typing import Any, Awaitable, Callable, Dict, Generator, ItemsView, Iterabl
 from typing import Type, Union, ValuesView, cast
 
 import pjrpc
-from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, Request, Response, UnsetType, v20
+from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, MaybeSet, Request, Response, UnsetType
+from pjrpc.common import v20
 from pjrpc.common.typedefs import JsonRpcParams, MethodType
 from pjrpc.server import utils
 from pjrpc.server.typedefs import AsyncErrorHandlerType, AsyncMiddlewareType, ErrorHandlerType, MiddlewareType
@@ -382,7 +383,7 @@ class Dispatcher(BaseDispatcher):
 
         logger.getChild('request').debug("request received: %s", request_text)
 
-        response: Union[AbstractResponse, UnsetType]
+        response: MaybeSet[AbstractResponse]
         try:
             request_json = self._json_loader(request_text, cls=self._json_decoder)
             request: Union[Request, BatchRequest]
@@ -416,9 +417,9 @@ class Dispatcher(BaseDispatcher):
 
         return None
 
-    def _handle_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
+    def _handle_request(self, request: Request, context: Optional[Any]) -> MaybeSet[Response]:
         try:
-            HandlerType = Callable[[Request, Optional[Any]], Union[UnsetType, Response]]
+            HandlerType = Callable[[Request, Optional[Any]], MaybeSet[Response]]
             handler: HandlerType = self._handle_rpc_request
 
             for middleware in reversed(self._middlewares):
@@ -442,7 +443,7 @@ class Dispatcher(BaseDispatcher):
 
         return self._response_class(id=request.id, error=error)
 
-    def _handle_rpc_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
+    def _handle_rpc_request(self, request: Request, context: Optional[Any]) -> MaybeSet[Response]:
         result = self._handle_rpc_method(request.method, request.params, context)
         if request.id is None:
             return UNSET
@@ -518,7 +519,7 @@ class AsyncDispatcher(BaseDispatcher):
 
         logger.getChild('request').debug("request received: %s", request_text)
 
-        response: Union[AbstractResponse, UnsetType]
+        response: MaybeSet[AbstractResponse]
         try:
             request_json = self._json_loader(request_text, cls=self._json_decoder)
             request: Union[Request, BatchRequest]
@@ -554,9 +555,9 @@ class AsyncDispatcher(BaseDispatcher):
 
         return None
 
-    async def _handle_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
+    async def _handle_request(self, request: Request, context: Optional[Any]) -> MaybeSet[Response]:
         try:
-            HandlerType = Callable[[Request, Optional[Any]], Awaitable[Union[UnsetType, Response]]]
+            HandlerType = Callable[[Request, Optional[Any]], Awaitable[MaybeSet[Response]]]
             handler: HandlerType = self._handle_rpc_request
 
             for middleware in reversed(self._middlewares):
@@ -580,7 +581,7 @@ class AsyncDispatcher(BaseDispatcher):
 
         return self._response_class(id=request.id, error=error)
 
-    async def _handle_rpc_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
+    async def _handle_rpc_request(self, request: Request, context: Optional[Any]) -> MaybeSet[Response]:
         result = await self._handle_rpc_method(request.method, request.params, context)
         if request.id is None:
             return UNSET

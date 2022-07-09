@@ -5,7 +5,7 @@ import kombu.mixins
 
 import pjrpc
 from pjrpc.client import AbstractClient
-from pjrpc.common import UNSET, UnsetType
+from pjrpc.common import UNSET, MaybeSet, UnsetType
 
 logger = logging.getLogger(__package__)
 
@@ -98,7 +98,7 @@ class Client(AbstractClient):
                 **kwargs,
             )
 
-        response: Optional[Union[UnsetType, str, Exception]] = UNSET
+        response: MaybeSet[Union[None, str, Exception]] = UNSET
 
         def on_response(message: kombu.Message) -> None:
             nonlocal response

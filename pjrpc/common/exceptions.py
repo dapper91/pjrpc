@@ -3,11 +3,11 @@ Definition of package exceptions and JSON-RPC protocol errors.
 """
 
 import typing
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Dict, Optional, Type
 
 from pjrpc.common.typedefs import Json
 
-from .common import UNSET, UnsetType
+from .common import UNSET, MaybeSet
 
 
 class BaseError(Exception):
@@ -97,7 +97,7 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
     def get_error_cls(cls, code: int, default: Type['JsonRpcError']) -> Type['JsonRpcError']:
         return type(cls).__errors_mapping__.get(code, default)
 
-    def __init__(self, code: Optional[int] = None, message: Optional[str] = None, data: Union[UnsetType, Any] = UNSET):
+    def __init__(self, code: Optional[int] = None, message: Optional[str] = None, data: MaybeSet[Any] = UNSET):
         assert code or self.code, "code is not provided"
         assert message or self.message, "message is not provided"
 

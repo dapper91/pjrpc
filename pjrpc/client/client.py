@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable, Dict, Generator, Iterable, Optional
 
 from pjrpc import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response, common
 from pjrpc.client import retry
-from pjrpc.common import UNSET, UnsetType, exceptions, generators, v20
+from pjrpc.common import UNSET, MaybeSet, UnsetType, exceptions, generators, v20
 from pjrpc.common.typedefs import JsonRpcRequestId, MethodType
 
 from .tracer import Tracer
@@ -457,7 +457,7 @@ class AbstractClient(BaseAbstractClient):
         self,
         request: Request,
         _trace_ctx: SimpleNamespace = SimpleNamespace(),
-        _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+        _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
         **kwargs: Any,
     ) -> Optional[Response]:
         """
@@ -515,7 +515,7 @@ class AbstractClient(BaseAbstractClient):
         def wrapper(
             self: 'AbstractClient',
             request: AbstractRequest,
-            _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+            _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
             **kwargs: Any,
         ) -> Optional[AbstractResponse]:
             """
@@ -589,7 +589,7 @@ class AbstractAsyncClient(BaseAbstractClient):
         self,
         request: Request,
         _trace_ctx: SimpleNamespace = SimpleNamespace(),
-        _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+        _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
         **kwargs: Any,
     ) -> Optional[Response]:
         """
@@ -647,7 +647,7 @@ class AbstractAsyncClient(BaseAbstractClient):
         async def wrapper(
             self: 'AbstractClient',
             request: AbstractRequest,
-            _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+            _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
             **kwargs: Any,
         ) -> Optional[AbstractResponse]:
             """

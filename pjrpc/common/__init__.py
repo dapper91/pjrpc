@@ -4,7 +4,7 @@ and agnostic to any transport protocol layer (http, socket, amqp) and server-sid
 """
 
 from . import generators, typedefs
-from .common import UNSET, JSONEncoder, UnsetType
+from .common import UNSET, JSONEncoder, MaybeSet, UnsetType
 from .v20 import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response
 
 DEFAULT_CONTENT_TYPE = 'application/json'
@@ -36,6 +36,7 @@ __all__ = [
     'BatchResponse',
     'UNSET',
     'UnsetType',
+    'MaybeSet',
     'JSONEncoder',
     'DEFAULT_CONTENT_TYPE',
     'REQUEST_CONTENT_TYPES',
