@@ -11,7 +11,7 @@ except ImportError:
 import itertools as it
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Type, Union
 
-from pjrpc.common import UNSET, UnsetType, exceptions
+from pjrpc.common import UNSET, MaybeSet, UnsetType, exceptions
 from pjrpc.common.typedefs import Func
 from pjrpc.server import Method, utils
 
@@ -30,9 +30,9 @@ class Contact:
     :param email: the email address of the contact person/organization
     """
 
-    name: Union[str, UnsetType] = UNSET
-    url: Union[str, UnsetType] = UNSET
-    email: Union[str, UnsetType] = UNSET
+    name: MaybeSet[str] = UNSET
+    url: MaybeSet[str] = UNSET
+    email: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -45,7 +45,7 @@ class License:
     """
 
     name: str
-    url: Union[str, UnsetType] = UNSET
+    url: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -63,10 +63,10 @@ class Info:
 
     title: str
     version: str
-    description: Union[str, UnsetType] = UNSET
-    contact: Union[Contact, UnsetType] = UNSET
-    license: Union[License, UnsetType] = UNSET
-    termsOfService: Union[str, UnsetType] = UNSET
+    description: MaybeSet[str] = UNSET
+    contact: MaybeSet[Contact] = UNSET
+    license: MaybeSet[License] = UNSET
+    termsOfService: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -82,8 +82,8 @@ class Server:
 
     name: str
     url: str
-    summary: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -96,7 +96,7 @@ class ExternalDocumentation:
     """
 
     url: str
-    description: Union[str, UnsetType] = UNSET
+    description: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -112,9 +112,9 @@ class Tag:
     """
 
     name: str
-    summary: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
-    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
+    externalDocs: MaybeSet[ExternalDocumentation] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -130,8 +130,8 @@ class ExampleObject:
 
     value: Json
     name: str
-    summary: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -149,8 +149,8 @@ class MethodExample:
     name: str
     params: List[ExampleObject]
     result: ExampleObject
-    summary: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -170,10 +170,10 @@ class ContentDescriptor:
 
     name: str
     schema: Dict[str, Any]
-    summary: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
-    required: Union[bool, UnsetType] = UNSET
-    deprecated: Union[bool, UnsetType] = UNSET
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
+    required: MaybeSet[bool] = UNSET
+    deprecated: MaybeSet[bool] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -188,7 +188,7 @@ class Error:
 
     code: int
     message: str
-    data: Union[Dict[str, Any], UnsetType] = UNSET
+    data: MaybeSet[Dict[str, Any]] = UNSET
 
 
 class ParamStructure(str, enum.Enum):
@@ -223,15 +223,15 @@ class MethodInfo:
     name: str
     params: List[Union[ContentDescriptor, dict]]
     result: Union[ContentDescriptor, dict]
-    errors: Union[List[Error], UnsetType] = UNSET
-    paramStructure: Union[ParamStructure, UnsetType] = UNSET
-    examples: Union[List[MethodExample], UnsetType] = UNSET
-    summary: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
-    tags: Union[List[Tag], UnsetType] = UNSET
-    deprecated: Union[bool, UnsetType] = UNSET
-    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
-    servers: Union[List[Server], UnsetType] = UNSET
+    errors: MaybeSet[List[Error]] = UNSET
+    paramStructure: MaybeSet[ParamStructure] = UNSET
+    examples: MaybeSet[List[MethodExample]] = UNSET
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
+    tags: MaybeSet[List[Tag]] = UNSET
+    deprecated: MaybeSet[bool] = UNSET
+    externalDocs: MaybeSet[ExternalDocumentation] = UNSET
+    servers: MaybeSet[List[Server]] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -246,14 +246,14 @@ class Components:
 
 
 def annotate(
-    params_schema: Union[List[ContentDescriptor], UnsetType] = UNSET,
-    result_schema: Union[ContentDescriptor, UnsetType] = UNSET,
-    errors: Union[List[Union[Error, Type[exceptions.JsonRpcError]]], UnsetType] = UNSET,
-    examples: Union[List[MethodExample], UnsetType] = UNSET,
-    summary: Union[str, UnsetType] = UNSET,
-    description: Union[str, UnsetType] = UNSET,
-    tags: Union[List[Union[Tag, str]], UnsetType] = UNSET,
-    deprecated: Union[bool, UnsetType] = UNSET,
+    params_schema: MaybeSet[List[ContentDescriptor]] = UNSET,
+    result_schema: MaybeSet[ContentDescriptor] = UNSET,
+    errors: MaybeSet[List[Union[Error, Type[exceptions.JsonRpcError]]]] = UNSET,
+    examples: MaybeSet[List[MethodExample]] = UNSET,
+    summary: MaybeSet[str] = UNSET,
+    description: MaybeSet[str] = UNSET,
+    tags: MaybeSet[List[Union[Tag, str]]] = UNSET,
+    deprecated: MaybeSet[bool] = UNSET,
 ) -> Callable[[Func], Func]:
     """
     Adds JSON-RPC method to the API specification.
@@ -310,16 +310,16 @@ class OpenRPC(Specification):
     info: Info
     components: Components
     methods: List[MethodInfo] = dc.field(default_factory=list)
-    servers: Union[List[Server], UnsetType] = UNSET
-    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
+    servers: MaybeSet[List[Server]] = UNSET
+    externalDocs: MaybeSet[ExternalDocumentation] = UNSET
     openrpc: str = '1.0.0'
 
     def __init__(
         self,
         info: Info,
         path: str = '/openrpc.json',
-        servers: Union[List[Server], UnsetType] = UNSET,
-        external_docs: Union[ExternalDocumentation, UnsetType] = UNSET,
+        servers: MaybeSet[List[Server]] = UNSET,
+        external_docs: MaybeSet[ExternalDocumentation] = UNSET,
         openrpc: str = '1.0.0',
         schema_extractor: Optional[extractors.BaseSchemaExtractor] = None,
     ):

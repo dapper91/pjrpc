@@ -1,6 +1,6 @@
 import json
 import sys
-from typing import Any
+from typing import Any, TypeVar, Union
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -34,7 +34,10 @@ class UnsetType:
         return self
 
 
-UNSET = UnsetType()
+UNSET: UnsetType = UnsetType()
+
+MaybeSetType = TypeVar('MaybeSetType')
+MaybeSet = Union[UnsetType, MaybeSetType]
 
 
 class JSONEncoder(json.JSONEncoder):

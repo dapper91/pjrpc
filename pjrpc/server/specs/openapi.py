@@ -12,9 +12,9 @@ import enum
 import functools as ft
 import pathlib
 import re
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type
 
-from pjrpc.common import UNSET, UnsetType, exceptions
+from pjrpc.common import UNSET, MaybeSet, UnsetType, exceptions
 from pjrpc.common.typedefs import Func
 from pjrpc.server import Method, utils
 
@@ -123,9 +123,9 @@ class Contact:
     :param email: the email address of the contact person/organization
     """
 
-    name: Union[str, UnsetType] = UNSET
-    url: Union[str, UnsetType] = UNSET
-    email: Union[str, UnsetType] = UNSET
+    name: MaybeSet[str] = UNSET
+    url: MaybeSet[str] = UNSET
+    email: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -138,7 +138,7 @@ class License:
     """
 
     name: str
-    url: Union[str, UnsetType] = UNSET
+    url: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -156,10 +156,10 @@ class Info:
 
     title: str
     version: str
-    description: Union[str, UnsetType] = UNSET
-    contact: Union[Contact, UnsetType] = UNSET
-    license: Union[License, UnsetType] = UNSET
-    termsOfService: Union[str, UnsetType] = UNSET
+    description: MaybeSet[str] = UNSET
+    contact: MaybeSet[Contact] = UNSET
+    license: MaybeSet[License] = UNSET
+    termsOfService: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -173,8 +173,8 @@ class ServerVariable:
     """
 
     default: str
-    enum: Union[List[str], UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
+    enum: MaybeSet[List[str]] = UNSET
+    description: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -187,8 +187,8 @@ class Server:
     """
 
     url: str
-    description: Union[str, UnsetType] = UNSET
-    variables: Union[Dict[str, ServerVariable], UnsetType] = UNSET
+    description: MaybeSet[str] = UNSET
+    variables: MaybeSet[Dict[str, ServerVariable]] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -201,7 +201,7 @@ class ExternalDocumentation:
     """
 
     url: str
-    description: Union[str, UnsetType] = UNSET
+    description: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -216,8 +216,8 @@ class Tag:
     """
 
     name: str
-    description: Union[str, UnsetType] = UNSET
-    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
+    description: MaybeSet[str] = UNSET
+    externalDocs: MaybeSet[ExternalDocumentation] = UNSET
 
 
 class SecuritySchemeType(str, enum.Enum):
@@ -255,7 +255,7 @@ class OAuthFlow:
     authorizationUrl: str
     tokenUrl: str
     scopes: Dict[str, str]
-    refreshUrl: Union[str, UnsetType] = UNSET
+    refreshUrl: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -269,10 +269,10 @@ class OAuthFlows:
     :param authorizationCode: configuration for the OAuth Authorization Code flow
     """
 
-    implicit: Union[OAuthFlow, UnsetType] = UNSET
-    password: Union[OAuthFlow, UnsetType] = UNSET
-    clientCredentials: Union[OAuthFlow, UnsetType] = UNSET
-    authorizationCode: Union[OAuthFlow, UnsetType] = UNSET
+    implicit: MaybeSet[OAuthFlow] = UNSET
+    password: MaybeSet[OAuthFlow] = UNSET
+    clientCredentials: MaybeSet[OAuthFlow] = UNSET
+    authorizationCode: MaybeSet[OAuthFlow] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -292,12 +292,12 @@ class SecurityScheme:
 
     type: SecuritySchemeType
     scheme: str
-    name: Union[str, UnsetType] = UNSET
-    location: Union[ApiKeyLocation, UnsetType] = UNSET  # `in` field
-    bearerFormat: Union[str, UnsetType] = UNSET
-    flows: Union[OAuthFlows, UnsetType] = UNSET
-    openIdConnectUrl: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
+    name: MaybeSet[str] = UNSET
+    location: MaybeSet[ApiKeyLocation] = UNSET  # `in` field
+    bearerFormat: MaybeSet[str] = UNSET
+    flows: MaybeSet[OAuthFlows] = UNSET
+    openIdConnectUrl: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
 
     def __post_init__(self) -> None:
         # `in` field name is not allowed in python
@@ -314,7 +314,7 @@ class Components:
     :param schemas: the definition of input and output data types
     """
 
-    securitySchemes: Union[Dict[str, SecurityScheme], UnsetType] = UNSET
+    securitySchemes: MaybeSet[Dict[str, SecurityScheme]] = UNSET
     schemas: Dict[str, Dict[str, Any]] = dc.field(default_factory=dict)
 
 
@@ -333,8 +333,8 @@ class MethodExample:
     params: Dict[str, Any]
     result: Any
     version: str = '2.0'
-    summary: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -349,9 +349,9 @@ class ExampleObject:
     """
 
     value: Any
-    summary: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
-    externalValue: Union[str, UnsetType] = UNSET
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
+    externalValue: MaybeSet[str] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -364,7 +364,7 @@ class MediaType:
     """
 
     schema: Dict[str, Any]
-    examples: Union[Dict[str, ExampleObject], UnsetType] = UNSET
+    examples: MaybeSet[Dict[str, ExampleObject]] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -377,7 +377,7 @@ class Response:
     """
 
     description: str
-    content: Union[Dict[str, MediaType], UnsetType] = UNSET
+    content: MaybeSet[Dict[str, MediaType]] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -391,8 +391,8 @@ class RequestBody:
     """
 
     content: Dict[str, MediaType]
-    required: Union[bool, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
+    required: MaybeSet[bool] = UNSET
+    description: MaybeSet[str] = UNSET
 
 
 class ParameterLocation(str, enum.Enum):
@@ -443,16 +443,16 @@ class Parameter:
 
     name: str
     location: ParameterLocation  # `in` field
-    description: Union[str, UnsetType] = UNSET
-    required: Union[bool, UnsetType] = UNSET
-    deprecated: Union[bool, UnsetType] = UNSET
-    allowEmptyValue: Union[bool, UnsetType] = UNSET
-    style: Union[StyleType, UnsetType] = UNSET
-    explode: Union[bool, UnsetType] = UNSET
-    allowReserved: Union[bool, UnsetType] = UNSET
-    schema: Union[Dict[str, Any], UnsetType] = UNSET
-    examples:  Union[Dict[str, ExampleObject], UnsetType] = UNSET
-    content: Union[Dict[str, MediaType], UnsetType] = UNSET
+    description: MaybeSet[str] = UNSET
+    required: MaybeSet[bool] = UNSET
+    deprecated: MaybeSet[bool] = UNSET
+    allowEmptyValue: MaybeSet[bool] = UNSET
+    style: MaybeSet[StyleType] = UNSET
+    explode: MaybeSet[bool] = UNSET
+    allowReserved: MaybeSet[bool] = UNSET
+    schema: MaybeSet[Dict[str, Any]] = UNSET
+    examples:  MaybeSet[Dict[str, ExampleObject]] = UNSET
+    content: MaybeSet[Dict[str, MediaType]] = UNSET
 
     def __post_init__(self) -> None:
         # `in` field name is not allowed in python
@@ -477,15 +477,15 @@ class Operation:
     """
 
     responses: Dict[str, Response]
-    requestBody: Union[RequestBody, UnsetType] = UNSET
-    tags: Union[List[str], UnsetType] = UNSET
-    summary: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
-    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
-    deprecated: Union[bool, UnsetType] = UNSET
-    servers: Union[List[Server], UnsetType] = UNSET
-    security: Union[List[Dict[str, List[str]]], UnsetType] = UNSET
-    parameters: Union[List[Parameter], UnsetType] = UNSET
+    requestBody: MaybeSet[RequestBody] = UNSET
+    tags: MaybeSet[List[str]] = UNSET
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
+    externalDocs: MaybeSet[ExternalDocumentation] = UNSET
+    deprecated: MaybeSet[bool] = UNSET
+    servers: MaybeSet[List[Server]] = UNSET
+    security: MaybeSet[List[Dict[str, List[str]]]] = UNSET
+    parameters: MaybeSet[List[Parameter]] = UNSET
 
 
 @dc.dataclass(frozen=True)
@@ -498,33 +498,33 @@ class Path:
     :param servers: an alternative server array to service all operations in this path
     """
 
-    get: Union[Operation, UnsetType] = UNSET
-    put: Union[Operation, UnsetType] = UNSET
-    post: Union[Operation, UnsetType] = UNSET
-    delete: Union[Operation, UnsetType] = UNSET
-    options: Union[Operation, UnsetType] = UNSET
-    head: Union[Operation, UnsetType] = UNSET
-    patch: Union[Operation, UnsetType] = UNSET
-    trace: Union[Operation, UnsetType] = UNSET
-    summary: Union[str, UnsetType] = UNSET
-    description: Union[str, UnsetType] = UNSET
-    servers: Union[List[Server], UnsetType] = UNSET
+    get: MaybeSet[Operation] = UNSET
+    put: MaybeSet[Operation] = UNSET
+    post: MaybeSet[Operation] = UNSET
+    delete: MaybeSet[Operation] = UNSET
+    options: MaybeSet[Operation] = UNSET
+    head: MaybeSet[Operation] = UNSET
+    patch: MaybeSet[Operation] = UNSET
+    trace: MaybeSet[Operation] = UNSET
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
+    servers: MaybeSet[List[Server]] = UNSET
 
 
 def annotate(
-    params_schema: Union[Dict[str, Schema], UnsetType] = UNSET,
-    result_schema: Union[Schema, UnsetType] = UNSET,
-    errors_schema: Union[List[Error], UnsetType] = UNSET,
-    errors: Union[List[Type[exceptions.JsonRpcError]], UnsetType] = UNSET,
-    examples: Union[List[MethodExample], UnsetType] = UNSET,
-    error_examples: Union[List[ErrorExample], UnsetType] = UNSET,
-    tags: Union[List[str], UnsetType] = UNSET,
-    summary: Union[str, UnsetType] = UNSET,
-    description: Union[str, UnsetType] = UNSET,
-    external_docs: Union[ExternalDocumentation, UnsetType] = UNSET,
-    deprecated: Union[bool, UnsetType] = UNSET,
-    security: Union[List[Dict[str, List[str]]], UnsetType] = UNSET,
-    parameters: Union[List[Parameter], UnsetType] = UNSET,
+    params_schema: MaybeSet[Dict[str, Schema]] = UNSET,
+    result_schema: MaybeSet[Schema] = UNSET,
+    errors_schema: MaybeSet[List[Error]] = UNSET,
+    errors: MaybeSet[List[Type[exceptions.JsonRpcError]]] = UNSET,
+    examples: MaybeSet[List[MethodExample]] = UNSET,
+    error_examples: MaybeSet[List[ErrorExample]] = UNSET,
+    tags: MaybeSet[List[str]] = UNSET,
+    summary: MaybeSet[str] = UNSET,
+    description: MaybeSet[str] = UNSET,
+    external_docs: MaybeSet[ExternalDocumentation] = UNSET,
+    deprecated: MaybeSet[bool] = UNSET,
+    security: MaybeSet[List[Dict[str, List[str]]]] = UNSET,
+    parameters: MaybeSet[List[Parameter]] = UNSET,
 ) -> Callable[[Func], Func]:
     """
     Adds Open Api specification annotation to the method.
@@ -592,21 +592,21 @@ class OpenAPI(Specification):
     info: Info
     paths: Dict[str, Path]
     components: Components
-    servers: Union[List[Server], UnsetType] = UNSET
-    externalDocs: Union[ExternalDocumentation, UnsetType] = UNSET
-    tags: Union[List[Tag], UnsetType] = UNSET
-    security: Union[List[Dict[str, List[str]]], UnsetType] = UNSET
+    servers: MaybeSet[List[Server]] = UNSET
+    externalDocs: MaybeSet[ExternalDocumentation] = UNSET
+    tags: MaybeSet[List[Tag]] = UNSET
+    security: MaybeSet[List[Dict[str, List[str]]]] = UNSET
     openapi: str = '3.0.0'
 
     def __init__(
         self,
         info: Info,
         path: str = '/openapi.json',
-        servers: Union[List[Server], UnsetType] = UNSET,
-        external_docs: Union[ExternalDocumentation, UnsetType] = UNSET,
-        tags: Union[List[Tag], UnsetType] = UNSET,
-        security: Union[List[Dict[str, List[str]]], UnsetType] = UNSET,
-        security_schemes: Union[Dict[str, SecurityScheme], UnsetType] = UNSET,
+        servers: MaybeSet[List[Server]] = UNSET,
+        external_docs: MaybeSet[ExternalDocumentation] = UNSET,
+        tags: MaybeSet[List[Tag]] = UNSET,
+        security: MaybeSet[List[Dict[str, List[str]]]] = UNSET,
+        security_schemes: MaybeSet[Dict[str, SecurityScheme]] = UNSET,
         openapi: str = '3.0.0',
         schema_extractor: Optional[extractors.BaseSchemaExtractor] = None,
         schema_extractors: Iterable[extractors.BaseSchemaExtractor] = (),

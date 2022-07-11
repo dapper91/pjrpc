@@ -15,7 +15,7 @@ import pytest
 
 import pjrpc
 from pjrpc import Response
-from pjrpc.common import UNSET, UnsetType
+from pjrpc.common import UNSET, MaybeSet
 from pjrpc.common.typedefs import JsonRpcParams, JsonRpcRequestId
 
 CallType = Dict[Tuple[str, str], unittest.mock.Mock]
@@ -75,8 +75,8 @@ class PjRpcMocker:
         self,
         endpoint: str,
         method_name: str,
-        result: UnsetType = UNSET,
-        error: UnsetType = UNSET,
+        result: MaybeSet[Any] = UNSET,
+        error: MaybeSet[Any] = UNSET,
         id: Optional[JsonRpcRequestId] = None,
         version: str = '2.0',
         once: bool = False,
@@ -102,8 +102,8 @@ class PjRpcMocker:
         self,
         endpoint: str,
         method_name: str,
-        result: UnsetType = UNSET,
-        error: UnsetType = UNSET,
+        result: MaybeSet[Any] = UNSET,
+        error: MaybeSet[Any] = UNSET,
         id: Optional[JsonRpcRequestId] = None,
         version: str = '2.0',
         once: bool = False,
