@@ -11,7 +11,7 @@ documentation = "https://pjrpc.readthedocs.io/en/latest/"
 keywords = [
     'json-rpc', 'rpc', 'jsonrpc-client', 'jsonrpc-server',
     'requests', 'aiohttp', 'flask', 'httpx', 'aio-pika', 'kombu',
-    'openapi', 'openrpc', 'starlette', 'django',
+    'openapi', 'openrpc', 'starlette', 'django', 'mqtt'
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -26,7 +26,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -34,9 +33,10 @@ classifiers = [
 
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.8"
 aio-pika = { version = "^8.0", optional = true }
 aiofiles = { version = "^0.7", optional = true }
+asyncio-paho = { version = "^0.5", optional = true }
 aiohttp = { version = "^3.7", optional = true }
 django = { version = "^3.0", optional = true }
 docstring-parser = { version = "^0.8", optional = true }
@@ -55,6 +55,7 @@ sphinx = { version = "~=4.5", optional = true}
 [tool.poetry.extras]
 aio-pika = ['aio-pika']
 aiohttp = ['aiohttp']
+asyncio-paho = ['asyncio-paho']
 django = ['django']
 docstring-parser = ['docstring-parser']
 flask = ['flask', 'markupsafe']
@@ -67,7 +68,7 @@ requests = ['requests']
 starlette = ['starlette', 'aiofiles']
 test = ['docstring-parser', 'flask', 'jsonschema', 'openapi-ui-bundles', 'pydantic', 'werkzeug']
 werkzeug = ['werkzeug']
-docgen = ['sphinx', 'aiohttp', 'aio-pika', 'flask', 'jsonschema', 'pydantic', 'requests', 'kombu']
+docgen = ['sphinx', 'aiohttp', 'aio-pika', 'asyncio-paho', 'flask', 'jsonschema', 'pydantic', 'requests', 'kombu']
 
 [tool.poetry.dev-dependencies]
 aioresponses = "^0.7"
@@ -103,6 +104,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "aio_pika.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "asyncio-paho.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

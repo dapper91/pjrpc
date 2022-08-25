@@ -4,6 +4,13 @@ Examples
 ========
 
 
+aio_paho client
+---------------
+
+.. literalinclude:: ../../../examples/aio_paho_client.py
+    :language: python
+
+
 aio_pika client
 ---------------
 
