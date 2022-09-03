@@ -13,48 +13,33 @@ debug = logging.getLogger(__package__).debug
 
 
 class Client(AbstractAsyncClient):
+    _client: AsyncioPahoClient
     """
     JSON-RPC client based on `asyncio-mqtt <https://github.com/sbtinstruments/asyncio-mqtt/>`_
 
-    :param broker: MQTT broker
-    :param request_topic: MQTT topic for publishing RPC requests
-    :param response_topic: MQTT topic for receiving RPC responses
-    :param clientid: MQTT Client Id for connecting to the MQTT broker
-    :param username: MQTT user name for connecting to the MQTT broker
-    :param password: MQTT password for connecting to the MQTT broker
-    :param port: Port number used by the MQTT broker(default: 1884)
-    :param queue_name: queue name to publish requests to
+    :param debug: Whether to enable debugging for the paho mqtt backend
     :param kwargs: parameters to be passed to :py:class:`pjrpc.client.AbstractClient`
     """
 
-    def __init__(
+    def __init__(self, **kwargs: Any):
+        self._debug = kwargs.pop("debug", False)
+        super().__init__(**kwargs)
+
+    def topics(
         self,
-        broker: str,
         request_topic: str,
         response_topic: str,
-        clientid: Optional[str],
-        username: Optional[str],
-        password: Optional[str],
-        port: Optional[int] = 1884,
         **kwargs: Any,
-    ):
-        super().__init__(**kwargs)
-        self._broker = broker
-        self._port = port
+    ) -> None:
+        """Defines the topics for publishing and subscribing at the broker."""
         self._request_topic = request_topic
         self._response_topic = response_topic
-        self._clientid = clientid
-        self._username = username
-        self._password = password
 
-    async def connect(self, **kwargs: Any) -> None:
-        """Opens a connection to the broker.
-        :param kwargs: parameters to be passed to :py:class:`asyncio_paho.AsyncioPahoClient`
-        """
         subscribe_result: tuple[int, int] = (-1, -1)
         self._subscribed_future: asyncio.Future[str] = asyncio.Future()
         self._rpc_futures: List[asyncio.Future[str]] = []
-        self._debug = kwargs.pop("debug", False)
+        if "debug" in kwargs:
+            self._debug = kwargs.pop("debug")
 
         def on_connect(
             client: paho.Client,
@@ -99,9 +84,6 @@ class Client(AbstractAsyncClient):
             # pylint: disable=unused-argument
             debug(f"aio_paho: {buf}")
 
-        self._client = AsyncioPahoClient(self._clientid or "", **kwargs)
-        if self._password:
-            self._client.username_pw_set(self._username, self._password)
         self._client.on_connect = on_connect
         self._client.on_connect_fail = on_connect_fail
         self._client.on_subscribe = on_subscribe
@@ -109,7 +91,26 @@ class Client(AbstractAsyncClient):
         if self._debug:
             self._client.on_log = on_log
 
-        self._client.connect_async(self._broker)
+    async def connect(
+        self,
+        host: str,
+        port: int = 1883,
+        keepalive: int = 60,
+        bind_address: str = "",
+        bind_port: int = 0,
+        clean_start: bool | int = paho.MQTT_CLEAN_START_FIRST_ONLY,
+        properties: paho.Properties | None = None,
+    ) -> None:
+        """Opens a connection to the broker."""
+        self._client.connect_async(
+            host,
+            port,
+            keepalive,
+            bind_address,
+            bind_port,
+            clean_start,
+            properties,
+        )
         await self._subscribed_future
 
     async def close(self) -> None:
