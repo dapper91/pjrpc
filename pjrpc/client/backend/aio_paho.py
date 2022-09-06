@@ -13,7 +13,7 @@ debug = logging.getLogger(__package__).debug
 
 
 class Client(AbstractAsyncClient):
-    _client: AsyncioPahoClient
+    client: AsyncioPahoClient
     """
     JSON-RPC client based on `asyncio-mqtt <https://github.com/sbtinstruments/asyncio-mqtt/>`_
 
@@ -33,7 +33,6 @@ class Client(AbstractAsyncClient):
     ) -> None:
         """Defines the topics for publishing and subscribing at the broker."""
         self._request_topic = request_topic
-        self._response_topic = response_topic
 
         subscribe_result: tuple[int, int] = (-1, -1)
         self._subscribed_future: asyncio.Future[str] = asyncio.Future()
@@ -50,11 +49,11 @@ class Client(AbstractAsyncClient):
             # pylint: disable=unused-argument
             nonlocal subscribe_result
             if self._debug:
-                debug(f"aio_paho: Connected, subscribe to: {self._response_topic}")
-            subscribe_result = client.subscribe(self._response_topic)
+                debug(f"aio_paho: Connected, subscribe to: {response_topic}")
+            subscribe_result = client.subscribe(response_topic)
             assert subscribe_result[0] == paho.MQTT_ERR_SUCCESS
             if self._debug:
-                debug(f"aio_paho: Subscribed to {self._response_topic}")
+                debug(f"aio_paho: Subscribed to {response_topic}")
 
         def on_subscribe(
             client: paho.Client,
@@ -64,7 +63,7 @@ class Client(AbstractAsyncClient):
         ) -> None:
             # pylint: disable=unused-argument
             if self._debug:
-                debug(f"aio_paho: Subscribed to: {self._response_topic}")
+                debug(f"aio_paho: Subscribed to: {response_topic}")
             nonlocal subscribe_result
             assert mid == subscribe_result[1]
             self._subscribed_future.set_result("")
@@ -84,12 +83,12 @@ class Client(AbstractAsyncClient):
             # pylint: disable=unused-argument
             debug(f"aio_paho: {buf}")
 
-        self._client.on_connect = on_connect
-        self._client.on_connect_fail = on_connect_fail
-        self._client.on_subscribe = on_subscribe
-        self._client.on_message = on_message
+        self.client.on_connect = on_connect
+        self.client.on_connect_fail = on_connect_fail
+        self.client.on_subscribe = on_subscribe
+        self.client.on_message = on_message
         if self._debug:
-            self._client.on_log = on_log
+            self.client.on_log = on_log
 
     async def connect(
         self,
@@ -102,7 +101,7 @@ class Client(AbstractAsyncClient):
         properties: paho.Properties | None = None,
     ) -> None:
         """Opens a connection to the broker."""
-        self._client.connect_async(
+        self.client.connect_async(
             host,
             port,
             keepalive,
@@ -115,7 +114,7 @@ class Client(AbstractAsyncClient):
 
     async def close(self) -> None:
         """Close the current connection to the MQTT broker and send exceptions."""
-        await self._client.close()
+        await self.client.close()
         for future in self._rpc_futures:
             if future.done():
                 continue
@@ -133,7 +132,7 @@ class Client(AbstractAsyncClient):
             self._rpc_futures.append(future)
         if self._debug:
             debug(f"aio_paho: {self._request_topic}: publish '{request_text}'")
-        self._client.publish(self._request_topic, request_text.encode())
+        self.client.publish(self._request_topic, request_text.encode())
         if is_notification:
             return None
         received = await future
