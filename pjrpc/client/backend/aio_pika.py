@@ -81,16 +81,16 @@ class Client(AbstractAsyncClient):
         Closes current broker connection.
         """
 
-        assert self._channel is not None, "client is not initialized"
-        assert self._connection is not None, "client is not initialized"
-        assert self._result_queue is not None, "client is not initialized"
-
-        if self._consumer_tag:
+        if self._consumer_tag and self._result_queue:
             await self._result_queue.cancel(self._consumer_tag)
             self._consumer_tag = None
 
-        await self._channel.close()
-        await self._connection.close()
+        if self._channel:
+            await self._channel.close()
+            self._channel = None
+        if self._connection:
+            await self._connection.close()
+            self._connection = None
 
         for future in self._futures.values():
             if future.done():
