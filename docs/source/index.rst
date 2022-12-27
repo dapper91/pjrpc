@@ -49,6 +49,7 @@ Extra requirements
 
 - `aiohttp <https://aiohttp.readthedocs.io>`_
 - `aio_pika <https://aio-pika.readthedocs.io>`_
+- `asyncio-paho <https://github.com/toreamun/asyncio-paho>`_
 - `flask <https://flask.palletsprojects.com>`_
 - `jsonschema <https://python-jsonschema.readthedocs.io>`_
 - `kombu <https://kombu.readthedocs.io/en/stable/>`_
