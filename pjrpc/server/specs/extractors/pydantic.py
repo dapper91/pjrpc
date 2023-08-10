@@ -126,7 +126,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
         return field_schema
 
     @staticmethod
-    def _get_annotations(cls: Type) -> Dict[str, Any]:
+    def _get_annotations(cls: Type[Any]) -> Dict[str, Any]:
         annotations: Dict[str, Any] = {}
         for patent in cls.mro():
             annotations.update(**getattr(patent, '__annotations__', {}))

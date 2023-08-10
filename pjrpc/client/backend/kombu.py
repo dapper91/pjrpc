@@ -83,7 +83,7 @@ class Client(AbstractClient):
 
         request_id = kombu.uuid()
         result_queue = self._result_queue or kombu.Queue(
-            exclusive=True, name=request_id, **(self._result_queue_args or {})
+            exclusive=True, name=request_id, **(self._result_queue_args or {}),
         )
 
         with kombu.Producer(self._connection) as producer:

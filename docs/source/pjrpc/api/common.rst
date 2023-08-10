@@ -3,6 +3,8 @@
 Common
 ------
 
+Misc
+~~~~
 
 .. automodule:: pjrpc.common
     :members:

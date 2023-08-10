@@ -67,7 +67,7 @@ class BaseBatch(abc.ABC):
         self._id_gen = client.id_gen_impl()
         self._requests = client.batch_request_class()
 
-    def __getitem__(self, requests: Iterable[Tuple]) -> Union[Awaitable[Any], Any]:
+    def __getitem__(self, requests: Iterable[Tuple[Any]]) -> Union[Awaitable[Any], Any]:
         """
         Adds requests to the batch and makes a request.
 
@@ -80,7 +80,7 @@ class BaseBatch(abc.ABC):
                 method=method,
                 params=params,
                 id=next(self._id_gen),
-            ) for method, *params in requests
+            ) for method, *params in requests  # type: ignore[var-annotated]
         ])
         return self.call()
 
@@ -287,7 +287,7 @@ class BaseAbstractClient(abc.ABC):
         def __init__(self, client: 'BaseAbstractClient'):
             self._client = client
 
-        def __getattr__(self, attr: str) -> Callable:
+        def __getattr__(self, attr: str) -> Callable[..., Any]:
             return ft.partial(self._client.call, attr)
 
     def __init__(
@@ -298,8 +298,8 @@ class BaseAbstractClient(abc.ABC):
         batch_response_class: Type[BatchResponse] = v20.BatchResponse,
         error_cls: Type[exceptions.JsonRpcError] = exceptions.JsonRpcError,
         id_gen_impl: Callable[..., Generator[JsonRpcRequestId, None, None]] = generators.sequential,
-        json_loader: Callable = json.loads,
-        json_dumper: Callable = json.dumps,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[common.JSONEncoder] = common.JSONEncoder,
         json_decoder: Optional[json.JSONDecoder] = None,
         strict: bool = True,

@@ -17,7 +17,7 @@ from pjrpc.server import Method, utils
 
 from . import Specification, extractors
 
-Json = Union[str, int, float, dict, bool, list, tuple, set, None]
+Json = Union[str, int, float, dict, bool, list, tuple, set, None]  # type: ignore[type-arg]
 
 
 @dc.dataclass(frozen=True)
@@ -221,8 +221,8 @@ class MethodInfo:
     """
 
     name: str
-    params: List[Union[ContentDescriptor, dict]]
-    result: Union[ContentDescriptor, dict]
+    params: List[Union[ContentDescriptor, Dict[str, Any]]]
+    result: Union[ContentDescriptor, Dict[str, Any]]
     errors: MaybeSet[List[Error]] = UNSET
     paramStructure: MaybeSet[ParamStructure] = UNSET
     examples: MaybeSet[List[MethodExample]] = UNSET

@@ -72,7 +72,7 @@ class Client(AbstractAsyncClient):
         if self._result_queue_name:
             assert channel
             self._result_queue = await channel.declare_queue(
-                self._result_queue_name, **(self._result_queue_args or {})
+                self._result_queue_name, **(self._result_queue_args or {}),
             )
             self._consumer_tag = await self._result_queue.consume(self._on_result_message, no_ack=True)
 
@@ -132,7 +132,7 @@ class Client(AbstractAsyncClient):
         async with self._connection.channel() as channel:
             if not self._result_queue:
                 result_queue = await channel.declare_queue(
-                    request_id, exclusive=True, **(self._result_queue_args or {})
+                    request_id, exclusive=True, **(self._result_queue_args or {}),
                 )
                 await result_queue.consume(self._on_result_message, no_ack=True)
             else:

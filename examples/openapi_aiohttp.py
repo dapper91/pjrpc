@@ -1,6 +1,7 @@
 import uuid
 from typing import Any
 
+import aiohttp_cors
 import pydantic
 from aiohttp import helpers, web
 
@@ -219,6 +220,19 @@ jsonrpc_app = AuthenticatedJsonRPC(
 )
 jsonrpc_app.dispatcher.add_methods(methods)
 app.add_subapp('/myapp', jsonrpc_app.app)
+
+cors = aiohttp_cors.setup(
+    app, defaults={
+        '*': aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers='*',
+            allow_headers='*',
+        ),
+    },
+)
+for route in list(app.router.routes()):
+    cors.add(route)
+
 
 if __name__ == "__main__":
     web.run_app(app, host='localhost', port=8080)

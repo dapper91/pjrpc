@@ -1,7 +1,7 @@
 .. _specification:
 
-Specification:
-==============
+Specification
+=============
 
 
 ``pjrpc`` has built-in `OpenAPI <https://swagger.io/specification/>`_ and `OpenRPC <https://spec.open-rpc.org/#introduction>`_

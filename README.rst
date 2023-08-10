@@ -5,8 +5,8 @@ pjrpc
 .. image:: https://static.pepy.tech/personalized-badge/pjrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
     :target: https://pepy.tech/project/pjrpc
     :alt: Downloads/month
-.. image:: https://travis-ci.org/dapper91/pjrpc.svg?branch=master
-    :target: https://travis-ci.org/dapper91/pjrpc
+.. image:: https://github.com/dapper91/pjrpc/actions/workflows/test.yml/badge.svg?branch=master
+    :target: https://github.com/dapper91/pjrpc/actions/workflows/test.yml
     :alt: Build status
 .. image:: https://img.shields.io/pypi/l/pjrpc.svg
     :target: https://pypi.org/project/pjrpc
@@ -67,7 +67,7 @@ Extra requirements
 Documentation
 -------------
 
-Documentation is available at `Read the Docs <https://pjrpc.readthedocs.io/en/latest/>`_.
+Documentation is available at `Read the Docs <https://pjrpc.readthedocs.io>`_.
 
 
 Quickstart

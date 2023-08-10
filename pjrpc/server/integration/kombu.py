@@ -34,7 +34,7 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
         queue_args: Optional[Dict[str, Any]] = None,
         publish_args: Optional[Dict[str, Any]] = None,
         prefetch_count: int = 0,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         self.connection = kombu.Connection(broker_url, **(conn_args or {}))
 
@@ -84,7 +84,7 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
                         correlation_id=message.properties.get('correlation_id'),
                         content_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
                         content_encoding='utf8',
-                        **(self._publish_args or {})
+                        **(self._publish_args or {}),
                     )
 
             message.ack()
