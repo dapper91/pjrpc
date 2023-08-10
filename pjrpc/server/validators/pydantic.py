@@ -27,7 +27,7 @@ class PydanticValidator(base.BaseValidator):
         self._model_config = type('ModelConfig', (pydantic.BaseConfig,), config_args)
 
     def validate_method(
-        self, method: Callable, params: Optional['JsonRpcParams'], exclude: Iterable[str] = (), **kwargs: Any,
+        self, method: Callable[..., Any], params: Optional['JsonRpcParams'], exclude: Iterable[str] = (), **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Validates params against method using ``pydantic`` validator.

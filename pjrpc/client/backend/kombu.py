@@ -5,7 +5,7 @@ import kombu.mixins
 
 import pjrpc
 from pjrpc.client import AbstractClient
-from pjrpc.common import UNSET, UnsetType
+from pjrpc.common import UNSET, MaybeSet, UnsetType
 
 logger = logging.getLogger(__package__)
 
@@ -83,7 +83,7 @@ class Client(AbstractClient):
 
         request_id = kombu.uuid()
         result_queue = self._result_queue or kombu.Queue(
-            exclusive=True, name=request_id, **(self._result_queue_args or {})
+            exclusive=True, name=request_id, **(self._result_queue_args or {}),
         )
 
         with kombu.Producer(self._connection) as producer:
@@ -98,7 +98,7 @@ class Client(AbstractClient):
                 **kwargs,
             )
 
-        response: Optional[Union[UnsetType, str, Exception]] = UNSET
+        response: MaybeSet[Union[None, str, Exception]] = UNSET
 
         def on_response(message: kombu.Message) -> None:
             nonlocal response

@@ -72,7 +72,7 @@ class Client(AbstractAsyncClient):
         if self._result_queue_name:
             assert channel
             self._result_queue = await channel.declare_queue(
-                self._result_queue_name, **(self._result_queue_args or {})
+                self._result_queue_name, **(self._result_queue_args or {}),
             )
             self._consumer_tag = await self._result_queue.consume(self._on_result_message, no_ack=True)
 
@@ -81,16 +81,16 @@ class Client(AbstractAsyncClient):
         Closes current broker connection.
         """
 
-        assert self._channel is not None, "client is not initialized"
-        assert self._connection is not None, "client is not initialized"
-        assert self._result_queue is not None, "client is not initialized"
-
-        if self._consumer_tag:
+        if self._consumer_tag and self._result_queue:
             await self._result_queue.cancel(self._consumer_tag)
             self._consumer_tag = None
 
-        await self._channel.close()
-        await self._connection.close()
+        if self._channel:
+            await self._channel.close()
+            self._channel = None
+        if self._connection:
+            await self._connection.close()
+            self._connection = None
 
         for future in self._futures.values():
             if future.done():
@@ -132,7 +132,7 @@ class Client(AbstractAsyncClient):
         async with self._connection.channel() as channel:
             if not self._result_queue:
                 result_queue = await channel.declare_queue(
-                    request_id, exclusive=True, **(self._result_queue_args or {})
+                    request_id, exclusive=True, **(self._result_queue_args or {}),
                 )
                 await result_queue.consume(self._on_result_message, no_ack=True)
             else:

@@ -3,11 +3,11 @@ Definition of package exceptions and JSON-RPC protocol errors.
 """
 
 import typing
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Dict, Optional, Tuple, Type
 
 from pjrpc.common.typedefs import Json
 
-from .common import UNSET, UnsetType
+from .common import UNSET, MaybeSet
 
 
 class BaseError(Exception):
@@ -38,7 +38,7 @@ class JsonRpcErrorMeta(type):
 
     __errors_mapping__: Dict[int, Type['JsonRpcError']] = {}
 
-    def __new__(mcs, name: str, bases: tuple, dct: dict) -> Type['JsonRpcError']:
+    def __new__(mcs, name: str, bases: Tuple[type, ...], dct: Dict[str, Any]) -> Type['JsonRpcError']:
         cls: Type['JsonRpcError'] = typing.cast(Type['JsonRpcError'], super().__new__(mcs, name, bases, dct))
         if hasattr(cls, 'code') and cls.code is not None:
             mcs.__errors_mapping__[cls.code] = cls
@@ -97,7 +97,7 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
     def get_error_cls(cls, code: int, default: Type['JsonRpcError']) -> Type['JsonRpcError']:
         return type(cls).__errors_mapping__.get(code, default)
 
-    def __init__(self, code: Optional[int] = None, message: Optional[str] = None, data: Union[UnsetType, Any] = UNSET):
+    def __init__(self, code: Optional[int] = None, message: Optional[str] = None, data: MaybeSet[Any] = UNSET):
         assert code or self.code, "code is not provided"
         assert message or self.message, "message is not provided"
 

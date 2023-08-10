@@ -15,7 +15,7 @@ import pytest
 
 import pjrpc
 from pjrpc import Response
-from pjrpc.common import UNSET, UnsetType
+from pjrpc.common import UNSET, MaybeSet
 from pjrpc.common.typedefs import JsonRpcParams, JsonRpcRequestId
 
 CallType = Dict[Tuple[str, str], unittest.mock.Mock]
@@ -33,7 +33,7 @@ class Match:
         version: str,
         method_name: str,
         once: bool,
-        callback: Optional[Callable],
+        callback: Optional[Callable[..., Any]],
         **response_data: Any,
     ):
         self.endpoint = endpoint
@@ -75,12 +75,12 @@ class PjRpcMocker:
         self,
         endpoint: str,
         method_name: str,
-        result: UnsetType = UNSET,
-        error: UnsetType = UNSET,
+        result: MaybeSet[Any] = UNSET,
+        error: MaybeSet[Any] = UNSET,
         id: Optional[JsonRpcRequestId] = None,
         version: str = '2.0',
         once: bool = False,
-        callback: Optional[Callable] = None,
+        callback: Optional[Callable[..., Any]] = None,
     ) -> None:
         """
         Appends response patch. If the same method patch already exists they will be used in a round-robin way.
@@ -102,12 +102,12 @@ class PjRpcMocker:
         self,
         endpoint: str,
         method_name: str,
-        result: UnsetType = UNSET,
-        error: UnsetType = UNSET,
+        result: MaybeSet[Any] = UNSET,
+        error: MaybeSet[Any] = UNSET,
         id: Optional[JsonRpcRequestId] = None,
         version: str = '2.0',
         once: bool = False,
-        callback: Optional[Callable] = None,
+        callback: Optional[Callable[..., Any]] = None,
         idx: int = 0,
     ) -> None:
         """
@@ -175,7 +175,7 @@ class PjRpcMocker:
             if asyncio.iscoroutinefunction(patcher.temp_original):
                 self._async_resp = True
 
-        side_effect: Callable
+        side_effect: Callable[..., Any]
         if self._async_resp:
             async def side_effect(*args: Any, **kwargs: Any) -> str:
                 return await self._on_request(*args, **kwargs)

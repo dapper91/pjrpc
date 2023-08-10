@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable, Dict, Generator, Iterable, Optional
 
 from pjrpc import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response, common
 from pjrpc.client import retry
-from pjrpc.common import UNSET, UnsetType, exceptions, generators, v20
+from pjrpc.common import UNSET, MaybeSet, UnsetType, exceptions, generators, v20
 from pjrpc.common.typedefs import JsonRpcRequestId, MethodType
 
 from .tracer import Tracer
@@ -67,7 +67,7 @@ class BaseBatch(abc.ABC):
         self._id_gen = client.id_gen_impl()
         self._requests = client.batch_request_class()
 
-    def __getitem__(self, requests: Iterable[Tuple]) -> Union[Awaitable[Any], Any]:
+    def __getitem__(self, requests: Iterable[Tuple[Any]]) -> Union[Awaitable[Any], Any]:
         """
         Adds requests to the batch and makes a request.
 
@@ -80,7 +80,7 @@ class BaseBatch(abc.ABC):
                 method=method,
                 params=params,
                 id=next(self._id_gen),
-            ) for method, *params in requests
+            ) for method, *params in requests  # type: ignore[var-annotated]
         ])
         return self.call()
 
@@ -287,7 +287,7 @@ class BaseAbstractClient(abc.ABC):
         def __init__(self, client: 'BaseAbstractClient'):
             self._client = client
 
-        def __getattr__(self, attr: str) -> Callable:
+        def __getattr__(self, attr: str) -> Callable[..., Any]:
             return ft.partial(self._client.call, attr)
 
     def __init__(
@@ -298,8 +298,8 @@ class BaseAbstractClient(abc.ABC):
         batch_response_class: Type[BatchResponse] = v20.BatchResponse,
         error_cls: Type[exceptions.JsonRpcError] = exceptions.JsonRpcError,
         id_gen_impl: Callable[..., Generator[JsonRpcRequestId, None, None]] = generators.sequential,
-        json_loader: Callable = json.loads,
-        json_dumper: Callable = json.dumps,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[common.JSONEncoder] = common.JSONEncoder,
         json_decoder: Optional[json.JSONDecoder] = None,
         strict: bool = True,
@@ -457,7 +457,7 @@ class AbstractClient(BaseAbstractClient):
         self,
         request: Request,
         _trace_ctx: SimpleNamespace = SimpleNamespace(),
-        _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+        _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
         **kwargs: Any,
     ) -> Optional[Response]:
         """
@@ -515,7 +515,7 @@ class AbstractClient(BaseAbstractClient):
         def wrapper(
             self: 'AbstractClient',
             request: AbstractRequest,
-            _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+            _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
             **kwargs: Any,
         ) -> Optional[AbstractResponse]:
             """
@@ -589,7 +589,7 @@ class AbstractAsyncClient(BaseAbstractClient):
         self,
         request: Request,
         _trace_ctx: SimpleNamespace = SimpleNamespace(),
-        _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+        _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
         **kwargs: Any,
     ) -> Optional[Response]:
         """
@@ -647,7 +647,7 @@ class AbstractAsyncClient(BaseAbstractClient):
         async def wrapper(
             self: 'AbstractClient',
             request: AbstractRequest,
-            _retry_strategy: Union[UnsetType, retry.RetryStrategy] = UNSET,
+            _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
             **kwargs: Any,
         ) -> Optional[AbstractResponse]:
             """

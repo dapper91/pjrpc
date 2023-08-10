@@ -1,6 +1,14 @@
 Changelog
 =========
 
+1.7.0 (2023-08-10)
+------------------
+
+- refactoring done
+- dependencies updated
+- python 3.11 support added
+
+
 1.6.0 (2022-07-05)
 ------------------
 

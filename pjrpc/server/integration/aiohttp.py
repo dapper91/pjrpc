@@ -27,7 +27,7 @@ class Application:
         path: str = '',
         spec: Optional[specs.Specification] = None,
         app: Optional[web.Application] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         self._path = path.rstrip('/')
         self._spec = spec

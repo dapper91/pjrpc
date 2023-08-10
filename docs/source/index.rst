@@ -3,15 +3,15 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to pjrpc's documentation!
-=================================
+Python JSON-RPC without boilerplate
+===================================
 
 
 .. image:: https://static.pepy.tech/personalized-badge/pjrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
     :target: https://pepy.tech/project/pjrpc
     :alt: Downloads/month
-.. image:: https://travis-ci.org/dapper91/pjrpc.svg?branch=master
-    :target: https://travis-ci.org/dapper91/pjrpc
+.. image:: https://github.com/dapper91/pjrpc/actions/workflows/test.yml/badge.svg?branch=master
+    :target: https://github.com/dapper91/pjrpc/actions/workflows/test.yml
     :alt: Build status
 .. image:: https://img.shields.io/pypi/l/pjrpc.svg
     :target: https://pypi.org/project/pjrpc
@@ -97,6 +97,12 @@ Development
    :maxdepth: 2
 
    pjrpc/development
+
+
+Links
+-----
+
+- `Source code <https://github.com/dapper91/pjrpc>`_
 
 
 Indices and tables

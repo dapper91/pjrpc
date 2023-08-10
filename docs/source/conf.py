@@ -10,26 +10,22 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
-import enum
 import sys
 from pathlib import Path
 
+import toml
+
 THIS_PATH = Path(__file__).parent
-sys.path.insert(0, str(THIS_PATH.parent.parent))
+ROOT_PATH = THIS_PATH.parent.parent
+sys.path.insert(0, str(ROOT_PATH))
 
-import pjrpc.common.typedefs  # noqa
-import pjrpc.server.typedefs  # noqa
+PYPROJECT = toml.load(ROOT_PATH / 'pyproject.toml')
+PROJECT_INFO = PYPROJECT['tool']['poetry']
 
-# -- Project information -----------------------------------------------------
-
-project = pjrpc.__title__
-author = pjrpc.__author__
-copyright = '2019, {}'.format(author)
-
-# The full version, including alpha/beta/rc tags
-release = pjrpc.__version__
-version = pjrpc.__version__
-
+project = PROJECT_INFO['name']
+copyright = f"2023, {PROJECT_INFO['name']}"
+author = PROJECT_INFO['authors'][0]
+release = PROJECT_INFO['version']
 
 # -- General configuration ---------------------------------------------------
 
@@ -40,39 +36,11 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.autosectionlabel',
+    'sphinx.ext.viewcode',
+    'sphinx_copybutton',
+    'sphinx_design',
 ]
-
-html_theme_options = {
-    'github_user': 'dapper91',
-    'github_repo': 'pjrpc',
-    'github_banner': True,
-}
-
-# Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
-
-# List of patterns, relative to source directory, that match files and
-# directories to ignore when looking for source files.
-# This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
-
-
-# -- Options for HTML output -------------------------------------------------
-
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-#
-html_theme = 'alabaster'
-
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
-
-html_css_files = ['css/custom.css']
-
-# The master toctree document.
-master_doc = 'index'
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
@@ -80,28 +48,25 @@ intersphinx_mapping = {
     'requests': ('https://requests.kennethreitz.org/en/master/', None),
 }
 
-autodoc_mock_imports = ['attrs']
 autodoc_typehints = 'description'
 autodoc_typehints_format = 'short'
 autodoc_member_order = 'bysource'
 autodoc_default_options = {
     'show-inheritance': True,
 }
-autodoc_type_aliases = {
-    type_name: f'{pjrpc.common.typedefs.__name__}.{type_name}'
-    for type_name in pjrpc.common.typedefs.__all__
-} | {
-    type_name: f'{pjrpc.server.typedefs.__name__}.{type_name}'
-    for type_name in pjrpc.server.typedefs.__all__
-}
 
 
-def maybe_skip_member(app, what, name, obj, skip, options):
-    if isinstance(obj, enum.Enum):
-        return False
+autosectionlabel_prefix_document = True
 
-    return None
+html_theme_options = {}
+html_title = PROJECT_INFO['name']
 
+templates_path = ['_templates']
+exclude_patterns = []
 
-def setup(app):
-    app.connect('autodoc-skip-member', maybe_skip_member)
+# -- Options for HTML output -------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+
+html_theme = 'furo'
+html_static_path = ['_static']
+html_css_files = ['css/custom.css']

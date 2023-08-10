@@ -7,7 +7,8 @@ from typing import Any, Awaitable, Callable, Dict, Generator, ItemsView, Iterabl
 from typing import Type, Union, ValuesView, cast
 
 import pjrpc
-from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, Request, Response, UnsetType, v20
+from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, MaybeSet, Request, Response, UnsetType
+from pjrpc.common import v20
 from pjrpc.common.typedefs import JsonRpcParams, MethodType
 from pjrpc.server import utils
 from pjrpc.server.typedefs import AsyncErrorHandlerType, AsyncMiddlewareType, ErrorHandlerType, MiddlewareType
@@ -39,7 +40,7 @@ class Method:
 
     def bind(self, params: Optional['JsonRpcParams'], context: Optional[Any] = None) -> MethodType:
         method_params = self.validator.validate_method(
-            self.method, params, exclude=(self.context,) if self.context else (), **self.validator_args
+            self.method, params, exclude=(self.context,) if self.context else (), **self.validator_args,
         )
 
         if self.context is not None:
@@ -105,7 +106,7 @@ class ViewMixin:
         pass
 
     @classmethod
-    def __methods__(cls) -> Generator[Callable, None, None]:
+    def __methods__(cls) -> Generator[Callable[..., Any], None, None]:
         for attr_name in filter(lambda name: not name.startswith('_'), dir(cls)):
             attr = getattr(cls, attr_name)
             if callable(attr):
@@ -183,7 +184,7 @@ class MethodRegistry:
         else:
             return decorator(maybe_method)
 
-    def add_methods(self, *methods: Union[Callable, Method]) -> None:
+    def add_methods(self, *methods: Union[Callable[..., Any], Method]) -> None:
         """
         Adds methods to the registry.
 
@@ -199,7 +200,7 @@ class MethodRegistry:
 
     def view(
         self, maybe_view: Optional[Type[ViewMixin]] = None, context: Optional[Any] = None, prefix: Optional[str] = None,
-    ) -> Union[ViewMixin, Callable]:
+    ) -> Union[ViewMixin, Callable[..., Any]]:
         """
         Methods view decorator.
 
@@ -278,12 +279,12 @@ class BaseDispatcher:
         response_class: Type[Response] = v20.Response,
         batch_request: Type[BatchRequest] = v20.BatchRequest,
         batch_response: Type[BatchResponse] = v20.BatchResponse,
-        json_loader: Callable = json.loads,
-        json_dumper: Callable = json.dumps,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
-        middlewares: Iterable[Callable] = (),
-        error_handlers: Dict[Union[None, int, Exception], List[Callable]] = {},
+        middlewares: Iterable[Callable[..., Any]] = (),
+        error_handlers: Dict[Union[None, int, Exception], List[Callable[..., Any]]] = {},
     ):
         self._json_loader = json_loader
         self._json_dumper = json_dumper
@@ -302,7 +303,7 @@ class BaseDispatcher:
     def registry(self) -> MethodRegistry:
         return self._registry
 
-    def add(self, method: Callable, name: Optional[str] = None, context: Optional[Any] = None) -> None:
+    def add(self, method: Callable[..., Any], name: Optional[str] = None, context: Optional[Any] = None) -> None:
         """
         Adds method to the registry.
 
@@ -313,7 +314,7 @@ class BaseDispatcher:
 
         self._registry.add(method, name, context)
 
-    def add_methods(self, *methods: Union[MethodRegistry, Method, Callable]) -> None:
+    def add_methods(self, *methods: Union[MethodRegistry, Method, Callable[..., Any]]) -> None:
         """
         Adds methods to the registry.
 
@@ -351,8 +352,8 @@ class Dispatcher(BaseDispatcher):
         response_class: Type[Response] = v20.Response,
         batch_request: Type[BatchRequest] = v20.BatchRequest,
         batch_response: Type[BatchResponse] = v20.BatchResponse,
-        json_loader: Callable = json.loads,
-        json_dumper: Callable = json.dumps,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
         middlewares: Iterable['MiddlewareType'] = (),
@@ -382,7 +383,7 @@ class Dispatcher(BaseDispatcher):
 
         logger.getChild('request').debug("request received: %s", request_text)
 
-        response: Union[AbstractResponse, UnsetType]
+        response: MaybeSet[AbstractResponse]
         try:
             request_json = self._json_loader(request_text, cls=self._json_decoder)
             request: Union[Request, BatchRequest]
@@ -403,7 +404,7 @@ class Dispatcher(BaseDispatcher):
                     *(
                         resp for resp in (self._handle_request(request, context) for request in request)
                         if not isinstance(resp, UnsetType)
-                    )
+                    ),
                 )
             else:
                 response = self._handle_request(request, context)
@@ -416,9 +417,9 @@ class Dispatcher(BaseDispatcher):
 
         return None
 
-    def _handle_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
+    def _handle_request(self, request: Request, context: Optional[Any]) -> MaybeSet[Response]:
         try:
-            HandlerType = Callable[[Request, Optional[Any]], Union[UnsetType, Response]]
+            HandlerType = Callable[[Request, Optional[Any]], MaybeSet[Response]]
             handler: HandlerType = self._handle_rpc_request
 
             for middleware in reversed(self._middlewares):
@@ -442,7 +443,7 @@ class Dispatcher(BaseDispatcher):
 
         return self._response_class(id=request.id, error=error)
 
-    def _handle_rpc_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
+    def _handle_rpc_request(self, request: Request, context: Optional[Any]) -> MaybeSet[Response]:
         result = self._handle_rpc_method(request.method, request.params, context)
         if request.id is None:
             return UNSET
@@ -487,8 +488,8 @@ class AsyncDispatcher(BaseDispatcher):
         response_class: Type[Response] = v20.Response,
         batch_request: Type[BatchRequest] = v20.BatchRequest,
         batch_response: Type[BatchResponse] = v20.BatchResponse,
-        json_loader: Callable = json.loads,
-        json_dumper: Callable = json.dumps,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
         middlewares: Iterable['AsyncMiddlewareType'] = (),
@@ -518,7 +519,7 @@ class AsyncDispatcher(BaseDispatcher):
 
         logger.getChild('request').debug("request received: %s", request_text)
 
-        response: Union[AbstractResponse, UnsetType]
+        response: MaybeSet[AbstractResponse]
         try:
             request_json = self._json_loader(request_text, cls=self._json_decoder)
             request: Union[Request, BatchRequest]
@@ -538,9 +539,9 @@ class AsyncDispatcher(BaseDispatcher):
                 response = self._batch_response(
                     *filter(
                         lambda resp: resp is not UNSET, await asyncio.gather(
-                            *(self._handle_request(request, context) for request in request)
+                            *(self._handle_request(request, context) for request in request),
                         ),
-                    )
+                    ),
                 )
 
             else:
@@ -554,9 +555,9 @@ class AsyncDispatcher(BaseDispatcher):
 
         return None
 
-    async def _handle_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
+    async def _handle_request(self, request: Request, context: Optional[Any]) -> MaybeSet[Response]:
         try:
-            HandlerType = Callable[[Request, Optional[Any]], Awaitable[Union[UnsetType, Response]]]
+            HandlerType = Callable[[Request, Optional[Any]], Awaitable[MaybeSet[Response]]]
             handler: HandlerType = self._handle_rpc_request
 
             for middleware in reversed(self._middlewares):
@@ -580,7 +581,7 @@ class AsyncDispatcher(BaseDispatcher):
 
         return self._response_class(id=request.id, error=error)
 
-    async def _handle_rpc_request(self, request: Request, context: Optional[Any]) -> Union[UnsetType, Response]:
+    async def _handle_rpc_request(self, request: Request, context: Optional[Any]) -> MaybeSet[Response]:
         result = await self._handle_rpc_method(request.method, request.params, context)
         if request.id is None:
             return UNSET

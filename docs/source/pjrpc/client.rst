@@ -181,5 +181,5 @@ Id generators
 --------------
 
 The library request id generator can also be customized. There are four generator types implemented in the library
-see :py:mod:`pjrpc.common.generators`. You can implement your own one and pass it to a client by `id_gen`
+see :py:mod:`pjrpc.common.generators`. You can implement your own one and pass it to a client by ``id_gen``
 parameter.

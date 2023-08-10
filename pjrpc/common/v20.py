@@ -6,11 +6,11 @@ from __future__ import annotations
 import abc
 import itertools as it
 import operator as op
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple, Type, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple, Type
 
 from pjrpc.common.typedefs import Json, JsonRpcParams, JsonRpcRequestId
 
-from .common import UNSET, UnsetType
+from .common import UNSET, MaybeSet, UnsetType
 from .exceptions import DeserializationError, IdentityError, JsonRpcError
 
 
@@ -75,7 +75,7 @@ class AbstractResponse(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def error(self) -> Union[UnsetType, JsonRpcError]:
+    def error(self) -> MaybeSet[JsonRpcError]:
         pass
 
     @property
@@ -157,8 +157,8 @@ class Response(AbstractResponse):
     def __init__(
         self,
         id: Optional[JsonRpcRequestId],
-        result: Union[UnsetType, Any] = UNSET,
-        error: Union[UnsetType, JsonRpcError] = UNSET,
+        result: MaybeSet[Any] = UNSET,
+        error: MaybeSet[JsonRpcError] = UNSET,
     ):
         assert result is not UNSET or error is not UNSET, "result or error argument must be provided"
         assert result is UNSET or error is UNSET, "result and error arguments are mutually exclusive"
@@ -205,7 +205,7 @@ class Response(AbstractResponse):
         return self._result
 
     @property
-    def error(self) -> Union[UnsetType, JsonRpcError]:
+    def error(self) -> MaybeSet[JsonRpcError]:
         """
         Response error. If the response has succeeded returns :py:data:`pjrpc.common.common.UNSET`.
         """
@@ -228,7 +228,7 @@ class Response(AbstractResponse):
 
         return not self.is_success
 
-    @property
+    @property  # type: ignore[override]
     def related(self) -> Optional['Request']:
         """
         Returns the request related response object if the response has been
@@ -437,7 +437,7 @@ class BatchResponse(AbstractResponse):
 
         return cls(*(Response.from_json(item) for item in json_data))
 
-    def __init__(self, *responses: Response, error: Union[UnsetType, JsonRpcError] = UNSET, strict: bool = True):
+    def __init__(self, *responses: Response, error: MaybeSet[JsonRpcError] = UNSET, strict: bool = True):
         self._responses: List[Response] = []
         self._ids: Set[JsonRpcRequestId] = set()
         self._error = error
@@ -479,7 +479,7 @@ class BatchResponse(AbstractResponse):
         )
 
     @property
-    def error(self) -> Union[UnsetType, JsonRpcError]:
+    def error(self) -> MaybeSet[JsonRpcError]:
         """
         Response error. If the response has succeeded returns :py:data:`pjrpc.common.common.UNSET`.
         """
@@ -531,7 +531,7 @@ class BatchResponse(AbstractResponse):
 
         return tuple(result)
 
-    @property
+    @property  # type: ignore[override]
     def related(self) -> Optional['BatchRequest']:
         """
         Returns the request related response object if the response has been

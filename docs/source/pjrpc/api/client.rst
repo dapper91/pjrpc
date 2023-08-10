@@ -3,9 +3,12 @@
 Client
 ------
 
+Misc
+~~~~
 
 .. automodule:: pjrpc.client
     :members:
+
 
 Backends
 ~~~~~~~~
