@@ -26,15 +26,15 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.8"
 aio-pika = { version = "^8.0", optional = true }
 aiofiles = { version = "^0.7", optional = true }
 aiohttp = { version = "^3.7", optional = true }
