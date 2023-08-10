@@ -40,7 +40,7 @@ class Method:
 
     def bind(self, params: Optional['JsonRpcParams'], context: Optional[Any] = None) -> MethodType:
         method_params = self.validator.validate_method(
-            self.method, params, exclude=(self.context,) if self.context else (), **self.validator_args
+            self.method, params, exclude=(self.context,) if self.context else (), **self.validator_args,
         )
 
         if self.context is not None:
@@ -404,7 +404,7 @@ class Dispatcher(BaseDispatcher):
                     *(
                         resp for resp in (self._handle_request(request, context) for request in request)
                         if not isinstance(resp, UnsetType)
-                    )
+                    ),
                 )
             else:
                 response = self._handle_request(request, context)
@@ -539,9 +539,9 @@ class AsyncDispatcher(BaseDispatcher):
                 response = self._batch_response(
                     *filter(
                         lambda resp: resp is not UNSET, await asyncio.gather(
-                            *(self._handle_request(request, context) for request in request)
+                            *(self._handle_request(request, context) for request in request),
                         ),
-                    )
+                    ),
                 )
 
             else:
