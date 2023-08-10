@@ -4,8 +4,12 @@
 Server
 ------
 
+Misc
+~~~~
+
 .. automodule:: pjrpc.server
     :members:
+
 
 Types
 ~~~~~

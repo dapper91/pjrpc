@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to pjrpc's documentation!
-=================================
+Python JSON-RPC without boilerplate
+===================================
 
 
 .. image:: https://static.pepy.tech/personalized-badge/pjrpc?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads/month
@@ -97,6 +97,12 @@ Development
    :maxdepth: 2
 
    pjrpc/development
+
+
+Links
+-----
+
+- `Source code <https://github.com/dapper91/pjrpc>`_
 
 
 Indices and tables

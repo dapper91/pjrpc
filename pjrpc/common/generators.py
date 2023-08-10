@@ -12,6 +12,9 @@ from typing import Generator
 def sequential(start: int = 1, step: int = 1) -> Generator[int, None, None]:
     """
     Sequential id generator. Returns consecutive values starting from `start` with step `step`.
+
+    :param start: starting number
+    :param step: step
     """
 
     yield from it.count(start, step)
@@ -20,6 +23,9 @@ def sequential(start: int = 1, step: int = 1) -> Generator[int, None, None]:
 def randint(a: int, b: int) -> Generator[int, None, None]:
     """
     Random integer id generator. Returns random integers between `a` and `b`.
+
+    :param a: from
+    :param b: to
     """
 
     while True:
@@ -29,6 +35,9 @@ def randint(a: int, b: int) -> Generator[int, None, None]:
 def random(length: int = 8, chars: str = string.digits + string.ascii_lowercase) -> Generator[str, None, None]:
     """
     Random string id generator. Returns random strings of length `length` using alphabet `chars`.
+
+    :param length: string length
+    :param chars: string characters
     """
 
     while True:

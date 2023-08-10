@@ -8,6 +8,15 @@ pytest
 ------
 
 ``pjrpc`` implements pytest plugin that simplifies JSON-RPC requests mocking.
+To install the plugin add the following line to your pytest configuration:
+
+.. code-block:: python
+
+    pytest_plugins = ("pjrpc.client.integrations.pytest ", )
+
+or export the environment variable ``PYTEST_PLUGINS=pjrpc.client.integrations.pytest``.
+For more information `see <https://docs.pytest.org/en/latest/how-to/plugins.html#requiring-loading-plugins-in-a-test-module-or-conftest-file>`_.
+
 Look at the following test example:
 
 .. code-block:: python
