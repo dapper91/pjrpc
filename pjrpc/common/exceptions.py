@@ -3,7 +3,7 @@ Definition of package exceptions and JSON-RPC protocol errors.
 """
 
 import typing
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Optional, Tuple, Type
 
 from pjrpc.common.typedefs import Json
 
@@ -38,7 +38,7 @@ class JsonRpcErrorMeta(type):
 
     __errors_mapping__: Dict[int, Type['JsonRpcError']] = {}
 
-    def __new__(mcs, name: str, bases: tuple, dct: dict) -> Type['JsonRpcError']:
+    def __new__(mcs, name: str, bases: Tuple[type, ...], dct: Dict[str, Any]) -> Type['JsonRpcError']:
         cls: Type['JsonRpcError'] = typing.cast(Type['JsonRpcError'], super().__new__(mcs, name, bases, dct))
         if hasattr(cls, 'code') and cls.code is not None:
             mcs.__errors_mapping__[cls.code] = cls

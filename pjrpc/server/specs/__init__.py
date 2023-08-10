@@ -1,7 +1,7 @@
 import abc
 import enum
 import json
-from typing import Any, Iterable, Mapping, Optional
+from typing import Any, Dict, Iterable, Mapping, Optional
 
 from pjrpc.server import Method
 
@@ -18,16 +18,18 @@ class JSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-class BaseUI:
+class BaseUI(abc.ABC):
     """
     Base UI.
     """
 
+    @abc.abstractmethod
     def get_static_folder(self) -> str:
         """
         Returns ui statics folder.
         """
 
+    @abc.abstractmethod
     def get_index_page(self, spec_url: str) -> str:
         """
         Returns ui index webpage.
@@ -80,7 +82,7 @@ class Specification(abc.ABC):
         path: str,
         methods: Iterable[Method] = (),
         methods_map: Mapping[str, Iterable[Method]] = {},
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """
         Returns specification schema.
 

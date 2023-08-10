@@ -106,7 +106,7 @@ class ViewMixin:
         pass
 
     @classmethod
-    def __methods__(cls) -> Generator[Callable, None, None]:
+    def __methods__(cls) -> Generator[Callable[..., Any], None, None]:
         for attr_name in filter(lambda name: not name.startswith('_'), dir(cls)):
             attr = getattr(cls, attr_name)
             if callable(attr):
@@ -184,7 +184,7 @@ class MethodRegistry:
         else:
             return decorator(maybe_method)
 
-    def add_methods(self, *methods: Union[Callable, Method]) -> None:
+    def add_methods(self, *methods: Union[Callable[..., Any], Method]) -> None:
         """
         Adds methods to the registry.
 
@@ -200,7 +200,7 @@ class MethodRegistry:
 
     def view(
         self, maybe_view: Optional[Type[ViewMixin]] = None, context: Optional[Any] = None, prefix: Optional[str] = None,
-    ) -> Union[ViewMixin, Callable]:
+    ) -> Union[ViewMixin, Callable[..., Any]]:
         """
         Methods view decorator.
 
@@ -279,12 +279,12 @@ class BaseDispatcher:
         response_class: Type[Response] = v20.Response,
         batch_request: Type[BatchRequest] = v20.BatchRequest,
         batch_response: Type[BatchResponse] = v20.BatchResponse,
-        json_loader: Callable = json.loads,
-        json_dumper: Callable = json.dumps,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
-        middlewares: Iterable[Callable] = (),
-        error_handlers: Dict[Union[None, int, Exception], List[Callable]] = {},
+        middlewares: Iterable[Callable[..., Any]] = (),
+        error_handlers: Dict[Union[None, int, Exception], List[Callable[..., Any]]] = {},
     ):
         self._json_loader = json_loader
         self._json_dumper = json_dumper
@@ -303,7 +303,7 @@ class BaseDispatcher:
     def registry(self) -> MethodRegistry:
         return self._registry
 
-    def add(self, method: Callable, name: Optional[str] = None, context: Optional[Any] = None) -> None:
+    def add(self, method: Callable[..., Any], name: Optional[str] = None, context: Optional[Any] = None) -> None:
         """
         Adds method to the registry.
 
@@ -314,7 +314,7 @@ class BaseDispatcher:
 
         self._registry.add(method, name, context)
 
-    def add_methods(self, *methods: Union[MethodRegistry, Method, Callable]) -> None:
+    def add_methods(self, *methods: Union[MethodRegistry, Method, Callable[..., Any]]) -> None:
         """
         Adds methods to the registry.
 
@@ -352,8 +352,8 @@ class Dispatcher(BaseDispatcher):
         response_class: Type[Response] = v20.Response,
         batch_request: Type[BatchRequest] = v20.BatchRequest,
         batch_response: Type[BatchResponse] = v20.BatchResponse,
-        json_loader: Callable = json.loads,
-        json_dumper: Callable = json.dumps,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
         middlewares: Iterable['MiddlewareType'] = (),
@@ -488,8 +488,8 @@ class AsyncDispatcher(BaseDispatcher):
         response_class: Type[Response] = v20.Response,
         batch_request: Type[BatchRequest] = v20.BatchRequest,
         batch_response: Type[BatchResponse] = v20.BatchResponse,
-        json_loader: Callable = json.loads,
-        json_dumper: Callable = json.dumps,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
         middlewares: Iterable['AsyncMiddlewareType'] = (),

@@ -79,7 +79,7 @@ pytest-cov = "^2.0"
 pytest-mock = "^1.0"
 responses = "^0.14"
 respx = "^0.19.2"
-mypy = "^0.942"
+mypy = "^1.4.1"
 pre-commit = "^2.19"
 
 [build-system]
@@ -88,6 +88,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.mypy]
 allow_redefinition = true
+disallow_any_generics = true
 disallow_incomplete_defs = true
 disallow_untyped_decorators = false
 disallow_untyped_defs = true

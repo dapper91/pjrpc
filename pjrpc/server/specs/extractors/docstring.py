@@ -25,8 +25,8 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
                 parameters_schema[param.arg_name] = Schema(
                     schema={'type': param.type_name},
                     required=not param.is_optional,
-                    summary=param.description.split('.')[0],
-                    description=param.description,
+                    summary=param.description.split('.')[0] if param.description is not None else UNSET,
+                    description=param.description if param.description is not None else UNSET,
                 )
 
         return parameters_schema
@@ -40,8 +40,8 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
                 result_schema = Schema(
                     schema={'type': doc.returns.type_name},
                     required=True,
-                    summary=doc.returns.description.split('.')[0],
-                    description=doc.returns.description,
+                    summary=doc.returns.description.split('.')[0] if doc.returns.description is not None else UNSET,
+                    description=doc.returns.description if doc.returns.description is not None else UNSET,
                 )
 
         return result_schema

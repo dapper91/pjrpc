@@ -228,7 +228,7 @@ class Response(AbstractResponse):
 
         return not self.is_success
 
-    @property
+    @property  # type: ignore[override]
     def related(self) -> Optional['Request']:
         """
         Returns the request related response object if the response has been
@@ -531,7 +531,7 @@ class BatchResponse(AbstractResponse):
 
         return tuple(result)
 
-    @property
+    @property  # type: ignore[override]
     def related(self) -> Optional['BatchRequest']:
         """
         Returns the request related response object if the response has been

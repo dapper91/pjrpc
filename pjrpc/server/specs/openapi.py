@@ -631,7 +631,7 @@ class OpenAPI(Specification):
         path: str,
         methods: Iterable[Method] = (),
         methods_map: Mapping[str, Iterable[Method]] = {},
-    ) -> dict:
+    ) -> Dict[str, Any]:
         methods_list: List[Tuple[str, Method]] = []
         methods_list.extend((path, method) for method in methods)
         methods_list.extend(
