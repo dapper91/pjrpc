@@ -1,6 +1,7 @@
 import uuid
 from typing import Any
 
+import aiohttp_cors
 import pydantic
 from aiohttp import web
 
@@ -14,8 +15,6 @@ from pjrpc.server.validators import pydantic as validators
 user_methods = pjrpc.server.MethodRegistry()
 post_methods = pjrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
-
-credentials = {"admin": "admin"}
 
 
 class JSONEncoder(pjrpc.JSONEncoder):
@@ -183,6 +182,19 @@ jsonrpc_app.app['posts'] = {}
 
 jsonrpc_app.add_endpoint('/users', json_encoder=JSONEncoder).add_methods(user_methods)
 jsonrpc_app.add_endpoint('/posts', json_encoder=JSONEncoder).add_methods(post_methods)
+
+
+cors = aiohttp_cors.setup(
+    jsonrpc_app.app, defaults={
+        '*': aiohttp_cors.ResourceOptions(
+            allow_credentials=True,
+            expose_headers='*',
+            allow_headers='*',
+        ),
+    },
+)
+for route in list(jsonrpc_app.app.router.routes()):
+    cors.add(route)
 
 
 if __name__ == "__main__":

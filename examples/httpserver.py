@@ -18,19 +18,20 @@ class JsonRpcHandler(http.server.BaseHTTPRequestHandler):
 
         content_type = self.headers.get('Content-Type')
         if content_type not in pjrpc.common.REQUEST_CONTENT_TYPES:
-            self.send_response(http.HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
+            self.send_error(http.HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
             return
 
         try:
             content_length = int(self.headers.get('Content-Length', -1))
             request_text = self.rfile.read(content_length).decode()
         except UnicodeDecodeError:
-            self.send_response(http.HTTPStatus.BAD_REQUEST)
+            self.send_error(http.HTTPStatus.BAD_REQUEST)
             return
 
         response_text = self.server.dispatcher.dispatch(request_text, context=self)
         if response_text is None:
-            self.send_response(http.HTTPStatus.OK)
+            self.send_response_only(http.HTTPStatus.OK)
+            self.end_headers()
         else:
             self.send_response(http.HTTPStatus.OK)
             self.send_header("Content-type", pjrpc.common.DEFAULT_CONTENT_TYPE)
