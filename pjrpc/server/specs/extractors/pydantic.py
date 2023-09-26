@@ -33,7 +33,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
                 )
 
         params_model = pd.create_model('RequestModel', **field_definitions)
-        model_schema = params_model.schema(ref_template=self._ref_template)
+        model_schema = params_model.model_json_schema(ref_template=self._ref_template)
 
         parameters_schema = {}
         for param_name, param_schema in model_schema['properties'].items():
@@ -45,7 +45,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
                 description=param_schema.get('description', UNSET),
                 deprecated=param_schema.get('deprecated', UNSET),
                 required=required,
-                definitions=model_schema.get('definitions'),
+                definitions=model_schema.get('$defs'),
             )
 
         return parameters_schema
@@ -60,8 +60,8 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
         else:
             return_annotation = result.return_annotation
 
-        result_model = pd.create_model('ResultModel', result=(return_annotation, pd.fields.Undefined))
-        model_schema = result_model.schema(ref_template=self._ref_template)
+        result_model = pd.create_model('ResultModel', result=(return_annotation, ...))
+        model_schema = result_model.model_json_schema(ref_template=self._ref_template)
 
         result_schema = model_schema['properties']['result']
         required = 'result' in model_schema.get('required', [])
@@ -95,7 +95,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
                     field_definitions[field_name] = (annotation, getattr(error, field_name, ...))
 
                 result_model = pd.create_model(error.message, **field_definitions)
-                model_schema = result_model.schema(ref_template=self._ref_template)
+                model_schema = result_model.model_json_schema(ref_template=self._ref_template)
 
                 data_schema = model_schema['properties'].get('data', UNSET)
                 required = 'data' in model_schema.get('required', [])
@@ -109,7 +109,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
                         title=error.message,
                         description=inspect.cleandoc(error.__doc__) if error.__doc__ is not None else UNSET,
                         deprecated=model_schema.get('deprecated', UNSET),
-                        definitions=model_schema.get('definitions'),
+                        definitions=model_schema.get('$defs'),
                     ),
                 )
             return errors_schema

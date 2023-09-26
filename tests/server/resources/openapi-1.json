@@ -434,9 +434,15 @@
                                                     ]
                                                 },
                                                 "result": {
-                                                    "title": "Result",
-                                                    "type": "string",
-                                                    "nullable": "true"
+                                                    "anyOf": [
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "null"
+                                                        }
+                                                    ],
+                                                    "title": "Result"
                                                 }
                                             },
                                             "required": [
@@ -532,12 +538,20 @@
                                         "type": "object",
                                         "properties": {
                                             "param1": {
-                                                "title": "Param1",
-                                                "type": "number"
+                                                "anyOf": [
+                                                    {
+                                                        "type": "number"
+                                                    },
+                                                    {
+                                                        "type": "null"
+                                                    }
+                                                ],
+                                                "default": null,
+                                                "title": "Param1"
                                             },
                                             "param2": {
-                                                "title": "Param2",
                                                 "default": 1,
+                                                "title": "Param2",
                                                 "type": "integer"
                                             }
                                         }
@@ -876,8 +890,7 @@
                                                     ]
                                                 },
                                                 "result": {
-                                                    "title": "Result",
-                                                    "nullable": "true"
+                                                    "title": "Result"
                                                 }
                                             },
                                             "required": [
@@ -1017,8 +1030,7 @@
                                                     ]
                                                 },
                                                 "result": {
-                                                    "title": "Result",
-                                                    "nullable": "true"
+                                                    "title": "Result"
                                                 }
                                             },
                                             "required": [
@@ -1190,9 +1202,16 @@
                         "type": "string"
                     },
                     "field2": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Field2",
-                        "default": 1,
-                        "type": "integer"
+                        "default": 1
                     },
                     "field3": {
                         "$ref": "#/components/schemas/SubModel"
