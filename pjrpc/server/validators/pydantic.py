@@ -24,7 +24,7 @@ class PydanticValidator(base.BaseValidator):
         config_args.setdefault('extra', 'forbid')
 
         # https://pydantic-docs.helpmanual.io/usage/model_config/
-        self._model_config = type('ModelConfig', (pydantic.BaseConfig,), config_args)
+        self._model_config = pydantic.ConfigDict(**config_args)
 
     def validate_method(
         self, method: Callable[..., Any], params: Optional['JsonRpcParams'], exclude: Iterable[str] = (), **kwargs: Any,
@@ -43,7 +43,7 @@ class PydanticValidator(base.BaseValidator):
         signature = self.signature(method, tuple(exclude))
         schema = self.build_validation_schema(signature)
 
-        params_model = pydantic.create_model(method.__name__, **schema, __config__=self._model_config)
+        params_model = pydantic.create_model(method.__name__, **schema, model_config=self._model_config)
 
         bound_params = self.bind(signature, params)
         try:
@@ -51,7 +51,7 @@ class PydanticValidator(base.BaseValidator):
         except pydantic.ValidationError as e:
             raise base.ValidationError(*e.errors()) from e
 
-        return {attr: getattr(obj, attr) for attr in obj.__fields_set__} if self._coerce else bound_params.arguments
+        return {attr: getattr(obj, attr) for attr in obj.model_fields} if self._coerce else bound_params.arguments
 
     @ft.lru_cache(maxsize=None)
     def build_validation_schema(self, signature: inspect.Signature) -> Dict[str, Any]:
