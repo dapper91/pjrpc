@@ -537,13 +537,12 @@ class AsyncDispatcher(BaseDispatcher):
         else:
             if isinstance(request, BatchRequest):
                 response = self._batch_response(
-                    *filter(
-                        lambda resp: resp is not UNSET, await asyncio.gather(
-                            *(self._handle_request(request, context) for request in request),
-                        ),
+                    *(
+                        resp
+                        for resp in await asyncio.gather(*(self._handle_request(req, context) for req in request))
+                        if resp
                     ),
                 )
-
             else:
                 response = await self._handle_request(request, context)
 

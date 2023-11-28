@@ -78,7 +78,7 @@ docs = [
     'aiohttp', 'aio-pika', 'flask', 'jsonschema', 'pydantic', 'requests', 'kombu'
 ]
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 aioresponses = "^0.7.4"
 asynctest = "^0.13.0"
 codecov = "^2.1.13"
@@ -88,8 +88,8 @@ pytest-cov = "^4.1.0"
 pytest-mock = "^3.11.1"
 responses = "^0.23.3"
 respx = "^0.20.2"
-mypy = "^1.4.1"
-pre-commit = "^2.19"
+mypy = "^1.7.1"
+pre-commit = "~3.2.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -108,61 +108,5 @@ warn_unused_ignores = true
 
 
 [[tool.mypy.overrides]]
-module = "aiohttp.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
 module = "aio_pika.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "docstring_parser.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "django.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "flask.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "jsonschema.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "starlette.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "openapi_ui_bundles.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "werkzeug.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "httpx.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "kombu.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "pydantic.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "pytest.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "requests.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "yarl.*"
 ignore_missing_imports = true
