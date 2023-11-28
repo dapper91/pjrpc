@@ -43,7 +43,7 @@ def test_request(json_rpc, path, mocker, request_id, params, result):
     test_response = cli.post(
         path, json=v20.Request(method=method_name, params=params, id=request_id).to_json(),
     )
-    if type(test_response) == tuple:  # werkzeug 1.0
+    if type(test_response) is tuple:  # werkzeug 1.0
         body_iter, code, header = test_response
         body = b''.join(body_iter)
     else:  # werkzeug >= 2.1
@@ -72,7 +72,7 @@ def test_notify(json_rpc, path, mocker):
     test_response = cli.post(
         path, json=v20.Request(method=method_name, params=params).to_json(),
     )
-    if type(test_response) == tuple:  # werkzeug 1.0
+    if type(test_response) is tuple:  # werkzeug 1.0
         body_iter, code, header = test_response
         body = b''.join(body_iter)
     else:  # werkzeug >= 2.1
@@ -98,7 +98,7 @@ def test_errors(json_rpc, path, mocker):
     test_response = cli.post(
         path, json=v20.Request(method='unknown_method', params=params, id=request_id).to_json(),
     )
-    if type(test_response) == tuple:  # werkzeug 1.0
+    if type(test_response) is tuple:  # werkzeug 1.0
         body_iter, code, header = test_response
         body = b''.join(body_iter)
     else:  # werkzeug >= 2.1
@@ -114,7 +114,7 @@ def test_errors(json_rpc, path, mocker):
     test_response = cli.post(
         path, json=v20.Request(method=method_name, params=params, id=request_id).to_json(),
     )
-    if type(test_response) == tuple:  # werkzeug 1.0
+    if type(test_response) is tuple:  # werkzeug 1.0
         body_iter, code, header = test_response
         body = b''.join(body_iter)
     else:  # werkzeug >= 2.1
@@ -131,7 +131,7 @@ def test_errors(json_rpc, path, mocker):
     test_response = cli.post(
         path, headers={'Content-Type': 'application/json'}, data='',
     )
-    if type(test_response) == tuple:  # werkzeug 1.0
+    if type(test_response) is tuple:  # werkzeug 1.0
         body_iter, code, header = test_response
         body = b''.join(body_iter)
     else:

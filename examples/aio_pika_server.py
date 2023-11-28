@@ -51,7 +51,7 @@ def add_user(message: aio_pika.IncomingMessage, user_info: UserInfo) -> AddedUse
 
 
 executor = integration.Executor(
-    broker_url=URL('amqp://guest:guest@localhost:5672/v1'), queue_name='jsonrpc'
+    broker_url=URL('amqp://guest:guest@localhost:5672/v1'), queue_name='jsonrpc',
 )
 executor.dispatcher.add_methods(methods)
 
