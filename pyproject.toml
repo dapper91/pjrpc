@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pjrpc"
-version = "1.8.0"
+version = "1.8.1"
 description = "Extensible JSON-RPC library"
 authors = ["Dmitry Pershin <dapper1291@gmail.com>"]
 license = "Unlicense"
@@ -22,6 +22,7 @@ classifiers = [
     "Framework :: Django",
     "Framework :: Flask",
     "Framework :: Pytest",
+    "Typing :: Typed",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
