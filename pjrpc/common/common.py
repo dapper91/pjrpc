@@ -1,12 +1,5 @@
 import json
-import sys
-from typing import Any, Dict, TypeVar, Union
-
-if sys.version_info >= (3, 8):
-    from typing import Literal
-    FalseType = Literal[False]
-else:
-    FalseType = bool
+from typing import Any, Dict, Literal, TypeVar, Union
 
 import pjrpc
 from pjrpc.common.typedefs import Json  # noqa: for back compatibility
@@ -18,7 +11,7 @@ class UnsetType:
     Used to distinct unset (missing) values from ``None`` ones.
     """
 
-    def __bool__(self) -> FalseType:
+    def __bool__(self) -> Literal[False]:
         return False
 
     def __repr__(self) -> str:

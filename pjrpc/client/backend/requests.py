@@ -29,10 +29,8 @@ class Client(AbstractClient):
         :returns: response text
         """
 
-        kwargs = {
-            'headers': {'Content-Type': pjrpc.common.DEFAULT_CONTENT_TYPE},
-            **kwargs,
-        }
+        headers = kwargs.setdefault('headers', {})
+        headers['Content-Type'] = pjrpc.common.DEFAULT_CONTENT_TYPE
 
         resp = self._session.post(self._endpoint, data=request_text, **kwargs)
         resp.raise_for_status()

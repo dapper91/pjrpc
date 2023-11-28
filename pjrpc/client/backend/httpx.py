@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 import httpx
 
@@ -29,10 +29,8 @@ class Client(AbstractClient):
         :returns: response text
         """
 
-        kwargs: Dict[str, Any] = {
-            'headers': {'Content-Type': pjrpc.common.DEFAULT_CONTENT_TYPE},
-            **kwargs,
-        }
+        headers = kwargs.setdefault('headers', {})
+        headers['Content-Type'] = pjrpc.common.DEFAULT_CONTENT_TYPE
 
         resp = self._client.post(self._endpoint, content=request_text, **kwargs)
         resp.raise_for_status()
@@ -84,10 +82,8 @@ class AsyncClient(AbstractAsyncClient):
         :returns: response text
         """
 
-        kwargs: Dict[str, Any] = {
-            'headers': {'Content-Type': pjrpc.common.DEFAULT_CONTENT_TYPE},
-            **kwargs,
-        }
+        headers = kwargs.setdefault('headers', {})
+        headers['Content-Type'] = pjrpc.common.DEFAULT_CONTENT_TYPE
 
         resp = await self._client.post(self._endpoint, content=request_text, **kwargs)
         resp.raise_for_status()

@@ -24,7 +24,7 @@ class PydanticValidator(base.BaseValidator):
         config_args.setdefault('extra', 'forbid')
 
         # https://pydantic-docs.helpmanual.io/usage/model_config/
-        self._model_config = pydantic.ConfigDict(**config_args)
+        self._model_config = pydantic.ConfigDict(**config_args)  # type: ignore[typeddict-item]
 
     def validate_method(
         self, method: Callable[..., Any], params: Optional['JsonRpcParams'], exclude: Iterable[str] = (), **kwargs: Any,

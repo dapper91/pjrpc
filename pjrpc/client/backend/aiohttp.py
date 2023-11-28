@@ -34,10 +34,8 @@ class Client(AbstractAsyncClient):
         :returns: response text
         """
 
-        kwargs = {
-            'headers': {'Content-Type': pjrpc.common.DEFAULT_CONTENT_TYPE},
-            **kwargs,
-        }
+        headers = kwargs.setdefault('headers', {})
+        headers['Content-Type'] = pjrpc.common.DEFAULT_CONTENT_TYPE
 
         resp = await self._session.post(self._endpoint, data=request_text, **kwargs)
         resp.raise_for_status()
