@@ -74,7 +74,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
             description=result_schema.get('description', UNSET),
             deprecated=result_schema.get('deprecated', UNSET),
             required=required,
-            definitions=model_schema.get('definitions', UNSET),
+            definitions=model_schema.get('$defs', UNSET),
         )
 
         return result_schema
