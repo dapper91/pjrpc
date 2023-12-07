@@ -2,7 +2,7 @@ __title__ = 'pjrpc'
 __description__ = 'Extensible JSON-RPC library'
 __url__ = 'https://github.com/dapper91/pjrpc'
 
-__version__ = '1.8.1'
+__version__ = '1.8.2'
 
 __author__ = 'Dmitry Pershin'
 __email__ = 'dapper1291@gmail.com'
