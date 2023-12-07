@@ -53,6 +53,9 @@ def test_openapi_schema_generator(resources):
         field2: Optional[int] = 1
         field3: SubModel
 
+    class ResultModel(pydantic.BaseModel):
+        field1: str
+
     class TestError(pjrpc.common.exceptions.JsonRpcError):
         code = 2001
         message = 'test error 1'
@@ -91,7 +94,7 @@ def test_openapi_schema_generator(resources):
     def method1(ctx, param1: int, param2: Model, param3) -> int:
         pass
 
-    def method2(param1: int, param2) -> Model:
+    def method2(param1: int, param2) -> ResultModel:
         pass
 
     def method3(param1: Optional[float] = None, param2: int = 1) -> Optional[str]:

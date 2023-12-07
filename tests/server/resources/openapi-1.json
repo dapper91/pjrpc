@@ -282,7 +282,7 @@
                                                     ]
                                                 },
                                                 "result": {
-                                                    "$ref": "#/components/schemas/Model"
+                                                    "$ref": "#/components/schemas/ResultModel"
                                                 }
                                             },
                                             "required": [
@@ -1221,6 +1221,19 @@
                     "field1",
                     "field3"
                 ]
+            },
+            "ResultModel": {
+                "properties": {
+                    "field1": {
+                        "title": "Field1",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "field1"
+                ],
+                "title": "ResultModel",
+                "type": "object"
             }
         }
     },
