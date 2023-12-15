@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.8.3 (2023-12-15)
+------------------
+
+- aiohttp client uses request context manager.
+
+
 1.8.2 (2023-12-07)
 ------------------
 
