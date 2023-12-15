@@ -37,10 +37,10 @@ class Client(AbstractAsyncClient):
         headers = kwargs.setdefault('headers', {})
         headers['Content-Type'] = pjrpc.common.DEFAULT_CONTENT_TYPE
 
-        resp = await self._session.post(self._endpoint, data=request_text, **kwargs)
-        resp.raise_for_status()
+        async with self._session.post(self._endpoint, data=request_text, **kwargs) as resp:
+            resp.raise_for_status()
+            response_text = await resp.text()
 
-        response_text = await resp.text()
         if is_notification:
             return None
 
