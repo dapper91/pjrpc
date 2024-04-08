@@ -53,7 +53,11 @@ class Executor:
 
         return self._dispatcher
 
-    async def start(self, queue_args: Optional[Dict[str, Any]] = None, exchange_args: Optional[Dict[str, Any]] = None) -> None:
+    async def start(
+            self,
+            queue_args: Optional[Dict[str, Any]] = None,
+            exchange_args: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         Starts executor.
 
@@ -94,9 +98,13 @@ class Executor:
             response_text = await self._dispatcher.dispatch(message.body.decode(), context=message)
 
             if response_text is not None:
-                if reply_to is None:
-                    logger.warning("property 'reply_to' is missing")
-                
+                if self._tx_routing_key:
+                    routing_key = self._tx_routing_key
+                elif reply_to:
+                    routing_key = reply_to
+                else:
+                    routing_key = ""
+                    logger.warning("property 'reply_to' or 'tx_routing_key' missing")
                 async with self._connection.channel() as channel:
                     exchange = self._exchange if self._exchange else channel.default_exchange
                     await exchange.publish(
@@ -106,7 +114,7 @@ class Executor:
                             correlation_id=message.correlation_id,
                             content_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
                         ),
-                        routing_key=self._tx_routing_key if self._tx_routing_key else reply_to,
+                        routing_key=routing_key,
                     )
 
             await message.ack()
