@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.9.0 (2024-04-22)
+------------------
+
+- aio-pika custom response exchange support added.
+
+
 1.8.3 (2023-12-15)
 ------------------
 
