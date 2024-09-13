@@ -94,6 +94,10 @@ class Executor:
         """
 
         try:
+            # Acknowledge message early. This ensures, that a bad implemented rpc method
+            # which causes a appliaction crash won't be reissued again after restart
+            await message.ack()
+
             reply_to = message.reply_to
             response_text = await self._dispatcher.dispatch(message.body.decode(), context=message)
 
