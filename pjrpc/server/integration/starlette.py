@@ -1,5 +1,5 @@
 """
-aiohttp JSON-RPC server integration.
+starlette JSON-RPC server integration.
 """
 
 import functools as ft
@@ -27,10 +27,10 @@ def async_partial(func: Func, *bound_args: Any, **bound_kwargs: Any) -> Func:
 
 class Application:
     """
-    `aiohttp <https://aiohttp.readthedocs.io/en/stable/web.html>`_ based JSON-RPC server.
+    `starlette <https://www.starlette.io>`_ based JSON-RPC server.
 
     :param path: JSON-RPC handler base path
-    :param app_args: arguments to be passed to :py:class:`aiohttp.web.Application`
+    :param app_args: arguments to be passed to :py:class:`starlette.applications.Starlette`
     :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.AsyncDispatcher`
     """
 
@@ -64,7 +64,7 @@ class Application:
     @property
     def app(self) -> Starlette:
         """
-        aiohttp application.
+        starlette application.
         """
 
         return self._app
@@ -133,8 +133,8 @@ class Application:
         """
         Handles JSON-RPC request.
 
-        :param http_request: :py:class:`aiohttp.web.Response`
-        :returns: :py:class:`aiohttp.web.Request`
+        :param http_request: :py:class:`starlette.responses.Response`
+        :returns: :py:class:`starlette.requests.Request`
         """
 
         if http_request.headers['Content-Type'] not in pjrpc.common.REQUEST_CONTENT_TYPES:
