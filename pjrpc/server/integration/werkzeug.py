@@ -50,8 +50,9 @@ class JsonRPC:
         except UnicodeDecodeError as e:
             raise exceptions.BadRequest() from e
 
-        response_text = self._dispatcher.dispatch(request_text, context=request)
-        if response_text is None:
+        response = self._dispatcher.dispatch(request_text, context=request)
+        if response is None:
             return werkzeug.Response()
         else:
+            response_text, error_codes = response
             return werkzeug.Response(response_text, mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE)

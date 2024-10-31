@@ -151,7 +151,8 @@ def test_dispatcher():
         'method': 'method',
     })
 
-    assert json.loads(disp.dispatch(request)) == {
+    response, error_codes = disp.dispatch(request)
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
         'error': {
@@ -181,7 +182,8 @@ def test_dispatcher():
         'params': ['param1'],
     })
 
-    assert json.loads(disp.dispatch(request)) == {
+    response, error_codes = disp.dispatch(request)
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
         'result': 'param1',
@@ -198,7 +200,8 @@ def test_dispatcher():
         'method': 'method2',
     })
 
-    assert json.loads(disp.dispatch(request)) == {
+    response, error_codes = disp.dispatch(request)
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
         'error': {
@@ -227,7 +230,8 @@ def test_dispatcher():
         },
     ])
 
-    assert json.loads(disp.dispatch(request)) == [
+    response, error_codes = disp.dispatch(request)
+    assert json.loads(response) == [
         {
             'jsonrpc': '2.0',
             'id': 1,
@@ -248,7 +252,8 @@ def test_dispatcher():
 def test_dispatcher_errors():
     disp = dispatcher.Dispatcher()
 
-    assert json.loads(disp.dispatch('')) == {
+    response, error_codes = disp.dispatch('')
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
         'error': {
@@ -258,7 +263,8 @@ def test_dispatcher_errors():
         },
     }
 
-    assert json.loads(disp.dispatch('{}')) == {
+    response, error_codes = disp.dispatch('{}')
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
         'error': {
@@ -268,7 +274,8 @@ def test_dispatcher_errors():
         },
     }
 
-    assert json.loads(disp.dispatch('[]')) == {
+    response, error_codes = disp.dispatch('[]')
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
         'error': {
@@ -291,7 +298,8 @@ def test_dispatcher_errors():
         },
     ])
 
-    assert json.loads(disp.dispatch(request)) == {
+    response, error_codes = disp.dispatch(request)
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
         'error': {
@@ -301,7 +309,8 @@ def test_dispatcher_errors():
         },
     }
 
-    assert json.loads(disp.dispatch(request)) == {
+    response, error_codes = disp.dispatch(request)
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
         'error': {
@@ -321,7 +330,8 @@ async def test_async_dispatcher():
         'method': 'method',
     })
 
-    assert json.loads(await disp.dispatch(request)) == {
+    response, error_codes = await disp.dispatch(request)
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
         'error': {
@@ -351,7 +361,8 @@ async def test_async_dispatcher():
         'params': ['param1'],
     })
 
-    assert json.loads(await disp.dispatch(request)) == {
+    response, error_codes = await disp.dispatch(request)
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
         'result': 'param1',
@@ -368,7 +379,8 @@ async def test_async_dispatcher():
         'method': 'method2',
     })
 
-    assert json.loads(await disp.dispatch(request)) == {
+    response, error_codes = await disp.dispatch(request)
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
         'error': {
@@ -397,7 +409,8 @@ async def test_async_dispatcher():
         },
     ])
 
-    assert json.loads(await disp.dispatch(request)) == [
+    response, error_codes = await disp.dispatch(request)
+    assert json.loads(response) == [
         {
             'jsonrpc': '2.0',
             'id': 1,
@@ -418,7 +431,8 @@ async def test_async_dispatcher():
 async def test_async_dispatcher_errors():
     disp = dispatcher.AsyncDispatcher()
 
-    assert json.loads(await disp.dispatch('')) == {
+    response, error_codes = await disp.dispatch('')
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
         'error': {
@@ -428,7 +442,8 @@ async def test_async_dispatcher_errors():
         },
     }
 
-    assert json.loads(await disp.dispatch('{}')) == {
+    response, error_codes = await disp.dispatch('{}')
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
         'error': {
@@ -451,7 +466,8 @@ async def test_async_dispatcher_errors():
         },
     ])
 
-    assert json.loads(await disp.dispatch(request)) == {
+    response, error_codes = await disp.dispatch(request)
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
         'error': {
@@ -461,7 +477,8 @@ async def test_async_dispatcher_errors():
         },
     }
 
-    assert json.loads(await disp.dispatch(request)) == {
+    response, error_codes = await disp.dispatch(request)
+    assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
         'error': {

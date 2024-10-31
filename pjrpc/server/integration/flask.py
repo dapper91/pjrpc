@@ -151,8 +151,9 @@ class JsonRPC:
         except UnicodeDecodeError as e:
             raise exceptions.BadRequest() from e
 
-        response_text = dispatcher.dispatch(request_text)
-        if response_text is None:
+        response = dispatcher.dispatch(request_text)
+        if response is None:
             return current_app.response_class()
         else:
+            response_text, error_codes = response
             return current_app.response_class(response_text, mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE)

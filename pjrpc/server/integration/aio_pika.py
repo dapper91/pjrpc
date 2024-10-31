@@ -95,9 +95,10 @@ class Executor:
 
         try:
             reply_to = message.reply_to
-            response_text = await self._dispatcher.dispatch(message.body.decode(), context=message)
+            response = await self._dispatcher.dispatch(message.body.decode(), context=message)
 
-            if response_text is not None:
+            if response is not None:
+                response_text, error_codes = response
                 if self._tx_routing_key:
                     routing_key = self._tx_routing_key
                 elif reply_to:

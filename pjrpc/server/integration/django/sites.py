@@ -106,10 +106,11 @@ class JsonRPCSite:
         except UnicodeDecodeError:
             return HttpResponseBadRequest()
 
-        response_text = self._dispatcher.dispatch(request_text, context=request)
-        if response_text is None:
+        response = self._dispatcher.dispatch(request_text, context=request)
+        if response is None:
             return HttpResponse()
         else:
+            response_text, error_codes = response
             return HttpResponse(response_text, content_type=pjrpc.common.DEFAULT_CONTENT_TYPE)
 
 

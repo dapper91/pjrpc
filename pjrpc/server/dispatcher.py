@@ -4,7 +4,7 @@ import itertools as it
 import json
 import logging
 from typing import Any, Awaitable, Callable, Dict, Generator, ItemsView, Iterable, Iterator, KeysView, List, Optional
-from typing import Type, Union, ValuesView, cast
+from typing import Tuple, Type, Union, ValuesView, cast
 
 import pjrpc
 from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, MaybeSet, Request, Response, UnsetType
@@ -18,6 +18,13 @@ from . import validators
 logger = logging.getLogger(__package__)
 
 default_validator = validators.base.BaseValidator()
+
+
+def extract_error_codes(response: AbstractResponse) -> Tuple[int, ...]:
+    if isinstance(response, BatchResponse):
+        return (response.error.code,) if response.error else tuple(r.error.code if r.error else 0 for r in response)
+    else:
+        return (response.error.code if response.error else 0,)
 
 
 class Method:
@@ -372,7 +379,7 @@ class Dispatcher(BaseDispatcher):
             error_handlers=error_handlers,
         )
 
-    def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[str]:
+    def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[Tuple[str, Tuple[int, ...]]]:
         """
         Deserializes request, dispatches it to the required method and serializes the result.
 
@@ -413,7 +420,7 @@ class Dispatcher(BaseDispatcher):
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
             logger.getChild('response').debug("response sent: %s", response_text)
 
-            return response_text
+            return response_text, extract_error_codes(response)
 
         return None
 
@@ -508,7 +515,7 @@ class AsyncDispatcher(BaseDispatcher):
             error_handlers=error_handlers,
         )
 
-    async def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[str]:
+    async def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[Tuple[str, Tuple[int, ...]]]:
         """
         Deserializes request, dispatches it to the required method and serializes the result.
 
@@ -550,7 +557,7 @@ class AsyncDispatcher(BaseDispatcher):
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
             logger.getChild('response').debug("response sent: %s", response_text)
 
-            return response_text
+            return response_text, extract_error_codes(response)
 
         return None
 

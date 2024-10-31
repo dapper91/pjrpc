@@ -137,8 +137,9 @@ class Application:
         except UnicodeDecodeError as e:
             raise exceptions.HTTPException(400) from e
 
-        response_text = await dispatcher.dispatch(request_text, context=http_request)
-        if response_text is None:
+        response = await dispatcher.dispatch(request_text, context=http_request)
+        if response is None:
             return Response()
         else:
+            response_text, error_codes = response
             return Response(content=response_text, media_type=pjrpc.common.DEFAULT_CONTENT_TYPE)

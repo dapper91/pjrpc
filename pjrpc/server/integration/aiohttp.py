@@ -139,8 +139,9 @@ class Application:
         except UnicodeDecodeError as e:
             raise web.HTTPBadRequest() from e
 
-        response_text = await dispatcher.dispatch(request_text, context=http_request)
-        if response_text is None:
+        response = await dispatcher.dispatch(request_text, context=http_request)
+        if response is None:
             return web.Response()
         else:
+            response_text, error_codes = response
             return web.json_response(text=response_text)
