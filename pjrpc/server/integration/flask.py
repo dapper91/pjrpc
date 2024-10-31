@@ -4,7 +4,7 @@ Flask JSON-RPC extension.
 
 import functools as ft
 import json
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import flask
 from flask import current_app
@@ -23,9 +23,16 @@ class JsonRPC:
     :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
     """
 
-    def __init__(self, path: str, spec: Optional[specs.Specification] = None, **kwargs: Any):
+    def __init__(
+        self,
+        path: str,
+        spec: Optional[specs.Specification] = None,
+        status_by_error: Callable[[Tuple[int, ...]], int] = lambda codes: 200,
+        **kwargs: Any,
+    ):
         self._path = path.rstrip('/')
         self._spec = spec
+        self._status_by_error = status_by_error
 
         kwargs.setdefault('json_loader', flask.json.loads)
         kwargs.setdefault('json_dumper', flask.json.dumps)
@@ -156,4 +163,8 @@ class JsonRPC:
             return current_app.response_class()
         else:
             response_text, error_codes = response
-            return current_app.response_class(response_text, mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE)
+            return current_app.response_class(
+                response_text,
+                status=self._status_by_error(error_codes),
+                mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE,
+            )

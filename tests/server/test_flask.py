@@ -121,3 +121,16 @@ def test_errors(app, json_rpc, path, mocker):
         # decoding error
         raw = cli.post(path, headers={'Content-Type': 'application/json'}, data=b'\xff')
         assert raw.status_code == 400
+
+
+async def test_http_status(app, path):
+    expected_http_status = 400
+    json_rpc = integration.JsonRPC(path, status_by_error=lambda codes: expected_http_status)
+    json_rpc.init_app(app)
+
+    with app.test_client() as cli:
+        raw = cli.post(path, json=v20.Request(method='unknown_method', id=1).to_json())
+        assert raw.status_code == expected_http_status
+
+        raw = cli.post(path, json=v20.BatchRequest(v20.Request(method='unknown_method', id=1)).to_json())
+        assert raw.status_code == expected_http_status

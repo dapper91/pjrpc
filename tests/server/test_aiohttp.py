@@ -151,3 +151,16 @@ async def test_context(json_rpc, path, mocker, aiohttp_client):
     context, kwargs = call_args['request'], call_args['kwargs']
     assert isinstance(context, web.Request)
     assert kwargs == params
+
+
+async def test_http_status(json_rpc, path, aiohttp_client):
+    expected_http_status = 400
+    json_rpc = integration.Application(path, status_by_error=lambda codes: expected_http_status)
+
+    cli = await aiohttp_client(json_rpc.app)
+    raw = await cli.post(path, json=v20.Request(method='unknown_method', id=1).to_json())
+    assert raw.status == expected_http_status
+
+    cli = await aiohttp_client(json_rpc.app)
+    raw = await cli.post(path, json=v20.BatchRequest(v20.Request(method='unknown_method', id=1)).to_json())
+    assert raw.status == expected_http_status

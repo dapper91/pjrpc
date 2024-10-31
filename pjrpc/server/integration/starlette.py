@@ -4,7 +4,7 @@ aiohttp JSON-RPC server integration.
 
 import functools as ft
 import json
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple
 
 from starlette import exceptions, routing
 from starlette.applications import Starlette
@@ -18,10 +18,12 @@ from pjrpc.server import specs, utils
 
 class Application:
     """
-    `aiohttp <https://aiohttp.readthedocs.io/en/stable/web.html>`_ based JSON-RPC server.
+    `starlette <https://www.starlette.io/>`_ based JSON-RPC server.
 
     :param path: JSON-RPC handler base path
-    :param app_args: arguments to be passed to :py:class:`aiohttp.web.Application`
+    :param spec: api specification instance
+    :param app: starlette application instance
+    :param status_by_error: a function returns http status code by json-rpc error codes, 200 for all errors by default
     :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.AsyncDispatcher`
     """
 
@@ -30,11 +32,13 @@ class Application:
         path: str = '',
         spec: Optional[specs.Specification] = None,
         app: Optional[Starlette] = None,
+        status_by_error: Callable[[Tuple[int, ...]], int] = lambda codes: 200,
         **kwargs: Any,
     ):
         self._path = path.rstrip('/')
         self._spec = spec
         self._app = app or Starlette()
+        self._status_by_error = status_by_error
         self._dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
         self._endpoints: Dict[str, pjrpc.server.AsyncDispatcher] = {'': self._dispatcher}
 
@@ -142,4 +146,8 @@ class Application:
             return Response()
         else:
             response_text, error_codes = response
-            return Response(content=response_text, media_type=pjrpc.common.DEFAULT_CONTENT_TYPE)
+            return Response(
+                status_code=self._status_by_error(error_codes),
+                content=response_text,
+                media_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
+            )
