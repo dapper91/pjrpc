@@ -19,11 +19,13 @@ class Client(AbstractAsyncClient):
         self, url: str,
         session_args: Optional[Dict[str, Any]] = None,
         session: Optional[client.ClientSession] = None,
+        raise_for_status: bool = True,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
         self._endpoint = url
         self._session = session or client.ClientSession(**(session_args or {}))
+        self._raise_for_status = raise_for_status
 
     async def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> Optional[str]:
         """
@@ -38,7 +40,8 @@ class Client(AbstractAsyncClient):
         headers['Content-Type'] = pjrpc.common.DEFAULT_CONTENT_TYPE
 
         async with self._session.post(self._endpoint, data=request_text, **kwargs) as resp:
-            resp.raise_for_status()
+            if self._raise_for_status:
+                resp.raise_for_status()
             response_text = await resp.text()
 
         if is_notification:
