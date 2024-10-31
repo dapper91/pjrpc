@@ -146,7 +146,7 @@ class JsonRPC:
             raise exceptions.UnsupportedMediaType()
 
         try:
-            flask.request.encoding_errors = 'strict'
+            flask.request.encoding_errors = 'strict'  # type: ignore[attr-defined]
             request_text = flask.request.get_data(as_text=True)
         except UnicodeDecodeError as e:
             raise exceptions.BadRequest() from e

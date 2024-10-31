@@ -4,7 +4,7 @@ aiohttp JSON-RPC server integration.
 
 import functools as ft
 import json
-from typing import Any, Dict, Mapping, Optional, cast
+from typing import Any, Dict, Mapping, Optional
 
 from starlette import exceptions, routing
 from starlette.applications import Starlette
@@ -13,16 +13,7 @@ from starlette.responses import Response
 from starlette.staticfiles import StaticFiles
 
 import pjrpc
-from pjrpc.common.typedefs import Func
 from pjrpc.server import specs, utils
-
-
-def async_partial(func: Func, *bound_args: Any, **bound_kwargs: Any) -> Func:
-    @ft.wraps(func)
-    async def wrapped(*args: Any, **kwargs: Any) -> Any:
-        return await func(*bound_args, *args, **bound_kwargs, **kwargs)
-
-    return cast(Func, wrapped)
 
 
 class Application:
@@ -47,7 +38,7 @@ class Application:
         self._dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
         self._endpoints: Dict[str, pjrpc.server.AsyncDispatcher] = {'': self._dispatcher}
 
-        self._app.add_route(self._path, async_partial(self._rpc_handle, dispatcher=self._dispatcher), methods=['POST'])
+        self._app.add_route(self._path, ft.partial(self._rpc_handle, dispatcher=self._dispatcher), methods=['POST'])
 
         if self._spec:
             self._app.add_route(utils.join_path(self._path, self._spec.path), self._generate_spec, methods=['GET'])
@@ -99,7 +90,7 @@ class Application:
 
         self._app.add_route(
             utils.join_path(self._path, prefix),
-            async_partial(self._rpc_handle, dispatcher=self._dispatcher),
+            ft.partial(self._rpc_handle, dispatcher=self._dispatcher),
             methods=['POST'],
         )
 

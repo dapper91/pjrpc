@@ -923,7 +923,7 @@ class SwaggerUI(BaseUI):
         self._configs = configs
 
     def get_static_folder(self) -> str:
-        return self._bundle.swagger_ui.static_path
+        return str(self._bundle.swagger_ui.static_path)
 
     @ft.lru_cache(maxsize=10)
     def get_index_page(self, spec_url: str) -> str:
@@ -964,7 +964,7 @@ class RapiDoc(BaseUI):
         self._configs = configs
 
     def get_static_folder(self) -> str:
-        return self._bundle.static_path
+        return str(self._bundle.static_path)
 
     @ft.lru_cache(maxsize=10)
     def get_index_page(self, spec_url: str) -> str:
@@ -1005,7 +1005,7 @@ class ReDoc(BaseUI):
         self._configs = configs
 
     def get_static_folder(self) -> str:
-        return self._bundle.static_path
+        return str(self._bundle.static_path)
 
     @ft.lru_cache(maxsize=10)
     def get_index_page(self, spec_url: str) -> str:

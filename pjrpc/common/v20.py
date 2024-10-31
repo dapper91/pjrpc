@@ -6,7 +6,7 @@ from __future__ import annotations
 import abc
 import itertools as it
 import operator as op
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple, Type
+from typing import Any, ClassVar, Dict, Iterable, Iterator, List, Optional, Set, Tuple, Type
 
 from pjrpc.common.typedefs import Json, JsonRpcParams, JsonRpcRequestId
 
@@ -115,7 +115,7 @@ class Response(AbstractResponse):
     :param error: response error
     """
 
-    version = '2.0'
+    version: ClassVar[str] = '2.0'
 
     @classmethod
     def from_json(cls, json_data: Json, error_cls: Type[JsonRpcError] = JsonRpcError) -> 'Response':
@@ -281,7 +281,7 @@ class Request(AbstractRequest):
     :param id: request identifier
     """
 
-    version = '2.0'
+    version: ClassVar[str] = '2.0'
 
     @classmethod
     def from_json(cls, json_data: Json) -> 'Request':
@@ -607,7 +607,7 @@ class BatchRequest(AbstractRequest):
     :param strict: if ``True`` checks response identifier uniqueness
     """
 
-    version = '2.0'
+    version: ClassVar[str] = '2.0'
 
     @classmethod
     def from_json(cls, data: Json) -> 'BatchRequest':
