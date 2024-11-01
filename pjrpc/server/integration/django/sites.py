@@ -72,7 +72,7 @@ class JsonRPCSite:
         assert self._spec is not None, "spec is not set"
 
         endpoint_path = utils.remove_suffix(request.path, suffix=self._spec.path)
-        schema = self._spec.schema(path=endpoint_path, methods=self._dispatcher.registry.values())
+        schema = self._spec.schema(path=endpoint_path, methods_map={'': self._dispatcher.registry.values()})
 
         return HttpResponse(
             json.dumps(schema, cls=specs.JSONEncoder),

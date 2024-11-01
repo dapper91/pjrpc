@@ -1,78 +1,10 @@
-import dataclasses as dc
 import inspect
 import itertools as it
-from typing import Any, Dict, Iterable, List, Optional, Type
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type
 
 from pjrpc.common import UNSET, MaybeSet, UnsetType
 from pjrpc.common.exceptions import JsonRpcError
 from pjrpc.common.typedefs import MethodType
-
-
-@dc.dataclass(frozen=True)
-class Schema:
-    """
-    Method parameter/result schema.
-    """
-
-    schema: Dict[str, Any]
-    required: bool = True
-    summary: MaybeSet[str] = UNSET
-    description: MaybeSet[str] = UNSET
-    deprecated: MaybeSet[bool] = UNSET
-    definitions: MaybeSet[Dict[str, Any]] = UNSET
-
-
-@dc.dataclass(frozen=True)
-class Example:
-    """
-    Method usage example.
-    """
-
-    params: Dict[str, Any]
-    result: Any
-    version: str = '2.0'
-    summary: MaybeSet[str] = UNSET
-    description: MaybeSet[str] = UNSET
-
-
-@dc.dataclass(frozen=True)
-class ErrorExample:
-    """
-    Method error example.
-    """
-
-    code: int
-    message: str
-    data: MaybeSet[Optional[Any]] = UNSET
-    summary: MaybeSet[str] = UNSET
-    description: MaybeSet[str] = UNSET
-
-
-@dc.dataclass(frozen=True)
-class Tag:
-    """
-    A list of method tags.
-    """
-
-    name: str
-    description: MaybeSet[str] = UNSET
-    externalDocs: MaybeSet[str] = UNSET
-
-
-@dc.dataclass(frozen=True)
-class Error:
-    """
-    Defines an application level error.
-    """
-
-    code: int
-    message: str
-    data: MaybeSet[Dict[str, Any]] = UNSET
-    data_required: MaybeSet[bool] = UNSET
-    title: MaybeSet[str] = UNSET
-    description: MaybeSet[str] = UNSET
-    deprecated: MaybeSet[bool] = UNSET
-    definitions: MaybeSet[Dict[str, Any]] = UNSET
 
 
 class BaseSchemaExtractor:
@@ -80,19 +12,69 @@ class BaseSchemaExtractor:
     Base method schema extractor.
     """
 
-    def extract_params_schema(self, method: MethodType, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
+    def extract_params_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            exclude: Iterable[str] = (),
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
         """
-        Extracts method parameters schema.
+        Extracts params schema.
         """
 
-        return {}
+        return {}, {}
 
-    def extract_result_schema(self, method: MethodType) -> Schema:
+    def extract_request_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            exclude: Iterable[str] = (),
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
         """
-        Extracts method result schema.
+        Extracts request schema.
         """
 
-        return Schema(schema={})
+        return {}, {}
+
+    def extract_result_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        """
+        Extracts result schema.
+        """
+
+        return {}, {}
+
+    def extract_response_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            errors: Optional[Iterable[Type[JsonRpcError]]] = None,
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        """
+        Extracts response schema.
+        """
+
+        return {}, {}
+
+    def extract_error_response_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            errors: Optional[Iterable[Type[JsonRpcError]]] = None,
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        """
+        Extracts error response schema.
+        """
+
+        return {}, {}
 
     def extract_description(self, method: MethodType) -> MaybeSet[str]:
         """
@@ -123,44 +105,12 @@ class BaseSchemaExtractor:
 
         return summary
 
-    def extract_errors_schema(
-        self,
-        method: MethodType,
-        errors: Optional[Iterable[Type[JsonRpcError]]] = None,
-    ) -> MaybeSet[List[Error]]:
+    def extract_errors(self, method: MethodType) -> MaybeSet[List[Type[JsonRpcError]]]:
         """
-        Extracts method errors schema.
+        Extracts method errors.
         """
 
         return UNSET
-
-    def extract_tags(self, method: MethodType) -> MaybeSet[List[Tag]]:
-        """
-        Extracts method tags.
-        """
-
-        return UNSET
-
-    def extract_examples(self, method: MethodType) -> MaybeSet[List[Example]]:
-        """
-        Extracts method usage examples.
-        """
-
-        return UNSET
-
-    def extract_error_examples(
-        self,
-        method: MethodType,
-        errors: Optional[Iterable[Type[JsonRpcError]]] = None,
-    ) -> MaybeSet[List[ErrorExample]]:
-        """
-        Extracts method error examples.
-        """
-
-        return [
-            ErrorExample(code=error.code, message=error.message, summary=error.message)
-            for error in errors
-        ] if errors else UNSET
 
     def extract_deprecation_status(self, method: MethodType) -> MaybeSet[bool]:
         """

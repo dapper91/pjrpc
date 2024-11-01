@@ -4,7 +4,7 @@ aiohttp JSON-RPC server integration.
 
 import functools as ft
 import json
-from typing import Any, Callable, Dict, Mapping, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Tuple
 
 from starlette import exceptions, routing
 from starlette.applications import Starlette
@@ -31,29 +31,38 @@ class Application:
         self,
         path: str = '',
         spec: Optional[specs.Specification] = None,
+        specs: Iterable[specs.Specification] = (),
         app: Optional[Starlette] = None,
         status_by_error: Callable[[Tuple[int, ...]], int] = lambda codes: 200,
         **kwargs: Any,
     ):
-        self._path = path.rstrip('/')
-        self._spec = spec
+        self._path = path = path.rstrip('/')
+        self._specs = ([spec] if spec else []) + list(specs)
         self._app = app or Starlette()
         self._status_by_error = status_by_error
         self._dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
         self._endpoints: Dict[str, pjrpc.server.AsyncDispatcher] = {'': self._dispatcher}
 
-        self._app.add_route(self._path, ft.partial(self._rpc_handle, dispatcher=self._dispatcher), methods=['POST'])
+        self._app.add_route(path, ft.partial(self._rpc_handle, dispatcher=self._dispatcher), methods=['POST'])
 
-        if self._spec:
-            self._app.add_route(utils.join_path(self._path, self._spec.path), self._generate_spec, methods=['GET'])
+        for spec in self._specs:
+            self._app.add_route(
+                utils.join_path(path, spec.path),
+                ft.partial(self._generate_spec, spec=spec),
+                methods=['GET'],
+            )
 
-            if self._spec.ui and self._spec.ui_path:
-                ui_path = utils.join_path(self._path, self._spec.ui_path)
+            if spec.ui and spec.ui_path:
+                ui_path = utils.join_path(path, spec.ui_path)
 
-                self._app.add_route(utils.join_path(ui_path, '/'), self._ui_index_page)
-                self._app.add_route(utils.join_path(ui_path, 'index.html'), self._ui_index_page)
+                self._app.add_route(
+                    utils.join_path(ui_path, '/'), ft.partial(self._ui_index_page, spec=spec),
+                )
+                self._app.add_route(
+                    utils.join_path(ui_path, 'index.html'), ft.partial(self._ui_index_page, spec=spec),
+                )
                 self._app.routes.append(
-                    routing.Mount(ui_path, app=StaticFiles(directory=str(self._spec.ui.get_static_folder()))),
+                    routing.Mount(ui_path, app=StaticFiles(directory=str(spec.ui.get_static_folder()))),
                 )
 
     @property
@@ -94,33 +103,33 @@ class Application:
 
         self._app.add_route(
             utils.join_path(self._path, prefix),
-            ft.partial(self._rpc_handle, dispatcher=self._dispatcher),
+            ft.partial(self._rpc_handle, dispatcher=dispatcher),
             methods=['POST'],
         )
 
         return dispatcher
 
-    async def _generate_spec(self, request: Request) -> Response:
-        assert self._spec is not None, "spec is not set"
-
-        endpoint_path = utils.remove_suffix(request.url.path, suffix=self._spec.path)
-
+    def generate_spec(self, spec: specs.Specification, path: str = '') -> Dict[str, Any]:
         methods = {path: dispatcher.registry.values() for path, dispatcher in self._endpoints.items()}
-        schema = self._spec.schema(path=endpoint_path, methods_map=methods)
+        return spec.schema(path=path, methods_map=methods)
+
+    async def _generate_spec(self, request: Request, spec: specs.Specification) -> Response:
+        endpoint_path = utils.remove_suffix(request.url.path, suffix=spec.path)
+        schema = self.generate_spec(path=endpoint_path, spec=spec)
 
         return Response(
             content=json.dumps(schema, cls=specs.JSONEncoder),
             media_type='application/json',
         )
 
-    async def _ui_index_page(self, request: Request) -> Response:
-        assert self._spec is not None and self._spec.ui is not None, "spec is not set"
+    async def _ui_index_page(self, request: Request, spec: specs.Specification) -> Response:
+        assert spec.ui is not None, "spec is not set"
 
-        app_path = request.url.path.rsplit(self._spec.ui_path, maxsplit=1)[0]
-        spec_full_path = utils.join_path(app_path, self._spec.path)
+        app_path = request.url.path.rsplit(spec.ui_path, maxsplit=1)[0]
+        spec_full_path = utils.join_path(app_path, spec.path)
 
         return Response(
-            content=self._spec.ui.get_index_page(spec_url=spec_full_path),
+            content=spec.ui.get_index_page(spec_url=spec_full_path),
             media_type='text/html',
         )
 

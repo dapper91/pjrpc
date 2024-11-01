@@ -1,10 +1,11 @@
-from typing import Dict, Iterable, List, Optional, Type
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type
 
 import docstring_parser
 
 from pjrpc.common import UNSET, MaybeSet, exceptions
 from pjrpc.common.typedefs import MethodType
-from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Example, JsonRpcError, Schema, Tag
+from pjrpc.server.specs.extractors import BaseSchemaExtractor, JsonRpcError
+from pjrpc.server.specs.schemas import build_request_schema, build_response_schema
 
 
 class DocstringSchemaExtractor(BaseSchemaExtractor):
@@ -12,7 +13,13 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
     docstring method specification generator.
     """
 
-    def extract_params_schema(self, method: MethodType, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
+    def extract_params_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            exclude: Iterable[str] = (),
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
         exclude = set(exclude)
         parameters_schema = {}
 
@@ -22,36 +29,58 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
                 if param.arg_name in exclude:
                     continue
 
-                parameters_schema[param.arg_name] = Schema(
-                    schema={'type': param.type_name},
-                    required=not param.is_optional,
-                    summary=param.description.split('.')[0] if param.description is not None else UNSET,
-                    description=param.description if param.description is not None else UNSET,
-                )
+                parameters_schema[param.arg_name] = {
+                    'title': param.arg_name.capitalize(),
+                    'description': param.description if param.description is not None else UNSET,
+                    'type': param.type_name,
+                }
 
-        return parameters_schema
+        return parameters_schema, {}
 
-    def extract_result_schema(self, method: MethodType) -> Schema:
-        result_schema = Schema(schema={})
+    def extract_request_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            exclude: Iterable[str] = (),
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        exclude = set(exclude)
+        parameters_schema, components = self.extract_params_schema(method_name, method, ref_template, exclude)
+
+        return build_request_schema(method_name, parameters_schema), components
+
+    def extract_result_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        result_schema = {}
 
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
             if doc and doc.returns:
-                result_schema = Schema(
-                    schema={'type': doc.returns.type_name},
-                    required=True,
-                    summary=doc.returns.description.split('.')[0] if doc.returns.description is not None else UNSET,
-                    description=doc.returns.description if doc.returns.description is not None else UNSET,
-                )
+                result_schema = {
+                    'type': doc.returns.type_name,
+                    'title': 'Result',
+                    'description': doc.returns.description if doc.returns.description is not None else UNSET,
+                }
 
-        return result_schema
+        return result_schema, {}
 
-    def extract_errors_schema(
-        self,
-        method: MethodType,
-        errors: Optional[Iterable[Type[JsonRpcError]]] = None,
-    ) -> MaybeSet[List[Error]]:
-        errors_schema = []
+    def extract_response_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            errors: Optional[Iterable[Type[JsonRpcError]]] = None,
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        result_schema, components = self.extract_result_schema(method_name, method, ref_template)
+
+        return build_response_schema(result_schema, errors or []), components
+
+    def extract_errors(self, method: MethodType) -> MaybeSet[List[Type[JsonRpcError]]]:
+        errors_schema: List[Type[JsonRpcError]] = []
 
         if method.__doc__:
             error_map = {
@@ -63,12 +92,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
             for error in doc.raises:
                 error_cls = error_map.get(error.type_name or '')
                 if error_cls:
-                    errors_schema.append(
-                        Error(
-                            code=error_cls.code,
-                            message=error_cls.message,
-                        ),
-                    )
+                    errors_schema.append(error_cls)
 
         return errors_schema or UNSET
 
@@ -89,12 +113,6 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
             description = UNSET
 
         return description
-
-    def extract_tags(self, method: MethodType) -> MaybeSet[List[Tag]]:
-        return UNSET
-
-    def extract_examples(self, method: MethodType) -> MaybeSet[List[Example]]:
-        return UNSET
 
     def extract_deprecation_status(self, method: MethodType) -> MaybeSet[bool]:
         is_deprecated: MaybeSet[bool]

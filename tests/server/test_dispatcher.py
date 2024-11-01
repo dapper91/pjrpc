@@ -320,6 +320,7 @@ def test_dispatcher_errors():
         },
     }
 
+
 def test_dispatcher_batch_too_large_errors():
     disp = dispatcher.Dispatcher(max_batch_size=1)
 
@@ -335,7 +336,7 @@ def test_dispatcher_batch_too_large_errors():
                 'id': 2,
                 'method': 'method',
             },
-        ]
+        ],
     )
 
     response, error_codes = disp.dispatch(request)
@@ -533,7 +534,7 @@ async def test_async_dispatcher_batch_too_large_errors():
                 'id': 2,
                 'method': 'method',
             },
-        ]
+        ],
     )
 
     response, error_codes = await disp.dispatch(request)

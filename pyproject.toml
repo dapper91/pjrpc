@@ -92,6 +92,9 @@ responses = "^0.23.3"
 respx = "^0.20.2"
 mypy = "^1.7.1"
 pre-commit = "~3.2.0"
+types-jsonschema = "^4.23.0.20240813"
+types-requests = "^2.32.0.20241016"
+deepdiff = "^8.0.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
