@@ -320,6 +320,35 @@ def test_dispatcher_errors():
         },
     }
 
+def test_dispatcher_batch_too_large_errors():
+    disp = dispatcher.Dispatcher(max_batch_size=1)
+
+    request = json.dumps(
+        [
+            {
+                'jsonrpc': '2.0',
+                'id': 1,
+                'method': 'method',
+            },
+            {
+                'jsonrpc': '2.0',
+                'id': 2,
+                'method': 'method',
+            },
+        ]
+    )
+
+    response, error_codes = disp.dispatch(request)
+    assert json.loads(response) == {
+        'jsonrpc': '2.0',
+        'id': None,
+        'error': {
+            'code': -32600,
+            'message': 'Invalid Request',
+            'data': "batch too large",
+        },
+    }
+
 
 async def test_async_dispatcher():
     disp = dispatcher.AsyncDispatcher()
@@ -485,5 +514,35 @@ async def test_async_dispatcher_errors():
             'code': -32600,
             'message': 'Invalid Request',
             'data': 'request id duplicates found: 1',
+        },
+    }
+
+
+async def test_async_dispatcher_batch_too_large_errors():
+    disp = dispatcher.AsyncDispatcher(max_batch_size=1)
+
+    request = json.dumps(
+        [
+            {
+                'jsonrpc': '2.0',
+                'id': 1,
+                'method': 'method',
+            },
+            {
+                'jsonrpc': '2.0',
+                'id': 2,
+                'method': 'method',
+            },
+        ]
+    )
+
+    response, error_codes = await disp.dispatch(request)
+    assert json.loads(response) == {
+        'jsonrpc': '2.0',
+        'id': None,
+        'error': {
+            'code': -32600,
+            'message': 'Invalid Request',
+            'data': "batch too large",
         },
     }

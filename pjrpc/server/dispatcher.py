@@ -365,6 +365,7 @@ class Dispatcher(BaseDispatcher):
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
         middlewares: Iterable['MiddlewareType'] = (),
         error_handlers: Dict[Union[None, int, Exception], List['ErrorHandlerType']] = {},
+        max_batch_size: Optional[int] = None,
     ):
         super().__init__(
             request_class=request_class,
@@ -378,6 +379,7 @@ class Dispatcher(BaseDispatcher):
             middlewares=middlewares,
             error_handlers=error_handlers,
         )
+        self._max_batch_size = max_batch_size
 
     def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[Tuple[str, Tuple[int, ...]]]:
         """
@@ -407,12 +409,18 @@ class Dispatcher(BaseDispatcher):
 
         else:
             if isinstance(request, BatchRequest):
-                response = self._batch_response(
-                    *(
-                        resp for resp in (self._handle_request(request, context) for request in request)
-                        if not isinstance(resp, UnsetType)
-                    ),
-                )
+                if self._max_batch_size and len(request) > self._max_batch_size:
+                    response = self._response_class(
+                        id=None,
+                        error=pjrpc.exceptions.InvalidRequestError(data="batch too large"),
+                    )
+                else:
+                    response = self._batch_response(
+                        *(
+                            resp for resp in (self._handle_request(request, context) for request in request)
+                            if not isinstance(resp, UnsetType)
+                        ),
+                    )
             else:
                 response = self._handle_request(request, context)
 
@@ -501,6 +509,8 @@ class AsyncDispatcher(BaseDispatcher):
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
         middlewares: Iterable['AsyncMiddlewareType'] = (),
         error_handlers: Dict[Union[None, int, Exception], List['AsyncErrorHandlerType']] = {},
+        max_batch_size: Optional[int] = None,
+        concurrent_batch: bool = True,
     ):
         super().__init__(
             request_class=request_class,
@@ -514,6 +524,8 @@ class AsyncDispatcher(BaseDispatcher):
             middlewares=middlewares,
             error_handlers=error_handlers,
         )
+        self._max_batch_size = max_batch_size
+        self._concurrent_batch = concurrent_batch
 
     async def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[Tuple[str, Tuple[int, ...]]]:
         """
@@ -543,13 +555,19 @@ class AsyncDispatcher(BaseDispatcher):
 
         else:
             if isinstance(request, BatchRequest):
-                response = self._batch_response(
-                    *(
-                        resp
-                        for resp in await asyncio.gather(*(self._handle_request(req, context) for req in request))
-                        if resp
-                    ),
-                )
+                if self._max_batch_size and len(request) > self._max_batch_size:
+                    response = self._response_class(
+                        id=None,
+                        error=pjrpc.exceptions.InvalidRequestError(data="batch too large"),
+                    )
+                else:
+                    response = self._batch_response(
+                        *(
+                            resp
+                            for resp in await asyncio.gather(*(self._handle_request(req, context) for req in request))
+                            if resp
+                        ),
+                    )
             else:
                 response = await self._handle_request(request, context)
 
