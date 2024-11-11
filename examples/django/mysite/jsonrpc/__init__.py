@@ -12,7 +12,7 @@ from pjrpc.server.specs import openapi as specs
 class JSONEncoder(pjrpc.server.JSONEncoder):
     def default(self, o: Any) -> Any:
         if isinstance(o, pydantic.BaseModel):
-            return o.dict()
+            return o.model_dump()
         if isinstance(o, uuid.UUID):
             return str(o)
 

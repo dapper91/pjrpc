@@ -5,7 +5,6 @@ import aiohttp_cors
 import pydantic as pd
 from aiohttp import helpers, web
 
-import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import aiohttp as integration
 from pjrpc.server.specs import extractors
@@ -99,28 +98,9 @@ class NotFoundError(pjrpc.exc.JsonRpcError):
 
 
 @specs.annotate(
-    params_schema={'user': {'schema': {'type': 'object'}}},
-    result_schema={'type': 'string'},
-    # tags=['users'],
-    # errors=[AlreadyExistsError],
-    # examples=[
-    #     specs.MethodExample(
-    #         summary="Simple example",
-    #         params=dict(
-    #             user={
-    #                 'name': 'John',
-    #                 'surname': 'Doe',
-    #                 'age': 25,
-    #             },
-    #         ),
-    #         result={
-    #             'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-    #             'name': 'John',
-    #             'surname': 'Doe',
-    #             'age': 25,
-    #         },
-    #     ),
-    # ],
+    summary='Creates a user',
+    tags=['users'],
+    errors=[AlreadyExistsError],
 )
 @methods.add(context='request')
 @validator.validate
@@ -145,22 +125,9 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
 
 
 @specs.annotate(
+    summary='Returns a user',
     tags=['users'],
     errors=[NotFoundError],
-    # examples=[
-    #     specs.MethodExample(
-    #         summary='Simple example',
-    #         params=dict(
-    #             user_id='c47726c6-a232-45f1-944f-60b98966ff1b',
-    #         ),
-    #         result={
-    #              'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-    #              'name': 'John',
-    #              'surname': 'Doe',
-    #              'age': 25,
-    #         },
-    #     ),
-    # ],
 )
 @methods.add(context='request')
 @validator.validate
@@ -178,21 +145,13 @@ def get_user(request: web.Request, user_id: UserId) -> UserOut:
     if not user:
         raise NotFoundError()
 
-    return UserOut(id=user_id, **user.dict())
+    return UserOut(id=user_id, **user.model_dump())
 
 
 @specs.annotate(
+    summary='Deletes a user',
     tags=['users'],
     errors=[NotFoundError],
-    # examples=[
-    #     specs.MethodExample(
-    #         summary='Simple example',
-    #         params=dict(
-    #             user_id='c47726c6-a232-45f1-944f-60b98966ff1b',
-    #         ),
-    #         result=None,
-    #     ),
-    # ],
 )
 @methods.add(context='request')
 @validator.validate
@@ -232,13 +191,8 @@ jsonrpc_app = AuthenticatedJsonRPC(
         security=[
             dict(basicAuth=[]),
         ],
-        schema_extractors=[
-            # extractors.docstring.DocstringSchemaExtractor(),
-            extractors.pydantic.PydanticSchemaExtractor(),
-        ],
+        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
         ui=specs.SwaggerUI(),
-        # ui=specs.RapiDoc(),
-        # ui=specs.ReDoc(),
     ),
 )
 jsonrpc_app.dispatcher.add_methods(methods)

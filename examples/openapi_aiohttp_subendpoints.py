@@ -5,7 +5,6 @@ import aiohttp_cors
 import pydantic as pd
 from aiohttp import web
 
-import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.common.exceptions import MethodNotFoundError
 from pjrpc.server.integration import aiohttp as integration
@@ -13,8 +12,8 @@ from pjrpc.server.specs import extractors
 from pjrpc.server.specs import openapi as specs
 from pjrpc.server.validators import pydantic as validators
 
-user_methods = pjrpc.server.MethodRegistry()
-post_methods = pjrpc.server.MethodRegistry()
+user_methods_v1 = pjrpc.server.MethodRegistry()
+user_methods_v2 = pjrpc.server.MethodRegistry()
 validator = validators.PydanticValidator()
 
 
@@ -40,12 +39,12 @@ UserSurname = Annotated[
 
 UserAge = Annotated[
     int,
-    pd.Field(description="User age", examples=[36]),
+    pd.Field(description="User age", examples=[25]),
 ]
 
 UserId = Annotated[
     uuid.UUID,
-    pd.Field(description="User identifier", examples=["226a2c23-c98b-4729-b398-0dae550e99ff"]),
+    pd.Field(description="User identifier", examples=["c47726c6-a232-45f1-944f-60b98966ff1b"]),
 ]
 
 
@@ -77,28 +76,12 @@ class AlreadyExistsError(pjrpc.exc.JsonRpcError):
 
 
 @specs.annotate(
-    # tags=['users'],
-    errors=[AlreadyExistsError],
-    # examples=[
-    #     specs.MethodExample(
-    #         summary="Simple example",
-    #         params=dict(
-    #             user={
-    #                 'name': 'John',
-    #                 'surname': 'Doe',
-    #                 'age': 25,
-    #             },
-    #         ),
-    #         result={
-    #             'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-    #             'name': 'John',
-    #             'surname': 'Doe',
-    #             'age': 25,
-    #         },
-    #     ),
-    # ],
+    tags=['v1', 'users'],
+    errors=[
+        AlreadyExistsError,
+    ],
 )
-@user_methods.add(context='request')
+@user_methods_v1.add(context='request')
 @validator.validate
 def add_user(request: web.Request, user: UserIn) -> UserOut:
     """
@@ -116,74 +99,53 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
     return UserOut(id=user_id, **user.model_dump())
 
 
-PostTitle = Annotated[
+UserAddress = Annotated[
     str,
-    pd.Field(description="Post title", examples=["About me"]),
-]
-
-PostContent = Annotated[
-    str,
-    pd.Field(description="Post content", examples=['Software engineer']),
-]
-
-PostId = Annotated[
-    uuid.UUID,
-    pd.Field(description="Post identifier", examples=["226a2c23-c98b-4729-b398-0dae550e99ff"]),
+    pd.Field(description="User address", examples=["Brownsville, Texas, United States"]),
 ]
 
 
-class PostIn(pd.BaseModel):
+class UserInV2(UserIn):
     """
     User registration data.
     """
 
-    title: PostTitle
-    content: PostContent
+    name: UserName
+    surname: UserSurname
+    age: UserAge
+    address: UserAddress
 
 
-class PostOut(PostIn):
+class UserOutV2(UserInV2):
     """
     Registered user data.
     """
 
-    id: PostId
+    id: UserId
 
 
 @specs.annotate(
-    # tags=['posts'],
-    errors=[AlreadyExistsError],
-    # examples=[
-    #     specs.MethodExample(
-    #         summary="Simple example",
-    #         params=dict(
-    #             post={
-    #                 'title': 'Super post',
-    #                 'content': 'My first post',
-    #             },
-    #         ),
-    #         result={
-    #             'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-    #             'title': 'Super post',
-    #             'content': 'My first post',
-    #         },
-    #     ),
-    # ],
+    tags=['v2', 'users'],
+    errors=[
+        AlreadyExistsError,
+    ],
 )
-@post_methods.add(context='request')
+@user_methods_v2.add(context='request', name='add_user')
 @validator.validate
-def add_post(request: web.Request, post: PostIn) -> PostOut:
+def add_user_v2(request: web.Request, user: UserInV2) -> UserOutV2:
     """
-    Creates a post.
+    Creates a user.
 
     :param request: http request
-    :param object post: post data
-    :return object: created post
+    :param object user: user data
+    :return object: registered user
+    :raise AlreadyExistsError: user already exists
     """
 
-    post_id = uuid.uuid4().hex
-    request.config_dict['posts'][post_id] = post
+    user_id = uuid.uuid4().hex
+    request.config_dict['users'][user_id] = user
 
-    return PostOut(id=post_id, **post.dict())
+    return UserOutV2(id=user_id, **user.model_dump())
 
 
 error_http_status_map = {
@@ -192,7 +154,7 @@ error_http_status_map = {
 }
 
 jsonrpc_app = integration.Application(
-    '/api/v1',
+    '/api',
     json_encoder=JSONEncoder,
     status_by_error=lambda codes: 200 if len(codes) != 1 else error_http_status_map.get(codes[0], 200),
     spec=specs.OpenAPI(
@@ -211,12 +173,8 @@ jsonrpc_app = integration.Application(
         security=[
             dict(basicAuth=[]),
         ],
-        schema_extractors=[
-            extractors.pydantic.PydanticSchemaExtractor(),
-        ],
-        # ui=specs.SwaggerUI(),
-        # ui=specs.RapiDoc(),
-        ui=specs.ReDoc(hide_schema_titles=True),
+        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
+        ui=specs.SwaggerUI(),
         error_http_status_map=error_http_status_map,
     ),
 )
@@ -224,22 +182,20 @@ jsonrpc_app = integration.Application(
 jsonrpc_app.app['users'] = {}
 jsonrpc_app.app['posts'] = {}
 
-jsonrpc_app.add_endpoint(
-    '/users',
+jsonrpc_app_v1 = integration.Application(
     json_encoder=JSONEncoder,
-    spec_params=dict(
-        method_schema_extra={'tags': ['users']},
-        component_name_prefix='V1',
-    ),
-).add_methods(user_methods)
-jsonrpc_app.add_endpoint(
-    '/posts',
+    status_by_error=lambda codes: 200 if len(codes) != 1 else error_http_status_map.get(codes[0], 200),
+)
+jsonrpc_app_v1.dispatcher.add_methods(user_methods_v1)
+
+jsonrpc_app_v2 = integration.Application(
     json_encoder=JSONEncoder,
-    spec_params=dict(
-        method_schema_extra={'tags': ['posts']},
-        component_name_prefix='V1',
-    ),
-).add_methods(post_methods)
+    status_by_error=lambda codes: 200 if len(codes) != 1 else error_http_status_map.get(codes[0], 200),
+)
+jsonrpc_app_v2.dispatcher.add_methods(user_methods_v2)
+
+jsonrpc_app.add_subapp('/v1', jsonrpc_app_v1)
+jsonrpc_app.add_subapp('/v2', jsonrpc_app_v2)
 
 
 cors = aiohttp_cors.setup(

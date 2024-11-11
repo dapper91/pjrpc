@@ -5,7 +5,6 @@ import aiohttp_cors
 import pydantic as pd
 from aiohttp import web
 
-import pjrpc.server.specs.extractors.docstring
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import aiohttp as integration
 from pjrpc.server.specs import extractors
@@ -109,29 +108,13 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
     user_id = uuid.uuid4().hex
     request.config_dict['users'][user_id] = user
 
-    return UserOut(id=user_id, **user.dict())
+    return UserOut(id=user_id, **user.model_dump())
 
 
 @specs.annotate(
     summary="Returns a user",
     tags=['users'],
     errors=[NotFoundError],
-    examples=[
-        specs.MethodExample(
-            name="Simple",
-            params=[
-                specs.ExampleObject(
-                    name="user_id",
-                    value="49b2ee18-6fd2-4840-bd27-a208117fca41",
-                ),
-            ],
-            result=specs.ExampleObject(
-                name="result",
-                value={"name": "Alex", "surname": "Jones", "age": 34, "id": "49b2ee18-6fd2-4840-bd27-a208117fca41"},
-            ),
-            summary="Simple example",
-        ),
-    ],
 )
 @methods.add(context='request')
 @validator.validate
@@ -149,7 +132,7 @@ def get_user(request: web.Request, user_id: UserId) -> UserOut:
     if not user:
         raise NotFoundError()
 
-    return UserOut(id=user_id, **user.dict())
+    return UserOut(id=user_id, **user.model_dump())
 
 
 @specs.annotate(
@@ -191,18 +174,7 @@ jsonrpc_app = integration.Application(
         schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
     ),
 )
-jsonrpc_app.add_endpoint(
-    '/v1',
-    spec_params=dict(
-        servers=[
-            specs.Server(
-                name="v1",
-                url="http://127.0.0.1:8080/myapp/api/v1",
-            ),
-        ],
-        tags=['v1'],
-    ),
-).add_methods(methods)
+jsonrpc_app.add_endpoint('/v1').add_methods(methods)
 app.add_subapp('/myapp', jsonrpc_app.app)
 
 cors = aiohttp_cors.setup(

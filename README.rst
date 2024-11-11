@@ -454,19 +454,19 @@ and Swagger UI web tool with basic auth:
 .. code-block:: python
 
     import uuid
-    from typing import Any, Optional
+    from typing import Annotated, Any, Optional
 
     import flask
-    import flask_httpauth
-    import pydantic
     import flask_cors
+    import flask_httpauth
+    import pydantic as pd
     from werkzeug import security
 
     import pjrpc.server.specs.extractors.pydantic
     from pjrpc.server.integration import flask as integration
+    from pjrpc.server.specs import extractors
+    from pjrpc.server.specs import openapi as specs
     from pjrpc.server.validators import pydantic as validators
-    from pjrpc.server.specs import extractors, openapi as specs
-
 
     app = flask.Flask('myapp')
     flask_cors.CORS(app, resources={"/myapp/api/v1/*": {"origins": "*"}})
@@ -492,22 +492,43 @@ and Swagger UI web tool with basic auth:
 
     class JSONEncoder(pjrpc.JSONEncoder):
         def default(self, o: Any) -> Any:
-            if isinstance(o, pydantic.BaseModel):
-                return o.dict()
+            if isinstance(o, pd.BaseModel):
+                return o.model_dump()
             if isinstance(o, uuid.UUID):
                 return str(o)
 
             return super().default(o)
 
 
-    class UserIn(pydantic.BaseModel):
+    UserName = Annotated[
+        str,
+        pd.Field(description="User name", examples=["John"]),
+    ]
+
+    UserSurname = Annotated[
+        str,
+        pd.Field(description="User surname", examples=['Doe']),
+    ]
+
+    UserAge = Annotated[
+        int,
+        pd.Field(description="User age", examples=[25]),
+    ]
+
+    UserId = Annotated[
+        uuid.UUID,
+        pd.Field(description="User identifier", examples=["c47726c6-a232-45f1-944f-60b98966ff1b"]),
+    ]
+
+
+    class UserIn(pd.BaseModel):
         """
         User registration data.
         """
 
-        name: str
-        surname: str
-        age: int
+        name: UserName
+        surname: UserSurname
+        age: UserAge
 
 
     class UserOut(UserIn):
@@ -515,7 +536,7 @@ and Swagger UI web tool with basic auth:
         Registered user data.
         """
 
-        id: uuid.UUID
+        id: UserId
 
 
     class AlreadyExistsError(pjrpc.exc.JsonRpcError):
@@ -537,26 +558,9 @@ and Swagger UI web tool with basic auth:
 
 
     @specs.annotate(
+        summary='Creates a user',
         tags=['users'],
         errors=[AlreadyExistsError],
-        examples=[
-            specs.MethodExample(
-                summary="Simple example",
-                params=dict(
-                    user={
-                        'name': 'John',
-                        'surname': 'Doe',
-                        'age': 25,
-                    },
-                ),
-                result={
-                    'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                    'name': 'John',
-                    'surname': 'Doe',
-                    'age': 25,
-                },
-            ),
-        ],
     )
     @methods.add
     @validator.validate
@@ -576,30 +580,17 @@ and Swagger UI web tool with basic auth:
         user_id = uuid.uuid4().hex
         flask.current_app.users_db[user_id] = user
 
-        return UserOut(id=user_id, **user.dict())
+        return UserOut(id=user_id, **user.model_dump())
 
 
     @specs.annotate(
+        summary='Returns a user',
         tags=['users'],
         errors=[NotFoundError],
-        examples=[
-            specs.MethodExample(
-                summary='Simple example',
-                params=dict(
-                    user_id='c47726c6-a232-45f1-944f-60b98966ff1b',
-                ),
-                result={
-                    'id': 'c47726c6-a232-45f1-944f-60b98966ff1b',
-                    'name': 'John',
-                    'surname': 'Doe',
-                    'age': 25,
-                },
-            ),
-        ],
     )
     @methods.add
     @validator.validate
-    def get_user(user_id: uuid.UUID) -> UserOut:
+    def get_user(user_id: UserId) -> UserOut:
         """
         Returns a user.
 
@@ -612,25 +603,17 @@ and Swagger UI web tool with basic auth:
         if not user:
             raise NotFoundError()
 
-        return UserOut(id=user_id, **user.dict())
+        return UserOut(id=user_id, **user.model_dump())
 
 
     @specs.annotate(
+        summary='Deletes a user',
         tags=['users'],
         errors=[NotFoundError],
-        examples=[
-            specs.MethodExample(
-                summary='Simple example',
-                params=dict(
-                    user_id='c47726c6-a232-45f1-944f-60b98966ff1b',
-                ),
-                result=None,
-            ),
-        ],
     )
     @methods.add
     @validator.validate
-    def delete_user(user_id: uuid.UUID) -> None:
+    def delete_user(user_id: UserId) -> None:
         """
         Deletes a user.
 
@@ -664,8 +647,6 @@ and Swagger UI web tool with basic auth:
             ],
             schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
             ui=specs.SwaggerUI(),
-            # ui=specs.RapiDoc(),
-            # ui=specs.ReDoc(),
         ),
     )
     json_rpc.dispatcher.add_methods(methods)
