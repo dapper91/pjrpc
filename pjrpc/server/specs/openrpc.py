@@ -8,8 +8,7 @@ try:
 except ImportError:
     raise AssertionError("python 3.7 or later is required")
 
-import itertools as it
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, TypedDict, Union
 
 from pjrpc.common import UNSET, MaybeSet, UnsetType, exceptions
 from pjrpc.common.typedefs import Func
@@ -18,9 +17,36 @@ from pjrpc.server import Method, utils
 from . import Specification, extractors
 
 Json = Union[str, int, float, dict, bool, list, tuple, set, None]  # type: ignore[type-arg]
+JsonSchema = Dict[str, Any]
 
 
-@dc.dataclass(frozen=True)
+def remove_prefix(s: str, prefix: str) -> str:
+    return s[len(prefix):] if s.startswith(prefix) else s
+
+
+def follow_ref(schema: Dict[str, Any], components: Dict[str, Dict[str, Any]], ref_prefix: str) -> Dict[str, Any]:
+    if '$ref' in schema:
+        ref = remove_prefix(schema['$ref'], ref_prefix)
+        schema = components[ref]
+
+    return schema
+
+
+@dc.dataclass
+class Reference:
+    """
+    A simple object to allow referencing other components in the specification, internally and externally.
+    :param ref: the reference identifier.
+    """
+
+    ref: str
+
+    def __post_init__(self) -> None:
+        self.__dict__['$ref'] = self.__dict__['ref']
+        self.__dataclass_fields__['ref'].name = '$ref'  # noqa
+
+
+@dc.dataclass
 class Contact:
     """
     Contact information for the exposed API.
@@ -35,7 +61,7 @@ class Contact:
     email: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class License:
     """
     License information for the exposed API.
@@ -48,7 +74,7 @@ class License:
     url: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class Info:
     """
     Metadata about the API.
@@ -69,24 +95,42 @@ class Info:
     termsOfService: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
+class ServerVariable:
+    """
+    An object representing a Server Variable for server URL template substitution.
+
+    :param default: The default value to use for substitution.
+    :param enum: An enumeration of string values to be used if the substitution options are from a limited set.
+    :param description: An optional description for the server variable.
+    """
+
+    default: str
+    enum: MaybeSet[List[str]] = UNSET
+    description: MaybeSet[str] = UNSET
+
+
+@dc.dataclass
 class Server:
     """
     Connectivity information of a target server.
 
     :param name: a name to be used as the canonical name for the server.
-    :param url: a URL to the target host
+    :param url: a URL to the target host. This URL supports Server Variables.
     :param summary: a short summary of what the server is
     :param description: an optional string describing the host designated by the URL
+    :param variables: A map between a variable name and its value.
+                      The value is passed into the Runtime Expression to produce a server URL.
     """
 
     name: str
     url: str
     summary: MaybeSet[str] = UNSET
     description: MaybeSet[str] = UNSET
+    variables: MaybeSet[Dict[str, ServerVariable]] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class ExternalDocumentation:
     """
     Allows referencing an external resource for extended documentation.
@@ -99,25 +143,23 @@ class ExternalDocumentation:
     description: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class Tag:
     """
     A list of tags for API documentation control.
     Tags can be used for logical grouping of methods by resources or any other qualifier.
 
     :param name: the name of the tag
-    :param summary: a short summary of the tag
     :param description: a verbose explanation for the tag
     :param externalDocs: additional external documentation for this tag
     """
 
     name: str
-    summary: MaybeSet[str] = UNSET
     description: MaybeSet[str] = UNSET
     externalDocs: MaybeSet[ExternalDocumentation] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class ExampleObject:
     """
     The ExampleObject object is an object the defines an example.
@@ -126,15 +168,17 @@ class ExampleObject:
     :param name: canonical name of the example
     :param summary: short description for the example
     :param description: a verbose explanation of the example
+    :param externalValue: a URL that points to the literal example.
     """
 
-    value: Json
+    value: Any
     name: str
     summary: MaybeSet[str] = UNSET
     description: MaybeSet[str] = UNSET
+    externalValue: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class MethodExample:
     """
     The example Pairing object consists of a set of example params and result.
@@ -147,13 +191,13 @@ class MethodExample:
     """
 
     name: str
-    params: List[ExampleObject]
-    result: ExampleObject
+    params: List[Union[ExampleObject, Reference]]
+    result: Union[ExampleObject, Reference]
     summary: MaybeSet[str] = UNSET
     description: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class ContentDescriptor:
     """
     Content Descriptors are objects that describe content.
@@ -169,14 +213,14 @@ class ContentDescriptor:
     """
 
     name: str
-    schema: Dict[str, Any]
+    schema: JsonSchema
     summary: MaybeSet[str] = UNSET
     description: MaybeSet[str] = UNSET
     required: MaybeSet[bool] = UNSET
     deprecated: MaybeSet[bool] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class Error:
     """
     Defines an application level error.
@@ -188,7 +232,7 @@ class Error:
 
     code: int
     message: str
-    data: MaybeSet[Dict[str, Any]] = UNSET
+    data: MaybeSet[Any] = UNSET
 
 
 class ParamStructure(str, enum.Enum):
@@ -201,7 +245,28 @@ class ParamStructure(str, enum.Enum):
     EITHER = 'either'
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
+class Link:
+    """
+    :param name: Canonical name of the link.
+    :param description: A description of the link.
+    :param summary: Short description for the link.
+    :param method: The name of an existing, resolvable OpenRPC method, as defined with a unique method.
+    :param params: A map representing parameters to pass to a method as specified with method.
+                   The key is the parameter name to be used, whereas the value can be a constant or a runtime
+                   expression to be evaluated and passed to the linked method.
+    :param server: A server object to be used by the target method.
+    """
+
+    name: str
+    description: MaybeSet[str] = UNSET
+    summary: MaybeSet[str] = UNSET
+    method: MaybeSet[str] = UNSET
+    params: MaybeSet[Any] = UNSET
+    server: MaybeSet[Server] = UNSET
+
+
+@dc.dataclass
 class MethodInfo:
     """
     Describes the interface for the given method name.
@@ -221,39 +286,67 @@ class MethodInfo:
     """
 
     name: str
-    params: List[Union[ContentDescriptor, Dict[str, Any]]]
-    result: Union[ContentDescriptor, Dict[str, Any]]
-    errors: MaybeSet[List[Error]] = UNSET
+    params: List[Union[ContentDescriptor, Reference]]
+    result: Union[ContentDescriptor, Reference]
+    errors: MaybeSet[List[Union[Error, Reference]]] = UNSET
+    links: MaybeSet[List[Union[Link, Reference]]] = UNSET
     paramStructure: MaybeSet[ParamStructure] = UNSET
-    examples: MaybeSet[List[MethodExample]] = UNSET
+    examples: MaybeSet[List[Union[MethodExample, Reference]]] = UNSET
     summary: MaybeSet[str] = UNSET
     description: MaybeSet[str] = UNSET
-    tags: MaybeSet[List[Tag]] = UNSET
+    tags: MaybeSet[List[Union[Tag, Reference]]] = UNSET
     deprecated: MaybeSet[bool] = UNSET
     externalDocs: MaybeSet[ExternalDocumentation] = UNSET
     servers: MaybeSet[List[Server]] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class Components:
     """
     Set of reusable objects for different aspects of the OpenRPC.
 
+    :param contentDescriptors: reusable Schema Objects
     :param schemas: reusable Schema Objects
+    :param examples: reusable Schema Objects
+    :param links: reusable Schema Objects
+    :param errors: reusable Schema Objects
+    :param examplePairingObjects: reusable Schema Objects
+    :param tags: reusable Schema Objects
     """
 
-    schemas: Dict[str, Any] = dc.field(default_factory=dict)
+    contentDescriptors: MaybeSet[Dict[str, ContentDescriptor]] = UNSET
+    schemas: MaybeSet[Dict[str, JsonSchema]] = UNSET
+    examples: MaybeSet[Dict[str, ExampleObject]] = UNSET
+    links: MaybeSet[Dict[str, Link]] = UNSET
+    errors: MaybeSet[Dict[str, Error]] = UNSET
+    examplePairingObjects: MaybeSet[Dict[str, MethodExample]] = UNSET
+    tags: MaybeSet[Dict[str, Tag]] = UNSET
+
+
+class OpenRpcMeta(TypedDict):
+    params_schema: MaybeSet[List[ContentDescriptor]]
+    result_schema: MaybeSet[ContentDescriptor]
+    errors: MaybeSet[List[Error]]
+    examples: MaybeSet[List[Union[MethodExample, Reference]]]
+    tags: MaybeSet[List[Union[Tag, Reference]]]
+    summary: MaybeSet[str]
+    description: MaybeSet[str]
+    deprecated: MaybeSet[bool]
+    external_docs: MaybeSet[ExternalDocumentation]
+    servers: MaybeSet[List[Server]]
 
 
 def annotate(
     params_schema: MaybeSet[List[ContentDescriptor]] = UNSET,
     result_schema: MaybeSet[ContentDescriptor] = UNSET,
     errors: MaybeSet[List[Union[Error, Type[exceptions.JsonRpcError]]]] = UNSET,
-    examples: MaybeSet[List[MethodExample]] = UNSET,
+    examples: MaybeSet[List[Union[MethodExample, Reference]]] = UNSET,
     summary: MaybeSet[str] = UNSET,
     description: MaybeSet[str] = UNSET,
     tags: MaybeSet[List[Union[Tag, str]]] = UNSET,
     deprecated: MaybeSet[bool] = UNSET,
+    external_docs: MaybeSet[ExternalDocumentation] = UNSET,
+    servers: MaybeSet[List[Server]] = UNSET,
 ) -> Callable[[Func], Func]:
     """
     Adds JSON-RPC method to the API specification.
@@ -266,28 +359,30 @@ def annotate(
     :param description: a verbose explanation of the method behavior
     :param tags: a list of tags for API documentation control
     :param deprecated: declares this method to be deprecated
+    :param external_docs: additional external documentation for the method
+    :param servers: an alternative servers array to service this method
     """
 
     def decorator(method: Func) -> Func:
-        utils.set_meta(
-            method,
-            openrpc_spec=dict(
-                params_schema=params_schema,
-                result_schema=result_schema,
-                errors=[
-                    error if isinstance(error, Error) else Error(code=error.code, message=error.message)
-                    for error in errors
-                ] if errors else UNSET,
-                examples=examples,
-                tags=[
-                    Tag(name=tag) if isinstance(tag, str) else tag
-                    for tag in tags
-                ] if tags else UNSET,
-                summary=summary,
-                description=description,
-                deprecated=deprecated,
-            ),
+        meta: OpenRpcMeta = dict(
+            params_schema=params_schema,
+            result_schema=result_schema,
+            errors=[
+                error if isinstance(error, Error) else Error(code=error.code, message=error.message)
+                for error in errors
+            ] if errors else UNSET,
+            examples=examples,
+            tags=[
+                Tag(name=tag) if isinstance(tag, str) else tag
+                for tag in tags
+            ] if tags else UNSET,
+            summary=summary,
+            description=description,
+            deprecated=deprecated,
+            external_docs=external_docs,
+            servers=servers,
         )
+        utils.set_meta(method, openrpc_spec=meta)
 
         return method
 
@@ -299,7 +394,7 @@ class OpenRPC(Specification):
     """
     OpenRPC Specification.
 
-    :param info: specification information
+    :param info: provides metadata about the API
     :param path: specification url path
     :param servers: connectivity information
     :param external_docs: additional external documentation
@@ -309,10 +404,10 @@ class OpenRPC(Specification):
 
     info: Info
     components: Components
-    methods: List[MethodInfo] = dc.field(default_factory=list)
+    methods: List[Union[MethodInfo, Reference]] = dc.field(default_factory=list)
     servers: MaybeSet[List[Server]] = UNSET
     externalDocs: MaybeSet[ExternalDocumentation] = UNSET
-    openrpc: str = '1.0.0'
+    openrpc: str = '1.3.2'
 
     def __init__(
         self,
@@ -320,7 +415,7 @@ class OpenRPC(Specification):
         path: str = '/openrpc.json',
         servers: MaybeSet[List[Server]] = UNSET,
         external_docs: MaybeSet[ExternalDocumentation] = UNSET,
-        openrpc: str = '1.0.0',
+        openrpc: str = '1.3.2',
         schema_extractor: Optional[extractors.BaseSchemaExtractor] = None,
     ):
         super().__init__(path)
@@ -337,87 +432,36 @@ class OpenRPC(Specification):
     def schema(
         self,
         path: str,
-        methods: Iterable[Method] = (),
         methods_map: Mapping[str, Iterable[Method]] = {},
     ) -> Dict[str, Any]:
-        for method in it.chain(methods, methods_map.get('', [])):
-            method_name = method.name
+        self.components.schemas = {}
 
-            method_meta = utils.get_meta(method.method)
-            annotated_spec = method_meta.get('openrpc_spec', {})
-
-            params_schema = self._schema_extractor.extract_params_schema(
-                method.method,
-                exclude=[method.context] if method.context else [],
-            )
-            result_schema = self._schema_extractor.extract_result_schema(method.method)
-            extracted_spec: Dict[str, Any] = dict(
-                params_schema=[
-                    ContentDescriptor(
-                        name=name,
-                        schema=schema.schema,
-                        summary=schema.summary,
-                        description=schema.description,
-                        required=schema.required,
-                        deprecated=schema.deprecated,
-                    ) for name, schema in params_schema.items()
-                ],
-                result_schema=ContentDescriptor(
-                    name='result',
-                    schema=result_schema.schema,
-                    summary=result_schema.summary,
-                    description=result_schema.description,
-                    required=result_schema.required,
-                    deprecated=result_schema.deprecated,
-                ),
-                errors=self._schema_extractor.extract_errors_schema(method.method),
-                deprecated=self._schema_extractor.extract_deprecation_status(method.method),
-                description=self._schema_extractor.extract_description(method.method),
-                summary=self._schema_extractor.extract_summary(method.method),
-                tags=self._schema_extractor.extract_tags(method.method),
-                examples=[
-                    MethodExample(
-                        name=example.summary or f'Example#{i}',
-                        params=[
-                            ExampleObject(
-                                value=param_value,
-                                name=param_name,
-                            )
-                            for param_name, param_value in example.params.items()
-                        ],
-                        result=ExampleObject(
-                            name='result',
-                            value=example.result,
-                        ),
-                        summary=example.summary,
-                        description=example.description,
-                    )
-                    for i, example in enumerate(self._schema_extractor.extract_examples(method.method) or [])
-                ],
-            )
-            method_spec: Dict[str, Any] = extracted_spec.copy()
-            method_spec.update((k, v) for k, v in annotated_spec.items() if v is not UNSET)
+        for method in methods_map.get('', []):
+            summary, description = self._extract_description(method)
+            params_schema = self._extract_params_schema(method)
+            result_schema = self._extract_result_schema(method)
+            errors = self._extract_errors(method)
+            deprecated = self._extract_deprecated(method)
+            tags = self._extract_tags(method)
+            external_docs = self._extract_external_docs(method)
+            servers = self._extract_servers(method)
+            examples = self._extract_examples(method)
 
             self.methods.append(
                 MethodInfo(
-                    name=method_name,
-                    params=method_spec['params_schema'],
-                    result=method_spec['result_schema'],
-                    errors=method_spec['errors'],
-                    examples=method_spec['examples'],
-                    summary=method_spec['summary'],
-                    description=method_spec['description'],
-                    tags=method_spec['tags'],
-                    deprecated=method_spec['deprecated'],
+                    name=method.name,
+                    params=list(params_schema),
+                    result=result_schema,
+                    errors=list(errors) if errors else UNSET,
+                    examples=examples or UNSET,
+                    summary=summary,
+                    description=description,
+                    tags=tags or UNSET,
+                    deprecated=deprecated,
+                    servers=servers or UNSET,
+                    externalDocs=external_docs or UNSET,
                 ),
             )
-
-            for param_schema in params_schema.values():
-                if not isinstance(param_schema.definitions, UnsetType):
-                    self.components.schemas.update(param_schema.definitions)
-
-            if not isinstance(result_schema.definitions, UnsetType):
-                self.components.schemas.update(result_schema.definitions)
 
         return dc.asdict(
             self,
@@ -425,3 +469,120 @@ class OpenRPC(Specification):
                 filter(lambda item: not isinstance(item[1], UnsetType), iterable),
             ),
         )
+
+    def _extract_params_schema(self, method: Method) -> List[ContentDescriptor]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
+
+        if not (params_descriptors := annotations.get('params_schema')):
+            request_ref_prefix = '#/components/schemas/'
+            params_schema, components = self._schema_extractor.extract_params_schema(
+                method.name,
+                method.method,
+                ref_template=f'{request_ref_prefix}{{model}}',
+                exclude=[method.context] if method.context else [],
+            )
+            params_descriptors = [
+                ContentDescriptor(
+                    name=name,
+                    schema=schema,
+                    summary=schema.get('title', UNSET),
+                    description=schema.get('description', UNSET),
+                    required=name in params_schema.get('required', []),
+                    deprecated=schema.get('deprecated', UNSET),
+                ) for name, schema in params_schema['properties'].items()
+            ]
+
+            self.components.schemas = schemas = self.components.schemas or {}
+            schemas.update(components)
+
+        return params_descriptors
+
+    def _extract_result_schema(self, method: Method) -> ContentDescriptor:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
+
+        if not (result_descriptor := annotations.get('result_schema')):
+            response_ref_prefix = '#/components/schemas/'
+            result_schema, components = self._schema_extractor.extract_result_schema(
+                method.name,
+                method.method,
+                ref_template=f'{response_ref_prefix}{{model}}',
+            )
+            result_descriptor = ContentDescriptor(
+                name='result',
+                schema=result_schema,
+                summary=result_schema.get('title', UNSET),
+                description=result_schema.get('description', UNSET),
+                required='result' in result_schema.get('required', []),
+                deprecated=result_schema.get('deprecated', UNSET),
+            )
+            self.components.schemas = schemas = self.components.schemas or {}
+            schemas.update(components)
+
+        return result_descriptor
+
+    def _extract_errors(self, method: Method) -> MaybeSet[List[Error]]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
+
+        errors = annotations.get('errors', UNSET) or []
+        errors.extend([
+            Error(code=error.code, message=error.message)
+            for error in self._schema_extractor.extract_errors(method.method) or []
+        ])
+
+        unique_errors = list({error.code: error for error in errors}.values())
+
+        return unique_errors or UNSET
+
+    def _extract_description(self, method: Method) -> Tuple[MaybeSet[str], MaybeSet[str]]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
+
+        summary = annotations.get('summary', UNSET) or self._schema_extractor.extract_summary(method.method)
+        description = annotations.get('description', UNSET) or self._schema_extractor.extract_description(method.method)
+
+        return summary, description
+
+    def _extract_tags(self, method: Method) -> MaybeSet[List[Union[Tag, Reference]]]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
+
+        tags = annotations.get('tags', UNSET) or []
+
+        return tags or UNSET
+
+    def _extract_servers(self, method: Method) -> MaybeSet[List[Server]]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
+
+        servers = annotations.get('servers', UNSET) or []
+
+        return servers or UNSET
+
+    def _extract_deprecated(self, method: Method) -> MaybeSet[bool]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
+
+        deprecated = annotations.get('deprecated', UNSET)
+        if deprecated is UNSET:
+            deprecated = self._schema_extractor.extract_deprecation_status(method.method)
+
+        return deprecated
+
+    def _extract_external_docs(self, method: Method) -> MaybeSet[ExternalDocumentation]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
+
+        external_docs = annotations.get('external_docs', UNSET)
+
+        return external_docs
+
+    def _extract_examples(self, method: Method) -> MaybeSet[List[Union[MethodExample, Reference]]]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
+
+        examples = annotations.get('examples', UNSET)
+
+        return examples

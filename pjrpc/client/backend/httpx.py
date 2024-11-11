@@ -15,10 +15,11 @@ class Client(AbstractClient):
     :param kwargs: parameters to be passed to :py:class:`pjrpc.client.AbstractClient`
     """
 
-    def __init__(self, url: str, client: Optional[httpx.Client] = None, **kwargs: Any):
+    def __init__(self, url: str, client: Optional[httpx.Client] = None, raise_for_status: bool = True, **kwargs: Any):
         super().__init__(**kwargs)
         self._endpoint = url
         self._client = client or httpx.Client()
+        self._raise_for_status = raise_for_status
 
     def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> Optional[str]:
         """
@@ -33,7 +34,8 @@ class Client(AbstractClient):
         headers['Content-Type'] = pjrpc.common.DEFAULT_CONTENT_TYPE
 
         resp = self._client.post(self._endpoint, content=request_text, **kwargs)
-        resp.raise_for_status()
+        if self._raise_for_status:
+            resp.raise_for_status()
         if is_notification:
             return None
 
@@ -68,10 +70,17 @@ class AsyncClient(AbstractAsyncClient):
     :param session: custom session to be used instead of :py:class:`aiohttp.ClientSession`
     """
 
-    def __init__(self, url: str, client: Optional[httpx.AsyncClient] = None, **kwargs: Any):
+    def __init__(
+        self,
+        url: str,
+        client: Optional[httpx.AsyncClient] = None,
+        raise_for_status: bool = True,
+        **kwargs: Any,
+    ):
         super().__init__(**kwargs)
         self._endpoint = url
         self._client = client or httpx.AsyncClient()
+        self._raise_for_status = raise_for_status
 
     async def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> Optional[str]:
         """
@@ -86,7 +95,8 @@ class AsyncClient(AbstractAsyncClient):
         headers['Content-Type'] = pjrpc.common.DEFAULT_CONTENT_TYPE
 
         resp = await self._client.post(self._endpoint, content=request_text, **kwargs)
-        resp.raise_for_status()
+        if self._raise_for_status:
+            resp.raise_for_status()
 
         response_buff: List[str] = []
         async for chunk in resp.aiter_text():

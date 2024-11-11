@@ -72,9 +72,10 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
 
         try:
             reply_to = message.properties.get('reply_to')
-            response_text = self._dispatcher.dispatch(message.body, context=message)
+            response = self._dispatcher.dispatch(message.body, context=message)
 
-            if response_text is not None:
+            if response is not None:
+                response_text, error_codes = response
                 if reply_to is None:
                     logger.warning("property 'reply_to' is missing")
                 else:

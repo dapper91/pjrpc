@@ -150,8 +150,8 @@ class ParseError(ClientError):
     An error occurred on the server while parsing the JSON text.
     """
 
-    code = -32700
-    message = 'Parse error'
+    code: int = -32700
+    message: str = 'Parse error'
 
 
 class InvalidRequestError(ClientError):
@@ -159,8 +159,8 @@ class InvalidRequestError(ClientError):
     The JSON sent is not a valid request object.
     """
 
-    code = -32600
-    message = 'Invalid Request'
+    code: int = -32600
+    message: str = 'Invalid Request'
 
 
 class MethodNotFoundError(ClientError):
@@ -168,8 +168,8 @@ class MethodNotFoundError(ClientError):
     The method does not exist / is not available.
     """
 
-    code = -32601
-    message = 'Method not found'
+    code: int = -32601
+    message: str = 'Method not found'
 
 
 class InvalidParamsError(ClientError):
@@ -177,8 +177,8 @@ class InvalidParamsError(ClientError):
     Invalid method parameter(s).
     """
 
-    code = -32602
-    message = 'Invalid params'
+    code: int = -32602
+    message: str = 'Invalid params'
 
 
 class InternalError(JsonRpcError):
@@ -186,8 +186,8 @@ class InternalError(JsonRpcError):
     Internal JSON-RPC error.
     """
 
-    code = -32603
-    message = 'Internal error'
+    code: int = -32603
+    message: str = 'Internal error'
 
 
 class ServerError(JsonRpcError):
@@ -196,5 +196,5 @@ class ServerError(JsonRpcError):
     Codes from -32000 to -32099.
     """
 
-    code = -32000
-    message = 'Server error'
+    code: int = -32000
+    message: str = 'Server error'

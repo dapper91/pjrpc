@@ -90,7 +90,6 @@ class Client(AbstractAsyncClient):
             self._channel = None
         if self._connection:
             await self._connection.close()
-            self._connection = None
 
         for future in self._futures.values():
             if future.done():

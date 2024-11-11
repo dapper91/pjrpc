@@ -72,7 +72,7 @@ class JsonRPCSite:
         assert self._spec is not None, "spec is not set"
 
         endpoint_path = utils.remove_suffix(request.path, suffix=self._spec.path)
-        schema = self._spec.schema(path=endpoint_path, methods=self._dispatcher.registry.values())
+        schema = self._spec.schema(path=endpoint_path, methods_map={'': self._dispatcher.registry.values()})
 
         return HttpResponse(
             json.dumps(schema, cls=specs.JSONEncoder),
@@ -106,10 +106,11 @@ class JsonRPCSite:
         except UnicodeDecodeError:
             return HttpResponseBadRequest()
 
-        response_text = self._dispatcher.dispatch(request_text, context=request)
-        if response_text is None:
+        response = self._dispatcher.dispatch(request_text, context=request)
+        if response is None:
             return HttpResponse()
         else:
+            response_text, error_codes = response
             return HttpResponse(response_text, content_type=pjrpc.common.DEFAULT_CONTENT_TYPE)
 
 

@@ -83,7 +83,7 @@ def add_post(request: HttpRequest, post: PostIn) -> PostOut:
     post_id = uuid.uuid4().hex
     db['posts'][post_id] = post
 
-    return PostOut(id=post_id, **post.dict())
+    return PostOut(id=post_id, **post.model_dump())
 
 
 @specs.annotate(
@@ -119,7 +119,7 @@ def get_post(request: HttpRequest, post_id: uuid.UUID) -> PostOut:
     if not post:
         raise NotFoundError()
 
-    return PostOut(**post.dict())
+    return PostOut(**post.model_dump())
 
 
 @specs.annotate(

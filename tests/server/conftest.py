@@ -15,7 +15,7 @@ def dyn_method(request):
     return context['dynamic_method']
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def resources():
     def getter(name: str, loader: Optional[Callable] = None) -> str:
         resource_file = THIS_DIR / 'resources' / name
