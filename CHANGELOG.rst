@@ -1,6 +1,16 @@
 Changelog
 =========
 
+1.10.0 (2024-11-12)
+------------------
+
+- openapi 3.x support added.
+- batch size validation support added.
+- custom http server response status added.
+- raise_for_status flag added for http clients.
+- python 3.12, 3.13 support added.
+
+
 1.9.0 (2024-04-22)
 ------------------
 
