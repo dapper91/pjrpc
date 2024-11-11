@@ -36,7 +36,7 @@ async def add_user(request: web.Request, user: User):
     user_id = uuid.uuid4()
     request.app['users'][user_id] = user
 
-    return {'id': user_id, **user.dict()}
+    return {'id': user_id, **user.model_dump()}
 
 
 class JSONEncoder(pjrpc.server.JSONEncoder):

@@ -25,10 +25,10 @@ class Executor:
         self,
         broker_url: URL,
         rx_queue_name: str,
-        tx_exchange_name: str = None,
-        tx_routing_key: str = None,
+        tx_exchange_name: Optional[str] = None,
+        tx_routing_key: Optional[str] = None,
         prefetch_count: int = 0,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         self._broker_url = broker_url
         self._rx_queue_name = rx_queue_name
@@ -56,7 +56,7 @@ class Executor:
     async def start(
             self,
             queue_args: Optional[Dict[str, Any]] = None,
-            exchange_args: Optional[Dict[str, Any]] = None
+            exchange_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Starts executor.
@@ -95,9 +95,10 @@ class Executor:
 
         try:
             reply_to = message.reply_to
-            response_text = await self._dispatcher.dispatch(message.body.decode(), context=message)
+            response = await self._dispatcher.dispatch(message.body.decode(), context=message)
 
-            if response_text is not None:
+            if response is not None:
+                response_text, error_codes = response
                 if self._tx_routing_key:
                     routing_key = self._tx_routing_key
                 elif reply_to:

@@ -86,7 +86,7 @@ def add_user(request: HttpRequest, user: UserIn) -> UserOut:
     user_id = uuid.uuid4().hex
     db['users'][user_id] = user
 
-    return UserOut(id=user_id, **user.dict())
+    return UserOut(id=user_id, **user.model_dump())
 
 
 @specs.annotate(
@@ -123,7 +123,7 @@ def get_user(request: HttpRequest, user_id: uuid.UUID) -> UserOut:
     if not user:
         raise NotFoundError()
 
-    return UserOut(id=user_id, **user.dict())
+    return UserOut(id=user_id, **user.model_dump())
 
 
 @specs.annotate(

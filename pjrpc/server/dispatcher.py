@@ -4,7 +4,7 @@ import itertools as it
 import json
 import logging
 from typing import Any, Awaitable, Callable, Dict, Generator, ItemsView, Iterable, Iterator, KeysView, List, Optional
-from typing import Type, Union, ValuesView, cast
+from typing import Tuple, Type, Union, ValuesView, cast
 
 import pjrpc
 from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, MaybeSet, Request, Response, UnsetType
@@ -18,6 +18,13 @@ from . import validators
 logger = logging.getLogger(__package__)
 
 default_validator = validators.base.BaseValidator()
+
+
+def extract_error_codes(response: AbstractResponse) -> Tuple[int, ...]:
+    if isinstance(response, BatchResponse):
+        return (response.error.code,) if response.error else tuple(r.error.code if r.error else 0 for r in response)
+    else:
+        return (response.error.code if response.error else 0,)
 
 
 class Method:
@@ -358,6 +365,7 @@ class Dispatcher(BaseDispatcher):
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
         middlewares: Iterable['MiddlewareType'] = (),
         error_handlers: Dict[Union[None, int, Exception], List['ErrorHandlerType']] = {},
+        max_batch_size: Optional[int] = None,
     ):
         super().__init__(
             request_class=request_class,
@@ -371,8 +379,9 @@ class Dispatcher(BaseDispatcher):
             middlewares=middlewares,
             error_handlers=error_handlers,
         )
+        self._max_batch_size = max_batch_size
 
-    def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[str]:
+    def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[Tuple[str, Tuple[int, ...]]]:
         """
         Deserializes request, dispatches it to the required method and serializes the result.
 
@@ -400,12 +409,18 @@ class Dispatcher(BaseDispatcher):
 
         else:
             if isinstance(request, BatchRequest):
-                response = self._batch_response(
-                    *(
-                        resp for resp in (self._handle_request(request, context) for request in request)
-                        if not isinstance(resp, UnsetType)
-                    ),
-                )
+                if self._max_batch_size and len(request) > self._max_batch_size:
+                    response = self._response_class(
+                        id=None,
+                        error=pjrpc.exceptions.InvalidRequestError(data="batch too large"),
+                    )
+                else:
+                    response = self._batch_response(
+                        *(
+                            resp for resp in (self._handle_request(request, context) for request in request)
+                            if not isinstance(resp, UnsetType)
+                        ),
+                    )
             else:
                 response = self._handle_request(request, context)
 
@@ -413,7 +428,7 @@ class Dispatcher(BaseDispatcher):
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
             logger.getChild('response').debug("response sent: %s", response_text)
 
-            return response_text
+            return response_text, extract_error_codes(response)
 
         return None
 
@@ -494,6 +509,8 @@ class AsyncDispatcher(BaseDispatcher):
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
         middlewares: Iterable['AsyncMiddlewareType'] = (),
         error_handlers: Dict[Union[None, int, Exception], List['AsyncErrorHandlerType']] = {},
+        max_batch_size: Optional[int] = None,
+        concurrent_batch: bool = True,
     ):
         super().__init__(
             request_class=request_class,
@@ -507,8 +524,10 @@ class AsyncDispatcher(BaseDispatcher):
             middlewares=middlewares,
             error_handlers=error_handlers,
         )
+        self._max_batch_size = max_batch_size
+        self._concurrent_batch = concurrent_batch
 
-    async def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[str]:
+    async def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[Tuple[str, Tuple[int, ...]]]:
         """
         Deserializes request, dispatches it to the required method and serializes the result.
 
@@ -536,13 +555,19 @@ class AsyncDispatcher(BaseDispatcher):
 
         else:
             if isinstance(request, BatchRequest):
-                response = self._batch_response(
-                    *(
-                        resp
-                        for resp in await asyncio.gather(*(self._handle_request(req, context) for req in request))
-                        if resp
-                    ),
-                )
+                if self._max_batch_size and len(request) > self._max_batch_size:
+                    response = self._response_class(
+                        id=None,
+                        error=pjrpc.exceptions.InvalidRequestError(data="batch too large"),
+                    )
+                else:
+                    response = self._batch_response(
+                        *(
+                            resp
+                            for resp in await asyncio.gather(*(self._handle_request(req, context) for req in request))
+                            if resp
+                        ),
+                    )
             else:
                 response = await self._handle_request(request, context)
 
@@ -550,7 +575,7 @@ class AsyncDispatcher(BaseDispatcher):
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
             logger.getChild('response').debug("response sent: %s", response_text)
 
-            return response_text
+            return response_text, extract_error_codes(response)
 
         return None
 

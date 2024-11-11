@@ -1,24 +1,224 @@
 import inspect
-from typing import Any, Dict, Iterable, List, Optional, Type
+from typing import Any, Dict, Generic, Iterable, Literal, Optional, Tuple, Type, TypeVar, Union
 
 import pydantic as pd
 
-from pjrpc.common import UNSET, MaybeSet
-from pjrpc.common.exceptions import JsonRpcError
+from pjrpc.common import exceptions
 from pjrpc.common.typedefs import MethodType
-from pjrpc.server.specs.extractors import BaseSchemaExtractor, Error, Schema
+from pjrpc.server.specs.extractors import BaseSchemaExtractor
+
+
+def to_camel(string: str) -> str:
+    return ''.join(word.capitalize() for word in string.split('_'))
+
+
+MethodT = TypeVar('MethodT', bound=str)
+ParamsT = TypeVar('ParamsT', bound=pd.BaseModel, covariant=True)
+
+
+class JsonRpcRequest(
+    pd.BaseModel, Generic[MethodT, ParamsT],
+    title="Request",
+    extra='forbid', strict=True,
+):
+    jsonrpc: Literal['2.0', '1.0'] = pd.Field(title="Version", description="JSON-RPC protocol version")
+    id: Optional[Union[str, int]] = pd.Field(None, description="Request identifier", examples=[1])
+    method: MethodT = pd.Field(description="Method name")
+    params: ParamsT = pd.Field(description="Method parameters")
+
+
+RequestT = TypeVar('RequestT', bound=Union[JsonRpcRequest[Any, Any]])
+
+
+class JsonRpcRequestWrapper(pd.RootModel[RequestT], Generic[RequestT], title="Request"):
+    pass
+
+
+ResultT = TypeVar('ResultT', covariant=True)
+
+
+class JsonRpcResponseSuccess(
+    pd.BaseModel, Generic[ResultT],
+    title='Success',
+    extra='forbid', strict=True,
+):
+    jsonrpc: Literal['2.0', '1.0'] = pd.Field(title="Version", description="JSON-RPC protocol version")
+    id: Union[str, int] = pd.Field(description="Request identifier", examples=[1])
+    result: ResultT = pd.Field(description="Method execution result")
+
+
+ErrorCodeT = TypeVar('ErrorCodeT', bound=int)
+ErrorDataT = TypeVar('ErrorDataT')
+
+
+class JsonRpcError(
+    pd.BaseModel, Generic[ErrorCodeT, ErrorDataT],
+    title="Error",
+    extra='forbid', strict=True,
+):
+    code: ErrorCodeT = pd.Field(description="Error code")
+    message: str = pd.Field(description="Error message")
+    data: ErrorDataT = pd.Field(description="Error additional data")
+
+
+JsonRpcErrorT = TypeVar('JsonRpcErrorT', bound=JsonRpcError[Any, Any], covariant=True)
+
+
+class JsonRpcResponseError(
+    pd.BaseModel, Generic[JsonRpcErrorT],
+    title="ResponseError",
+    extra='forbid', strict=True,
+):
+    jsonrpc: Literal['1.0', '2.0'] = pd.Field(title="Version", description="JSON-RPC protocol version")
+    id: Union[str, int] = pd.Field(description="Request identifier", examples=[1])
+    error: JsonRpcErrorT = pd.Field(description="Request error")
+
+
+ResponseT = TypeVar('ResponseT', bound=Union[JsonRpcResponseSuccess[Any], JsonRpcResponseError[Any]])
+
+
+class JsonRpcResponseWrapper(pd.RootModel[ResponseT], Generic[ResponseT], title="Response"):
+    pass
 
 
 class PydanticSchemaExtractor(BaseSchemaExtractor):
     """
     Pydantic method specification extractor.
+
+    :param config_args: model configuration parameters
     """
 
-    def __init__(self, ref_template: str = '#/components/schemas/{model}'):
-        self._ref_template = ref_template
+    def __init__(self, **config_args: Any):
+        self._config_args = config_args
 
-    def extract_params_schema(self, method: MethodType, exclude: Iterable[str] = ()) -> Dict[str, Schema]:
+    def extract_params_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            exclude: Iterable[str] = (),
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        params_model = self._build_params_model(method_name, method, exclude)
+        params_schema = params_model.model_json_schema(ref_template=ref_template)
+
+        return params_schema, params_schema.pop('$defs', {})
+
+    def extract_request_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            exclude: Iterable[str] = (),
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
         exclude = set(exclude)
+
+        params_model = self._build_params_model(method_name, method, exclude)
+        request_model = pd.create_model(
+            f'{to_camel(method_name)}Request',
+            __base__=JsonRpcRequestWrapper[
+                JsonRpcRequest[Literal[method_name], params_model],  # type: ignore[valid-type]
+            ],
+            __cls_kwargs__=self._config_args,
+        )
+        request_schema = request_model.model_json_schema(ref_template=ref_template)
+
+        return request_schema, request_schema.pop('$defs', {})
+
+    def extract_result_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        result_model = self._build_result_model(method_name, method)
+        result_schema = result_model.model_json_schema(ref_template=ref_template)
+
+        return result_schema, result_schema.pop('$defs', {})
+
+    def extract_response_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            errors: Optional[Iterable[Type[exceptions.JsonRpcError]]] = None,
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        return_model = self._build_result_model(method_name, method)
+
+        response_model: Type[pd.BaseModel]
+        error_models = tuple(
+            pd.create_model(
+                error.__name__,
+                __base__=JsonRpcResponseError[JsonRpcError[Literal[error.code], Any]],  # type: ignore[name-defined]
+                __cls_kwargs__=dict(
+                    self._config_args,
+                    title=error.__name__,
+                    json_schema_extra=dict(description=f'**{error.code}** {error.message}'),
+                ),
+            ) for error in errors or []
+        )
+
+        response_model = pd.create_model(
+            f'{to_camel(method_name)}Response',
+            __base__=JsonRpcResponseWrapper[
+                Union[(JsonRpcResponseSuccess[return_model], *error_models)],  # type: ignore[valid-type]
+            ],
+        )
+        response_schema = response_model.model_json_schema(ref_template=ref_template)
+        if error_models:
+            response_schema['description'] = '\n'.join(
+                f'* {error.model_json_schema().get("description", error.__name__)}'
+                for error in error_models
+            )
+
+        return response_schema, response_schema.pop('$defs', {})
+
+    def extract_error_response_schema(
+            self,
+            method_name: str,
+            method: MethodType,
+            ref_template: str,
+            errors: Optional[Iterable[Type[exceptions.JsonRpcError]]] = None,
+    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        error_models = tuple(
+            pd.create_model(
+                error.__name__,
+                __base__=JsonRpcResponseError[JsonRpcError[Literal[error.code], Any]],  # type: ignore[name-defined]
+                __cls_kwargs__=dict(
+                    self._config_args,
+                    title=error.__name__,
+                    json_schema_extra=dict(description=f'**{error.code}** {error.message}'),
+                ),
+            ) for error in errors or []
+        )
+        if len(error_models) == 1:
+            response_model = pd.create_model(
+                f'{to_camel(method_name)}Response',
+                __base__=JsonRpcResponseWrapper[Union[error_models]],  # type: ignore[valid-type]
+            )
+            response_schema = response_model.model_json_schema(ref_template=ref_template)
+        else:
+            response_model = pd.create_model(
+                f'{to_camel(method_name)}Response',
+                __base__=JsonRpcResponseWrapper[Union[error_models]],  # type: ignore[valid-type]
+            )
+            response_schema = response_model.model_json_schema(ref_template=ref_template)
+
+        if error_models:
+            response_schema['description'] = '\n'.join(
+                f'* {error.model_json_schema().get("description", error.__name__)}'
+                for error in error_models
+            )
+        else:
+            response_schema['description'] = 'Error'
+
+        return response_schema, response_schema.pop('$defs', {})
+
+    def _build_params_model(
+            self,
+            method_name: str,
+            method: MethodType,
+            exclude: Iterable[str] = (),
+    ) -> Type[pd.BaseModel]:
         signature = inspect.signature(method)
 
         field_definitions: Dict[str, Any] = {}
@@ -32,25 +232,13 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
                     param.default if param.default is not inspect.Parameter.empty else ...,
                 )
 
-        params_model = pd.create_model('RequestModel', **field_definitions)
-        model_schema = params_model.model_json_schema(ref_template=self._ref_template)
+        return pd.create_model(
+            f'{to_camel(method_name)}Parameters',
+            **field_definitions,
+            __cls_kwargs__=dict(self._config_args, extra='forbid'),
+        )
 
-        parameters_schema = {}
-        for param_name, param_schema in model_schema['properties'].items():
-            required = param_name in model_schema.get('required', [])
-
-            parameters_schema[param_name] = Schema(
-                schema=param_schema,
-                summary=param_schema.get('title', UNSET),
-                description=param_schema.get('description', UNSET),
-                deprecated=param_schema.get('deprecated', UNSET),
-                required=required,
-                definitions=model_schema.get('$defs'),
-            )
-
-        return parameters_schema
-
-    def extract_result_schema(self, method: MethodType) -> Schema:
+    def _build_result_model(self, method_name: str, method: MethodType) -> Type[pd.BaseModel]:
         result = inspect.signature(method)
 
         if result.return_annotation is inspect.Parameter.empty:
@@ -60,75 +248,8 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
         else:
             return_annotation = result.return_annotation
 
-        result_model = pd.create_model('ResultModel', result=(return_annotation, ...))
-        model_schema = result_model.model_json_schema(ref_template=self._ref_template)
-
-        result_schema = model_schema['properties']['result']
-        required = 'result' in model_schema.get('required', [])
-        if not required:
-            result_schema['nullable'] = 'true'
-
-        result_schema = Schema(
-            schema=result_schema,
-            summary=result_schema.get('title', UNSET),
-            description=result_schema.get('description', UNSET),
-            deprecated=result_schema.get('deprecated', UNSET),
-            required=required,
-            definitions=model_schema.get('$defs', UNSET),
+        return pd.create_model(
+            f'{to_camel(method_name)}Result',
+            __base__=pd.RootModel[return_annotation],  # type: ignore[valid-type]
+            __cls_kwargs__=dict(self._config_args),
         )
-
-        return result_schema
-
-    def extract_errors_schema(
-        self,
-        method: MethodType,
-        errors: Optional[Iterable[Type[JsonRpcError]]] = None,
-    ) -> MaybeSet[List[Error]]:
-        if errors:
-            errors_schema = []
-            for error in errors:
-                field_definitions: Dict[str, Any] = {}
-                for field_name, annotation in self._get_annotations(error).items():
-                    if field_name.startswith('_'):
-                        continue
-
-                    field_definitions[field_name] = (annotation, getattr(error, field_name, ...))
-
-                result_model = pd.create_model(error.message, **field_definitions)
-                model_schema = result_model.model_json_schema(ref_template=self._ref_template)
-
-                data_schema = model_schema['properties'].get('data', UNSET)
-                required = 'data' in model_schema.get('required', [])
-
-                errors_schema.append(
-                    Error(
-                        code=error.code,
-                        message=error.message,
-                        data=data_schema,
-                        data_required=required,
-                        title=error.message,
-                        description=inspect.cleandoc(error.__doc__) if error.__doc__ is not None else UNSET,
-                        deprecated=model_schema.get('deprecated', UNSET),
-                        definitions=model_schema.get('$defs'),
-                    ),
-                )
-            return errors_schema
-
-        else:
-            return UNSET
-
-    @staticmethod
-    def _extract_field_schema(model_schema: Dict[str, Any], field_name: str) -> Dict[str, Any]:
-        field_schema = model_schema['properties'][field_name]
-        if '$ref' in field_schema:
-            field_schema = model_schema['definitions'][field_schema['$ref']]
-
-        return field_schema
-
-    @staticmethod
-    def _get_annotations(cls: Type[Any]) -> Dict[str, Any]:
-        annotations: Dict[str, Any] = {}
-        for patent in cls.mro():
-            annotations.update(**getattr(patent, '__annotations__', {}))
-
-        return annotations

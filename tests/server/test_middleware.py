@@ -34,9 +34,10 @@ def test_middleware(mocker):
     dispatcher.add(test_method, 'test_method', 'context')
 
     request_text = json.dumps(test_request.to_json())
-    response_text = dispatcher.dispatch(request_text, test_context)
+    response_text, error_codes = dispatcher.dispatch(request_text, test_context)
     actual_response = pjrpc.common.Response.from_json(json.loads(response_text))
     assert actual_response == test_response
+    assert error_codes == (0,)
 
     assert middleware_call_order == [test_middleware1, test_middleware2]
 
@@ -71,8 +72,9 @@ async def test_async_middleware(mocker):
     dispatcher.add(test_method, 'test_method', 'context')
 
     request_text = json.dumps(test_request.to_json())
-    response_text = await dispatcher.dispatch(request_text, test_context)
+    response_text, error_codes = await dispatcher.dispatch(request_text, test_context)
     actual_response = pjrpc.common.Response.from_json(json.loads(response_text))
     assert actual_response == test_response
+    assert error_codes == (0,)
 
     assert middleware_call_order == [test_middleware1, test_middleware2]

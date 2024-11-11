@@ -39,9 +39,10 @@ def test_error_handlers(mocker):
     )
 
     request_text = json.dumps(test_request.to_json())
-    response_text = dispatcher.dispatch(request_text, test_context)
+    response_text, error_codes = dispatcher.dispatch(request_text, test_context)
     actual_response = pjrpc.common.Response.from_json(json.loads(response_text))
     assert actual_response == expected_response
+    assert error_codes == (-32601,)
 
     assert handler_call_order == [test_any_error_handler, test_32601_error_handler]
 
@@ -81,8 +82,9 @@ async def test_async_error_handlers(mocker):
     )
 
     request_text = json.dumps(test_request.to_json())
-    response_text = await dispatcher.dispatch(request_text, test_context)
+    response_text, error_codes = await dispatcher.dispatch(request_text, test_context)
     actual_response = pjrpc.common.Response.from_json(json.loads(response_text))
     assert actual_response == expected_response
+    assert error_codes == (-32601,)
 
     assert handler_call_order == [test_any_error_handler, test_32601_error_handler]

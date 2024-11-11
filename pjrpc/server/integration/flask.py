@@ -4,7 +4,7 @@ Flask JSON-RPC extension.
 
 import functools as ft
 import json
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import flask
 from flask import current_app
@@ -23,9 +23,17 @@ class JsonRPC:
     :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
     """
 
-    def __init__(self, path: str, spec: Optional[specs.Specification] = None, **kwargs: Any):
+    def __init__(
+        self,
+        path: str,
+        spec: Optional[specs.Specification] = None,
+        specs: Iterable[specs.Specification] = (),
+        status_by_error: Callable[[Tuple[int, ...]], int] = lambda codes: 200,
+        **kwargs: Any,
+    ):
         self._path = path.rstrip('/')
-        self._spec = spec
+        self._specs = ([spec] if spec else []) + list(specs)
+        self._status_by_error = status_by_error
 
         kwargs.setdefault('json_loader', flask.json.loads)
         kwargs.setdefault('json_dumper', flask.json.dumps)
@@ -94,46 +102,63 @@ class JsonRPC:
             if blueprint:
                 app.register_blueprint(blueprint)
 
-        if self._spec:
+        for spec in self._specs:
             app.add_url_rule(
-                utils.join_path(self._path, self._spec.path),
+                utils.join_path(self._path, spec.path),
                 methods=['GET'],
-                view_func=self._generate_spec,
+                endpoint=self._generate_spec.__name__,
+                view_func=ft.partial(self._generate_spec, spec=spec),
             )
 
-            if self._spec.ui and self._spec.ui_path:
-                path = utils.join_path(self._path, self._spec.ui_path)
-                app.add_url_rule(f'{path}/', methods=['GET'], view_func=self._ui_index_page)
-                app.add_url_rule(f'{path}/index.html', methods=['GET'], view_func=self._ui_index_page)
-                app.add_url_rule(f'{path}/<path:filename>', methods=['GET'], view_func=self._ui_static)
+            if spec.ui and spec.ui_path:
+                path = utils.join_path(self._path, spec.ui_path)
+                app.add_url_rule(
+                    f'{path}/',
+                    methods=['GET'],
+                    endpoint=self._ui_index_page.__name__,
+                    view_func=ft.partial(self._ui_index_page, spec=spec),
+                )
+                app.add_url_rule(
+                    f'{path}/index.html',
+                    methods=['GET'],
+                    endpoint=f'{self._ui_index_page.__name__}-index',
+                    view_func=ft.partial(self._ui_index_page, spec=spec),
+                )
+                app.add_url_rule(
+                    f'{path}/<path:filename>',
+                    methods=['GET'],
+                    endpoint=self._ui_static.__name__,
+                    view_func=ft.partial(self._ui_static, spec=spec),
+                )
 
-    def _generate_spec(self) -> flask.Response:
-        assert self._spec is not None, "spec is not set"
-
-        endpoint_path = utils.remove_suffix(flask.request.path, suffix=self._spec.path)
+    def generate_spec(self, spec: specs.Specification, path: str = '') -> Dict[str, Any]:
         methods = {path: dispatcher.registry.values() for path, dispatcher in self._endpoints.items()}
-        schema = self._spec.schema(path=endpoint_path, methods_map=methods)
+        return spec.schema(path=path, methods_map=methods)
+
+    def _generate_spec(self, spec: specs.Specification) -> flask.Response:
+        endpoint_path = utils.remove_suffix(flask.request.path, suffix=spec.path)
+        schema = self.generate_spec(spec, path=endpoint_path)
 
         return current_app.response_class(
             json.dumps(schema, cls=specs.JSONEncoder),
             mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE,
         )
 
-    def _ui_index_page(self) -> flask.Response:
-        assert self._spec is not None and self._spec.ui is not None, "spec is not set"
+    def _ui_index_page(self, spec: specs.Specification) -> flask.Response:
+        assert spec.ui is not None, "spec is not set"
 
-        app_path = flask.request.path.rsplit(self._spec.ui_path, maxsplit=1)[0]
-        spec_full_path = utils.join_path(app_path, self._spec.path)
+        app_path = flask.request.path.rsplit(spec.ui_path, maxsplit=1)[0]
+        spec_full_path = utils.join_path(app_path, spec.path)
 
         return current_app.response_class(
-            response=self._spec.ui.get_index_page(spec_url=spec_full_path),
+            response=spec.ui.get_index_page(spec_url=spec_full_path),
             content_type='text/html',
         )
 
-    def _ui_static(self, filename: str) -> flask.Response:
-        assert self._spec is not None and self._spec.ui is not None, "spec is not set"
+    def _ui_static(self, filename: str, spec: specs.Specification) -> flask.Response:
+        assert spec.ui is not None, "spec is not set"
 
-        return flask.send_from_directory(self._spec.ui.get_static_folder(), filename)
+        return flask.send_from_directory(spec.ui.get_static_folder(), filename)
 
     def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
         """
@@ -146,13 +171,18 @@ class JsonRPC:
             raise exceptions.UnsupportedMediaType()
 
         try:
-            flask.request.encoding_errors = 'strict'
+            flask.request.encoding_errors = 'strict'  # type: ignore[attr-defined]
             request_text = flask.request.get_data(as_text=True)
         except UnicodeDecodeError as e:
             raise exceptions.BadRequest() from e
 
-        response_text = dispatcher.dispatch(request_text)
-        if response_text is None:
+        response = dispatcher.dispatch(request_text)
+        if response is None:
             return current_app.response_class()
         else:
-            return current_app.response_class(response_text, mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE)
+            response_text, error_codes = response
+            return current_app.response_class(
+                response_text,
+                status=self._status_by_error(error_codes),
+                mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE,
+            )

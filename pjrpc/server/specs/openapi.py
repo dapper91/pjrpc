@@ -7,100 +7,21 @@ try:
 except ImportError:
     raise AssertionError("python 3.7 or later is required")
 
-import copy
 import enum
 import functools as ft
 import pathlib
 import re
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type
+from collections import defaultdict
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Type, TypedDict, Union
 
 from pjrpc.common import UNSET, MaybeSet, UnsetType, exceptions
 from pjrpc.common.typedefs import Func
 from pjrpc.server import Method, utils
+from pjrpc.server.specs.schemas import build_request_schema, build_response_schema
 
 from . import BaseUI, Specification, extractors
-from .extractors import Error, ErrorExample, Schema
 
-RESULT_SCHEMA: Dict[str, Any] = {
-    'type': 'object',
-    'properties': {
-        'jsonrpc': {
-            'type': 'string',
-            'enum': ['2.0', '1.0'],
-        },
-        'id': {
-            'anyOf': [
-                {'type': 'string'},
-                {'type': 'number'},
-            ],
-        },
-        'result': {},
-    },
-    'required': ['jsonrpc', 'id', 'result'],
-    'title': 'Success',
-    'description': 'JSON-RPC success',
-}
-
-ERROR_SCHEMA: Dict[str, Any] = {
-    'type': 'object',
-    'properties': {
-        'jsonrpc': {
-            'type': 'string',
-            'enum': ['2.0', '1.0'],
-        },
-        'id': {
-            'anyOf': [
-                {'type': 'string'},
-                {'type': 'number'},
-            ],
-        },
-        'error': {
-            'type': 'object',
-            'properties': {
-                'code': {'type': 'integer'},
-                'message': {'type': 'string'},
-                'data': {'type': 'object'},
-            },
-            'required': ['code', 'message'],
-        },
-    },
-    'required': ['jsonrpc', 'error'],
-    'title': 'Error',
-    'description': 'JSON-RPC error',
-}
-
-RESPONSE_SCHEMA: Dict[str, Any] = {
-    'oneOf': [RESULT_SCHEMA, ERROR_SCHEMA],
-}
-
-RESULT_SCHEMA_IDX = 0
-ERROR_SCHEMA_IDX = 1
-
-REQUEST_SCHEMA: Dict[str, Any] = {
-    'type': 'object',
-    'properties': {
-        'jsonrpc': {
-            'type': 'string',
-            'enum': ['2.0', '1.0'],
-        },
-        'id': {
-            'anyOf': [
-                {'type': 'string'},
-                {'type': 'number'},
-            ],
-        },
-        'method': {
-            'type': 'string',
-        },
-        'params': {
-            'type': 'object',
-            'properties': {},
-        },
-    },
-    'required': ['jsonrpc', 'method'],
-}
-
-JSONRPC_HTTP_CODE = '200'
+HTTP_DEFAULT_STATUS = 200
 JSONRPC_MEDIATYPE = 'application/json'
 
 
@@ -113,7 +34,29 @@ def drop_unset(obj: Any) -> Any:
     return obj
 
 
-@dc.dataclass(frozen=True)
+JsonSchema = Dict[str, Any]
+
+
+@dc.dataclass
+class Reference:
+    """
+    A simple object to allow referencing other components in the OpenAPI document, internally and externally.
+
+    :param ref: the reference identifier.
+    :param summary: a short summary which by default SHOULD override that of the referenced component.
+    :param description: a description which by default SHOULD override that of the referenced component
+    """
+
+    ref: str
+    summary: MaybeSet[str] = UNSET
+    description: MaybeSet[str] = UNSET
+
+    def __post_init__(self) -> None:
+        self.__dict__['$ref'] = self.__dict__['ref']
+        self.__dataclass_fields__['ref'].name = '$ref'  # noqa
+
+
+@dc.dataclass
 class Contact:
     """
     Contact information for the exposed API.
@@ -128,27 +71,30 @@ class Contact:
     email: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class License:
     """
     License information for the exposed API.
 
     :param name: the license name used for the API
+    :param identifier: an SPDX license expression for the API
     :param url: a URL to the license used for the API
     """
 
     name: str
+    identifier: MaybeSet[str] = UNSET
     url: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class Info:
     """
     Metadata about the API.
 
     :param title: the title of the application
     :param version: the version of the OpenAPI document
-    :param description: a short description of the application
+    :param summary: a short summary of the API.
+    :param description: a description of the application
     :param contact: the contact information for the exposed API
     :param license: the license information for the exposed API
     :param termsOfService: a URL to the Terms of Service for the API
@@ -156,13 +102,14 @@ class Info:
 
     title: str
     version: str
+    summary: MaybeSet[str] = UNSET
     description: MaybeSet[str] = UNSET
     contact: MaybeSet[Contact] = UNSET
     license: MaybeSet[License] = UNSET
     termsOfService: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class ServerVariable:
     """
     An object representing a Server Variable for server URL template substitution.
@@ -177,13 +124,15 @@ class ServerVariable:
     description: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class Server:
     """
     Connectivity information of a target server.
 
     :param url: a URL to the target host
     :param description: an optional string describing the host designated by the URL
+    :param variables: a map between a variable name and its value.
+                      The value is used for substitution in the server's URL template.
     """
 
     url: str
@@ -191,7 +140,29 @@ class Server:
     variables: MaybeSet[Dict[str, ServerVariable]] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
+class Link:
+    """
+    The Link object represents a possible design-time link for a response.
+
+    :param operationRef: a relative or absolute URI reference to an OAS operation
+    :param operationId: the name of an existing, resolvable OAS operation, as defined with a unique operationId
+    :param parameters: a map representing parameters to pass to an operation as specified with operationId
+                       or identified via operationRef
+    :param requestBody: a literal value or {expression} to use as a request body when calling the target operation
+    :param description: a description of the link
+    :param server: a server object to be used by the target operation.
+    """
+
+    operationRef: MaybeSet[str] = UNSET
+    operationId: MaybeSet[str] = UNSET
+    parameters: MaybeSet[Dict[str, Any]] = UNSET
+    requestBody: MaybeSet[Any] = UNSET
+    description: MaybeSet[str] = UNSET
+    server: MaybeSet[Server] = UNSET
+
+
+@dc.dataclass
 class ExternalDocumentation:
     """
     Allows referencing an external resource for extended documentation.
@@ -204,7 +175,7 @@ class ExternalDocumentation:
     description: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class Tag:
     """
     A list of tags for API documentation control.
@@ -241,7 +212,7 @@ class ApiKeyLocation(str, enum.Enum):
     COOKIE = 'cookie'
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class OAuthFlow:
     """
     Configuration details for a supported OAuth Flow.
@@ -258,7 +229,7 @@ class OAuthFlow:
     refreshUrl: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class OAuthFlows:
     """
     Configuration of the supported OAuth Flows.
@@ -275,7 +246,7 @@ class OAuthFlows:
     authorizationCode: MaybeSet[OAuthFlow] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class SecurityScheme:
     """
     Defines a security scheme that can be used by the operations.
@@ -291,7 +262,7 @@ class SecurityScheme:
     """
 
     type: SecuritySchemeType
-    scheme: str
+    scheme: MaybeSet[str] = UNSET
     name: MaybeSet[str] = UNSET
     location: MaybeSet[ApiKeyLocation] = UNSET  # `in` field
     bearerFormat: MaybeSet[str] = UNSET
@@ -305,20 +276,7 @@ class SecurityScheme:
         self.__dataclass_fields__['location'].name = 'in'  # noqa
 
 
-@dc.dataclass(frozen=False)
-class Components:
-    """
-    Holds a set of reusable objects for different aspects of the OAS.
-
-    :param securitySchemes: an object to hold reusable Security Scheme Objects
-    :param schemas: the definition of input and output data types
-    """
-
-    securitySchemes: MaybeSet[Dict[str, SecurityScheme]] = UNSET
-    schemas: Dict[str, Dict[str, Any]] = dc.field(default_factory=dict)
-
-
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class MethodExample:
     """
     Method usage example.
@@ -337,7 +295,7 @@ class MethodExample:
     description: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class ExampleObject:
     """
     Method usage example.
@@ -348,51 +306,31 @@ class ExampleObject:
     :param externalValue: a URL that points to the literal example
     """
 
-    value: Any
+    value: MaybeSet[Any] = UNSET
     summary: MaybeSet[str] = UNSET
     description: MaybeSet[str] = UNSET
     externalValue: MaybeSet[str] = UNSET
 
 
-@dc.dataclass(frozen=True)
-class MediaType:
+@dc.dataclass
+class Encoding:
     """
-    Each Media Type Object provides schema and examples for the media type identified by its key.
+    A single encoding definition applied to a single schema property.
 
-    :param schema: the schema defining the content.
-    :param example: example of the media type
-    """
-
-    schema: Dict[str, Any]
-    examples: MaybeSet[Dict[str, ExampleObject]] = UNSET
-
-
-@dc.dataclass(frozen=True)
-class Response:
-    """
-    A container for the expected responses of an operation.
-
-    :param description: a short description of the response
-    :param content: a map containing descriptions of potential response payloads
+    :param contentType: the Content-Type for encoding a specific property
+    :param headers: a map allowing additional information to be provided as headers
+    :param style: describes how a specific property value will be serialized depending on its type
+    :param explode: when this is true, property values of type array or object generate separate parameters
+                    for each value of the array, or key-value-pair of the map
+    :param allowReserved: determines whether the parameter value SHOULD allow reserved characters,
+                          as defined by RFC3986 to be included without percent-encoding
     """
 
-    description: str
-    content: MaybeSet[Dict[str, MediaType]] = UNSET
-
-
-@dc.dataclass(frozen=True)
-class RequestBody:
-    """
-    Describes a single request body.
-
-    :param content: the content of the request body
-    :param required: determines if the request body is required in the request
-    :param description: a brief description of the request body
-    """
-
-    content: Dict[str, MediaType]
-    required: MaybeSet[bool] = UNSET
-    description: MaybeSet[str] = UNSET
+    contentType: MaybeSet[str] = UNSET
+    headers: MaybeSet[Dict[str, Union['Header', Reference]]] = UNSET
+    style: MaybeSet[str] = UNSET
+    explode: MaybeSet[bool] = UNSET
+    allowReserved: MaybeSet[bool] = UNSET
 
 
 class ParameterLocation(str, enum.Enum):
@@ -420,7 +358,37 @@ class StyleType(str, enum.Enum):
     DEEP_OBJECT = 'deepObject'  # provides a simple way of rendering nested objects using form parameters
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
+class MediaType:
+    """
+    Each Media Type Object provides schema and examples for the media type identified by its key.
+
+    :param schema: the schema defining the content.
+    :param example: example of the media type
+    """
+
+    schema: MaybeSet[Dict[str, Any]] = UNSET
+    example: MaybeSet[Any] = UNSET
+    examples: MaybeSet[Dict[str, ExampleObject]] = UNSET
+    encoding: MaybeSet[Dict[str, Encoding]] = UNSET
+
+
+@dc.dataclass
+class RequestBody:
+    """
+    Describes a single request body.
+
+    :param content: the content of the request body
+    :param required: determines if the request body is required in the request
+    :param description: a brief description of the request body
+    """
+
+    content: Dict[str, MediaType]
+    required: MaybeSet[bool] = UNSET
+    description: MaybeSet[str] = UNSET
+
+
+@dc.dataclass
 class Parameter:
     """
     Describes a single operation parameter.
@@ -450,7 +418,8 @@ class Parameter:
     style: MaybeSet[StyleType] = UNSET
     explode: MaybeSet[bool] = UNSET
     allowReserved: MaybeSet[bool] = UNSET
-    schema: MaybeSet[Dict[str, Any]] = UNSET
+    schema: MaybeSet[JsonSchema] = UNSET
+    example: MaybeSet[Any] = UNSET
     examples:  MaybeSet[Dict[str, ExampleObject]] = UNSET
     content: MaybeSet[Dict[str, MediaType]] = UNSET
 
@@ -460,7 +429,25 @@ class Parameter:
         self.__dataclass_fields__['location'].name = 'in'  # noqa
 
 
-@dc.dataclass(frozen=True)
+Header = Parameter
+
+
+@dc.dataclass
+class Response:
+    """
+    A container for the expected responses of an operation.
+
+    :param description: a short description of the response
+    :param content: a map containing descriptions of potential response payloads
+    """
+
+    description: str
+    headers: MaybeSet[Dict[str, Union[Header, Reference]]] = UNSET
+    content: MaybeSet[Dict[str, MediaType]] = UNSET
+    links: MaybeSet[Dict[str, Union[Link, Reference]]] = UNSET
+
+
+@dc.dataclass
 class Operation:
     """
     Describes a single API operation on a path.
@@ -476,19 +463,20 @@ class Operation:
     :param security: a declaration of which security mechanisms can be used for this operation
     """
 
-    responses: Dict[str, Response]
-    requestBody: MaybeSet[RequestBody] = UNSET
+    responses: MaybeSet[Dict[str, Union[Response, Reference]]] = UNSET
+    requestBody: MaybeSet[Union[RequestBody, Reference]] = UNSET
     tags: MaybeSet[List[str]] = UNSET
     summary: MaybeSet[str] = UNSET
     description: MaybeSet[str] = UNSET
     externalDocs: MaybeSet[ExternalDocumentation] = UNSET
+    operationId: MaybeSet[str] = UNSET
     deprecated: MaybeSet[bool] = UNSET
     servers: MaybeSet[List[Server]] = UNSET
     security: MaybeSet[List[Dict[str, List[str]]]] = UNSET
-    parameters: MaybeSet[List[Parameter]] = UNSET
+    parameters: MaybeSet[List[Union[Parameter, Reference]]] = UNSET
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class Path:
     """
     Describes the interface for the given method name.
@@ -496,6 +484,7 @@ class Path:
     :param summary: an optional, string summary, intended to apply to all operations in this path
     :param description: an optional, string description, intended to apply to all operations in this path
     :param servers: an alternative server array to service all operations in this path
+    :param parameters: a list of parameters that are applicable for all the operations described under this path
     """
 
     get: MaybeSet[Operation] = UNSET
@@ -509,32 +498,67 @@ class Path:
     summary: MaybeSet[str] = UNSET
     description: MaybeSet[str] = UNSET
     servers: MaybeSet[List[Server]] = UNSET
+    parameters: MaybeSet[Union[Parameter, Reference]] = UNSET
+
+
+@dc.dataclass
+class Components:
+    """
+    Holds a set of reusable objects for different aspects of the OAS.
+
+    :param securitySchemes: an object to hold reusable Security Scheme Objects
+    :param schemas: the definition of input and output data types
+    """
+
+    schemas: MaybeSet[Dict[str, JsonSchema]] = UNSET
+    responses: MaybeSet[Dict[str, Union[Response, Reference]]] = UNSET
+    parameters: MaybeSet[Dict[str, Union[Parameter, Reference]]] = UNSET
+    examples: MaybeSet[Dict[str, Union[ExampleObject, Reference]]] = UNSET
+    requestBodies: MaybeSet[Dict[str, Union[RequestBody, Reference]]] = UNSET
+    headers: MaybeSet[Dict[str, Union[Header, Reference]]] = UNSET
+    securitySchemes: MaybeSet[Dict[str, Union[SecurityScheme, Reference]]] = UNSET
+    links: MaybeSet[Dict[str, Dict[str, Union[Link, Reference]]]] = UNSET
+    pathItems: MaybeSet[Dict[str, Union[Path, Reference]]] = UNSET
+
+
+class OpenApiMeta(TypedDict):
+    params_schema: MaybeSet[Dict[str, JsonSchema]]
+    result_schema: MaybeSet[JsonSchema]
+    errors: MaybeSet[List[Type[exceptions.JsonRpcError]]]
+    examples: MaybeSet[List[MethodExample]]
+    tags: MaybeSet[List[Tag]]
+    summary: MaybeSet[str]
+    description: MaybeSet[str]
+    external_docs: MaybeSet[ExternalDocumentation]
+    deprecated: MaybeSet[bool]
+    security: MaybeSet[List[Dict[str, List[str]]]]
+    parameters: MaybeSet[List[Parameter]]
+    servers: MaybeSet[List[Server]]
+    component_name_prefix: Optional[str]
 
 
 def annotate(
-    params_schema: MaybeSet[Dict[str, Schema]] = UNSET,
-    result_schema: MaybeSet[Schema] = UNSET,
-    errors_schema: MaybeSet[List[Error]] = UNSET,
+    params_schema: MaybeSet[Dict[str, JsonSchema]] = UNSET,
+    result_schema: MaybeSet[JsonSchema] = UNSET,
     errors: MaybeSet[List[Type[exceptions.JsonRpcError]]] = UNSET,
     examples: MaybeSet[List[MethodExample]] = UNSET,
-    error_examples: MaybeSet[List[ErrorExample]] = UNSET,
-    tags: MaybeSet[List[str]] = UNSET,
+    tags: MaybeSet[List[Union[str, Tag]]] = UNSET,
     summary: MaybeSet[str] = UNSET,
     description: MaybeSet[str] = UNSET,
     external_docs: MaybeSet[ExternalDocumentation] = UNSET,
     deprecated: MaybeSet[bool] = UNSET,
     security: MaybeSet[List[Dict[str, List[str]]]] = UNSET,
     parameters: MaybeSet[List[Parameter]] = UNSET,
+    servers: MaybeSet[List[Server]] = UNSET,
+    component_name_prefix: Optional[str] = None,
 ) -> Callable[[Func], Func]:
     """
     Adds Open Api specification annotation to the method.
 
     :param params_schema: method parameters JSON schema
     :param result_schema: method result JSON schema
-    :param errors_schema: method errors schema
     :param errors: method errors
     :param examples: method usage examples
-    :param error_examples: method error examples
     :param tags: a list of tags for method documentation control
     :param summary: a short summary of what the method does
     :param description: a verbose explanation of the method behavior
@@ -542,27 +566,29 @@ def annotate(
     :param deprecated: declares this method to be deprecated
     :param security: a declaration of which security mechanisms can be used for the method
     :param parameters: a list of parameters that are applicable for the method
+    :param servers: a list of connectivity information of a target server.
+    :param component_name_prefix: components name prefix.
     """
 
     def decorator(method: Func) -> Func:
-        utils.set_meta(
-            method,
-            openapi_spec=dict(
-                params_schema=params_schema,
-                result_schema=result_schema,
-                errors_schema=errors_schema,
-                errors=errors,
-                examples=examples,
-                error_examples=error_examples,
-                tags=[Tag(name=tag) for tag in tags] if not isinstance(tags, UnsetType) else UNSET,
-                summary=summary,
-                description=description,
-                external_docs=external_docs,
-                deprecated=deprecated,
-                security=security,
-                parameters=parameters,
-            ),
+        meta: OpenApiMeta = dict(
+            params_schema=params_schema,
+            result_schema=result_schema,
+            errors=errors,
+            examples=examples,
+            tags=[
+                tag if isinstance(tag, Tag) else Tag(name=tag) for tag in tags
+            ] if not isinstance(tags, UnsetType) else UNSET,
+            summary=summary,
+            description=description,
+            external_docs=external_docs,
+            deprecated=deprecated,
+            security=security,
+            parameters=parameters,
+            servers=servers,
+            component_name_prefix=component_name_prefix,
         )
+        utils.set_meta(method, openapi_spec=meta)
 
         return method
 
@@ -578,6 +604,7 @@ class OpenAPI(Specification):
     :param servers: an array of Server Objects, which provide connectivity information to a target server
     :param external_docs: additional external documentation
     :param openapi: the semantic version number of the OpenAPI Specification version that the OpenAPI document uses
+    :param json_schema_dialect: the default value for the $schema keyword within Schema Objects
     :param tags: a list of tags used by the specification with additional metadata
     :param security: a declaration of which security mechanisms can be used across the API
     :param schema_extractor: method specification extractor
@@ -596,7 +623,8 @@ class OpenAPI(Specification):
     externalDocs: MaybeSet[ExternalDocumentation] = UNSET
     tags: MaybeSet[List[Tag]] = UNSET
     security: MaybeSet[List[Dict[str, List[str]]]] = UNSET
-    openapi: str = '3.0.0'
+    openapi: str = '3.1.0'
+    jsonSchemaDialect: MaybeSet[str] = UNSET
 
     def __init__(
         self,
@@ -606,12 +634,14 @@ class OpenAPI(Specification):
         external_docs: MaybeSet[ExternalDocumentation] = UNSET,
         tags: MaybeSet[List[Tag]] = UNSET,
         security: MaybeSet[List[Dict[str, List[str]]]] = UNSET,
-        security_schemes: MaybeSet[Dict[str, SecurityScheme]] = UNSET,
-        openapi: str = '3.0.0',
+        security_schemes: MaybeSet[Dict[str, Union[SecurityScheme, Reference]]] = UNSET,
+        openapi: str = '3.1.0',
+        json_schema_dialect: MaybeSet[str] = UNSET,
         schema_extractor: Optional[extractors.BaseSchemaExtractor] = None,
         schema_extractors: Iterable[extractors.BaseSchemaExtractor] = (),
         ui: Optional[BaseUI] = None,
         ui_path: str = '/ui/',
+        error_http_status_map: Dict[int, int] = {},
     ):
         super().__init__(path, ui=ui, ui_path=ui_path)
 
@@ -621,120 +651,49 @@ class OpenAPI(Specification):
         self.tags = tags
         self.security = security
         self.openapi = openapi
+        self.jsonSchemaDialect = json_schema_dialect
         self.paths: Dict[str, Path] = {}
         self.components = Components(securitySchemes=security_schemes)
 
+        self._error_http_status_map = error_http_status_map
         self._schema_extractors = list(schema_extractors) or [schema_extractor or extractors.BaseSchemaExtractor()]
 
     def schema(
         self,
         path: str,
-        methods: Iterable[Method] = (),
         methods_map: Mapping[str, Iterable[Method]] = {},
+        component_name_prefix: str = '',
     ) -> Dict[str, Any]:
-        methods_list: List[Tuple[str, Method]] = []
-        methods_list.extend((path, method) for method in methods)
-        methods_list.extend(
+        methods_list = [
             (utils.join_path(path, prefix), method)
             for prefix, methods in methods_map.items()
             for method in methods
-        )
+        ]
 
         for prefix, method in methods_list:
             method_meta = utils.get_meta(method.method)
-            annotated_spec = method_meta.get('openapi_spec', {})
+            annotated_spec: OpenApiMeta = method_meta.get('openapi_spec', {})
 
-            specs: List[Dict[str, Any]] = [
-                dict(
-                    params_schema=annotated_spec.get('params_schema', UNSET),
-                    result_schema=annotated_spec.get('result_schema', UNSET),
-                    errors_schema=annotated_spec.get('errors_schema', UNSET),
-                    deprecated=annotated_spec.get('deprecated', UNSET),
-                    description=annotated_spec.get('description', UNSET),
-                    summary=annotated_spec.get('summary', UNSET),
-                    tags=annotated_spec.get('tags', UNSET),
-                    examples=annotated_spec.get('examples', UNSET),
-                    error_examples=annotated_spec.get('error_examples', UNSET),
-                    external_docs=annotated_spec.get('external_docs', UNSET),
-                    security=annotated_spec.get('security', UNSET),
-                    parameters=annotated_spec.get('parameters', UNSET),
-                ),
-            ]
-            for schema_extractor in self._schema_extractors:
-                specs.append(
-                    dict(
-                        params_schema=schema_extractor.extract_params_schema(
-                            method.method,
-                            exclude=[method.context] if method.context else [],
-                        ),
-                        result_schema=schema_extractor.extract_result_schema(method.method),
-                        errors_schema=schema_extractor.extract_errors_schema(
-                            method.method, annotated_spec.get('errors') or [],
-                        ),
-                        deprecated=schema_extractor.extract_deprecation_status(method.method),
-                        description=schema_extractor.extract_description(method.method),
-                        summary=schema_extractor.extract_summary(method.method),
-                        tags=schema_extractor.extract_tags(method.method),
-                        examples=schema_extractor.extract_examples(method.method),
-                        error_examples=schema_extractor.extract_error_examples(
-                            method.method, annotated_spec.get('errors') or [],
-                        ),
-                    ),
-                )
+            component_name_prefix = annotated_spec.get('component_name_prefix') or component_name_prefix
+            status_errors_map = self._extract_errors(method)
+            default_status_errors = status_errors_map.pop(HTTP_DEFAULT_STATUS, [])
 
-            method_spec = self._merge_specs(specs)
-            request_schema = self._build_request_schema(method.name, method_spec)
-            response_schema = self._build_response_schema(method_spec)
+            errors_schema = self._extract_errors_schema(method, status_errors_map, component_name_prefix)
 
-            request_examples: Dict[str, Any] = {
-                example.summary or f'Example#{i}': ExampleObject(
-                    summary=example.summary,
-                    description=example.description,
-                    value=dict(
-                        jsonrpc=example.version,
-                        id=1,
-                        method=method.name,
-                        params=example.params,
-                    ),
-                ) for i, example in enumerate(method_spec.get('examples') or [])
-            }
+            request_schema = self._extract_request_schema(method, component_name_prefix)
+            response_schema = self._extract_response_schema(method, default_status_errors, component_name_prefix)
 
-            response_success_examples: Dict[str, Any] = {
-                example.summary or f'Example#{i}': ExampleObject(
-                    summary=example.summary,
-                    description=example.description,
-                    value=dict(
-                        jsonrpc=example.version,
-                        id=1,
-                        result=example.result,
-                    ),
-                ) for i, example in enumerate(method_spec.get('examples') or [])
-            }
+            summary, description = self._extract_description(method)
+            tags = self._extract_tags(method)
+            servers = self._extract_servers(method)
+            parameters = self._extract_parameters(method)
+            security = self._extract_security(method)
+            deprecated = self._extract_deprecated(method)
+            external_docs = self._extract_external_docs(method)
 
-            response_error_examples: Dict[str, Any] = {
-                example.message or f'Error#{i}': ExampleObject(
-                    summary=example.summary,
-                    description=example.description,
-                    value=dict(
-                        jsonrpc='2.0',
-                        id=1,
-                        error=dict(
-                            code=example.code,
-                            message=example.message,
-                            data=example.data,
-                        ),
-                    ),
-                ) for i, example in enumerate(
-                    utils.unique(
-                        [
-                            ErrorExample(code=error.code, message=error.message)
-                            for error in method_spec.get('errors') or []
-                        ],
-                        method_spec.get('error_examples') or [],
-                        key=lambda item: item.code,
-                    ),
-                )
-            }
+            request_examples, response_success_examples = self._build_examples(
+                method, annotated_spec.get('examples', UNSET) or [],
+            )
 
             self.paths[f'{prefix}#{method.name}'] = Path(
                 post=Operation(
@@ -749,157 +708,236 @@ class OpenAPI(Specification):
                         required=True,
                     ),
                     responses={
-                        JSONRPC_HTTP_CODE: Response(
-                            description='JSON-RPC Response',
-                            content={
-                                JSONRPC_MEDIATYPE: MediaType(
-                                    schema=response_schema,
-                                    examples={**response_success_examples, **response_error_examples} or UNSET,
-                                ),
-                            },
-                        ),
+                        **{
+                            str(HTTP_DEFAULT_STATUS): Response(
+                                description=(response_schema or {}).get('description', 'JSON-RPC Response'),
+                                content={
+                                    JSONRPC_MEDIATYPE: MediaType(
+                                        schema=response_schema,
+                                        examples=response_success_examples or UNSET,
+                                    ),
+                                },
+                            ),
+                        },
+                        **{
+                            str(status): Response(
+                                description=error_schema.get('description', 'JSON-RPC Error'),
+                                content={
+                                    JSONRPC_MEDIATYPE: MediaType(
+                                        schema=error_schema,
+                                    ),
+                                },
+                            )
+                            for status, error_schema in errors_schema.items()
+                        },
                     },
-                    tags=[tag.name for tag in method_spec.get('tags') or []],
-                    summary=method_spec['summary'],
-                    description=method_spec['description'],
-                    deprecated=method_spec['deprecated'],
-                    externalDocs=method_spec.get('external_docs', UNSET),
-                    security=method_spec.get('security', UNSET),
-                    parameters=method_spec.get('parameters', UNSET),
+                    tags=[tag.name for tag in tags] or UNSET,
+                    summary=summary,
+                    description=description,
+                    deprecated=deprecated,
+                    externalDocs=external_docs,
+                    security=security or UNSET,
+                    parameters=list(parameters) or UNSET,
+                    servers=servers or UNSET,
                 ),
             )
 
         return drop_unset(dc.asdict(self))
 
-    def _merge_specs(self, specs: List[Dict[str, Any]]) -> Dict[str, Any]:
-        specs = reversed(specs)
-        result: Dict[str, Any] = next(specs, {})
+    def _extract_errors(self, method: Method) -> Dict[int, List[Type[exceptions.JsonRpcError]]]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
 
-        for spec in specs:
-            if spec.get('errors_schema', UNSET) is not UNSET:
-                schema = {schema.code: schema for schema in result.get('errors_schema') or []}
-                schema.update({schema.code: schema for schema in spec['errors_schema']})
-                result['errors_schema'] = list(schema.values())
+        errors = annotations.get('errors', UNSET) or []
+        for schema_extractor in self._schema_extractors:
+            errors.extend(schema_extractor.extract_errors(method.method) or [])
 
-            if spec.get('result_schema', UNSET) is not UNSET:
-                if result.get('result_schema', UNSET) is UNSET:
-                    result['result_schema'] = spec['result_schema']
-                else:
-                    cur_schema = result['result_schema']
-                    new_schema = spec['result_schema']
-                    result['result_schema'] = Schema(
-                        new_schema.schema or cur_schema.schema,
-                        new_schema.required if new_schema.required is not UNSET else cur_schema.required,
-                        new_schema.summary or cur_schema.summary,
-                        new_schema.description or cur_schema.description,
-                        new_schema.deprecated if new_schema.deprecated is not UNSET else cur_schema.deprecated,
-                        new_schema.definitions or cur_schema.definitions,
-                    )
+        unique_errors = list({error.code: error for error in errors}.values())
+        status_error_map: Dict[int, List[Type[exceptions.JsonRpcError]]] = defaultdict(list)
+        for error in unique_errors:
+            http_status = self._error_http_status_map.get(error.code, HTTP_DEFAULT_STATUS)
+            status_error_map[http_status].append(error)
 
-            if spec.get('params_schema', UNSET) is not UNSET:
-                if result.get('params_schema', UNSET) is UNSET:
-                    result['params_schema'] = spec['params_schema']
-                else:
-                    for param, schema1 in spec['params_schema'].items():
-                        schema2 = result['params_schema'].get(param)
-                        if schema2 is None:
-                            result['params_schema'][param] = schema1
-                        else:
-                            result['params_schema'][param] = Schema(
-                                schema1.schema or schema2.schema,
-                                schema1.required if schema1.required is not UNSET else schema2.required,
-                                schema1.summary or schema2.summary,
-                                schema1.description or schema2.description,
-                                schema1.deprecated if schema1.deprecated is not UNSET else schema2.deprecated,
-                                schema1.definitions or schema2.definitions,
-                            )
+        return status_error_map
 
-            if spec.get('summary', UNSET) is not UNSET:
-                result['summary'] = spec['summary']
+    def _extract_errors_schema(
+            self,
+            method: Method,
+            status_errors_map: Dict[int, List[Type[exceptions.JsonRpcError]]],
+            component_name_prefix: str,
+    ) -> Dict[int, Dict[str, Any]]:
+        status_error_schema_map: Dict[int, Dict[str, Any]] = {}
 
-            if spec.get('description', UNSET) is not UNSET:
-                result['description'] = spec['description']
+        for status, errors in status_errors_map.items():
+            for schema_extractor in self._schema_extractors:
+                if result := schema_extractor.extract_error_response_schema(
+                    method.name,
+                    method.method,
+                    ref_template=f'#/components/schemas/{component_name_prefix}{{model}}',
+                    errors=errors,
+                ):
+                    schema, components = result
+                    if components:
+                        self.components.schemas = schemas = self.components.schemas or {}
+                        schemas.update({
+                            f"{component_name_prefix}{name}": component
+                            for name, component in components.items()
+                        })
+                    status_error_schema_map[status] = schema
+                    break
 
-            if spec.get('tags', UNSET) is not UNSET:
-                result['tags'] = spec['tags'] + (result.get('tags') or [])
+        return status_error_schema_map
 
-            if spec.get('deprecated', UNSET) is not UNSET:
-                result['deprecated'] = spec['deprecated']
+    def _extract_request_schema(self, method: Method, component_name_prefix: str) -> MaybeSet[Dict[str, Any]]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
 
-            if spec.get('examples', UNSET) is not UNSET:
-                result['examples'] = spec['examples'] + (result.get('examples') or [])
-
-            if spec.get('error_examples', UNSET) is not UNSET:
-                result['error_examples'] = spec['error_examples'] + (result.get('error_examples') or [])
-
-            if spec.get('external_docs', UNSET) is not UNSET:
-                result['external_docs'] = spec['external_docs']
-
-            if spec.get('security', UNSET) is not UNSET:
-                result['security'] = spec['security'] + (result.get('security') or [])
-
-            if spec.get('parameters', UNSET) is not UNSET:
-                result['parameters'] = spec['parameters'] + (result.get('parameters') or [])
-
-        return result
-
-    def _build_request_schema(self, method_name: str, method_spec: Dict[str, Any]) -> Dict[str, Any]:
-        request_schema: Dict[str, Any] = copy.deepcopy(REQUEST_SCHEMA)
-        request_schema['properties']['method']['enum'] = [method_name]
-
-        for param_name, param_schema in method_spec['params_schema'].items():
-            schema = request_schema['properties']['params']['properties'][param_name] = param_schema.schema.copy()
-            schema.update({
-                'title': param_schema.summary,
-                'description': param_schema.description,
-                'deprecated': param_schema.deprecated,
-            })
-
-            if param_schema.required:
-                required_params = request_schema['properties']['params'].setdefault('required', [])
-                required_params.append(param_name)
-
-            if param_schema.definitions:
-                self.components.schemas.update(param_schema.definitions)
+        request_schema: MaybeSet[Dict[str, Any]] = UNSET
+        if params_schema := annotations.get('params_schema', UNSET):
+            request_schema = build_request_schema(method.name, params_schema)
+        else:
+            for schema_extractor in self._schema_extractors:
+                if result := schema_extractor.extract_request_schema(
+                    method.name,
+                    method.method,
+                    ref_template=f'#/components/schemas/{component_name_prefix}{{model}}',
+                    exclude=[method.context] if method.context else [],
+                ):
+                    request_schema, components = result
+                    if components:
+                        self.components.schemas = schemas = self.components.schemas or {}
+                        schemas.update({
+                            f"{component_name_prefix}{name}": component
+                            for name, component in components.items()
+                        })
+                    break
 
         return request_schema
 
-    def _build_response_schema(self, method_spec: Dict[str, Any]) -> Dict[str, Any]:
-        response_schema: Dict[str, Any] = copy.deepcopy(RESPONSE_SCHEMA)
-        result_schema = method_spec['result_schema']
+    def _extract_response_schema(
+            self,
+            method: Method,
+            errors: List[Type[exceptions.JsonRpcError]],
+            component_name_prefix: str,
+    ) -> MaybeSet[Dict[str, Any]]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
 
-        response_schema['oneOf'][RESULT_SCHEMA_IDX]['properties']['result'] = result_schema.schema
-        if result_schema.definitions:
-            self.components.schemas.update(result_schema.definitions)
-
-        if method_spec['errors_schema']:
-            errors_schema: List[Dict[str, Any]] = []
-            response_schema['oneOf'][ERROR_SCHEMA_IDX]['properties']['error'] = {'oneOf': errors_schema}
-
-            for schema in utils.unique(
-                [
-                    Error(code=error.code, message=error.message)
-                    for error in method_spec.get('errors') or []
-                ],
-                method_spec['errors_schema'],
-                key=lambda item: item.code,
-            ):
-                errors_schema.append({
-                    'type': 'object',
-                    'properties': {
-                        'code': {'type': 'integer', 'enum': [schema.code]},
-                        'message': {'type': 'string'},
-                        'data': schema.data,
-                    },
-                    'required': ['code', 'message'] + ['data'] if schema.data_required else [],
-                    'deprecated': schema.deprecated,
-                    'title': schema.title or schema.message,
-                    'description': schema.description,
-                })
-                if schema.definitions:
-                    self.components.schemas.update(schema.definitions)
+        response_schema: MaybeSet[Dict[str, Any]] = UNSET
+        if result_schema := annotations.get('result_schema', UNSET):
+            response_schema = build_response_schema(result_schema, errors=errors)
+        else:
+            for schema_extractor in self._schema_extractors:
+                if result := schema_extractor.extract_response_schema(
+                    method.name,
+                    method.method,
+                    ref_template=f'#/components/schemas/{component_name_prefix}{{model}}',
+                    errors=errors,
+                ):
+                    response_schema, components = result
+                    if components:
+                        self.components.schemas = schemas = self.components.schemas or {}
+                        schemas.update({
+                            f"{component_name_prefix}{name}": component
+                            for name, component in components.items()
+                        })
+                    break
 
         return response_schema
+
+    def _extract_description(self, method: Method) -> Tuple[MaybeSet[str], MaybeSet[str]]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
+
+        summary = annotations.get('summary', UNSET)
+        description = annotations.get('description', UNSET)
+
+        for schema_extractor in self._schema_extractors:
+            if not summary:
+                summary = schema_extractor.extract_summary(method.method)
+            if not description:
+                description = schema_extractor.extract_description(method.method)
+
+        return summary, description
+
+    def _extract_tags(self, method: Method) -> List[Tag]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
+
+        tags = annotations.get('tags', UNSET) or []
+
+        return tags
+
+    def _extract_servers(self, method: Method) -> List[Server]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
+
+        servers = annotations.get('servers', UNSET) or []
+
+        return servers
+
+    def _extract_parameters(self, method: Method) -> List[Parameter]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
+
+        parameters = annotations.get('parameters', UNSET) or []
+
+        return parameters
+
+    def _extract_security(self, method: Method) -> List[Dict[str, List[str]]]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
+
+        security = annotations.get('security', UNSET) or []
+
+        return security
+
+    def _extract_deprecated(self, method: Method) -> MaybeSet[bool]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
+
+        deprecated = annotations.get('deprecated', UNSET)
+
+        for schema_extractor in self._schema_extractors:
+            deprecated = deprecated or schema_extractor.extract_deprecation_status(method.method)
+
+        return deprecated
+
+    def _extract_external_docs(self, method: Method) -> MaybeSet[ExternalDocumentation]:
+        method_meta = utils.get_meta(method.method)
+        annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
+
+        external_docs = annotations.get('external_docs', UNSET)
+
+        return external_docs
+
+    def _build_examples(self, method: Method, examples: List[MethodExample]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        request_examples: Dict[str, Any] = {
+            example.summary or f'Example#{i}': ExampleObject(
+                summary=example.summary,
+                description=example.description,
+                value={
+                    'jsonrpc': example.version,
+                    'id': 1,
+                    'method': method.name,
+                    'params': example.params,
+                },
+            ) for i, example in enumerate(examples)
+        }
+
+        response_examples: Dict[str, Any] = {
+            example.summary or f'Example#{i}': ExampleObject(
+                summary=example.summary,
+                description=example.description,
+                value={
+                    'jsonrpc': example.version,
+                    'id': 1,
+                    'result': example.result,
+                },
+            ) for i, example in enumerate(examples)
+        }
+
+        return request_examples, response_examples
 
 
 class SwaggerUI(BaseUI):
@@ -923,7 +961,7 @@ class SwaggerUI(BaseUI):
         self._configs = configs
 
     def get_static_folder(self) -> str:
-        return self._bundle.swagger_ui.static_path
+        return str(self._bundle.swagger_ui.static_path)
 
     @ft.lru_cache(maxsize=10)
     def get_index_page(self, spec_url: str) -> str:
@@ -964,7 +1002,7 @@ class RapiDoc(BaseUI):
         self._configs = configs
 
     def get_static_folder(self) -> str:
-        return self._bundle.static_path
+        return str(self._bundle.static_path)
 
     @ft.lru_cache(maxsize=10)
     def get_index_page(self, spec_url: str) -> str:
@@ -1005,7 +1043,7 @@ class ReDoc(BaseUI):
         self._configs = configs
 
     def get_static_folder(self) -> str:
-        return self._bundle.static_path
+        return str(self._bundle.static_path)
 
     @ft.lru_cache(maxsize=10)
     def get_index_page(self, spec_url: str) -> str:

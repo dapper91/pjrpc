@@ -28,11 +28,12 @@ class JsonRpcHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(http.HTTPStatus.BAD_REQUEST)
             return
 
-        response_text = self.server.dispatcher.dispatch(request_text, context=self)
-        if response_text is None:
+        response = self.server.dispatcher.dispatch(request_text, context=self)
+        if response is None:
             self.send_response_only(http.HTTPStatus.OK)
             self.end_headers()
         else:
+            response_text, error_codes = response
             self.send_response(http.HTTPStatus.OK)
             self.send_header("Content-type", pjrpc.common.DEFAULT_CONTENT_TYPE)
             self.end_headers()

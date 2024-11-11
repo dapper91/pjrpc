@@ -15,10 +15,17 @@ class Client(AbstractClient):
     :param kwargs: parameters to be passed to :py:class:`pjrpc.client.AbstractClient`
     """
 
-    def __init__(self, url: str, session: Optional[requests.Session] = None, **kwargs: Any):
+    def __init__(
+        self,
+        url: str,
+        session: Optional[requests.Session] = None,
+        raise_for_status: bool = True,
+        **kwargs: Any,
+    ):
         super().__init__(**kwargs)
         self._endpoint = url
         self._session = session or requests.Session()
+        self._raise_for_status = raise_for_status
 
     def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> Optional[str]:
         """
@@ -33,7 +40,8 @@ class Client(AbstractClient):
         headers['Content-Type'] = pjrpc.common.DEFAULT_CONTENT_TYPE
 
         resp = self._session.post(self._endpoint, data=request_text, **kwargs)
-        resp.raise_for_status()
+        if self._raise_for_status:
+            resp.raise_for_status()
         if is_notification:
             return None
 

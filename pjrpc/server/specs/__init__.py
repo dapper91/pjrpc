@@ -80,14 +80,12 @@ class Specification(abc.ABC):
     def schema(
         self,
         path: str,
-        methods: Iterable[Method] = (),
         methods_map: Mapping[str, Iterable[Method]] = {},
     ) -> Dict[str, Any]:
         """
         Returns specification schema.
 
         :param path: methods endpoint path
-        :param methods: methods list the specification is generated for
         :param methods_map: methods map the specification is generated for.
                             Each item is a mapping from a prefix to methods on which the methods will be served
         """

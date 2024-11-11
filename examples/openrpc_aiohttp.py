@@ -3,12 +3,12 @@ from typing import Annotated, Any
 
 import aiohttp_cors
 import pydantic as pd
-from aiohttp import helpers, web
+from aiohttp import web
 
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import aiohttp as integration
 from pjrpc.server.specs import extractors
-from pjrpc.server.specs import openapi as specs
+from pjrpc.server.specs import openrpc as specs
 from pjrpc.server.validators import pydantic as validators
 
 methods = pjrpc.server.MethodRegistry()
@@ -27,19 +27,6 @@ class JSONEncoder(pjrpc.JSONEncoder):
         return super().default(o)
 
 
-class AuthenticatedJsonRPC(integration.Application):
-    async def _rpc_handle(self, http_request: web.Request, dispatcher: pjrpc.server.Dispatcher) -> web.Response:
-        try:
-            auth = helpers.BasicAuth.decode(http_request.headers.get('Authorization', ''))
-        except ValueError:
-            raise web.HTTPUnauthorized
-
-        if credentials.get(auth.login) != auth.password:
-            raise web.HTTPUnauthorized
-
-        return await super()._rpc_handle(http_request=http_request, dispatcher=dispatcher)
-
-
 UserName = Annotated[
     str,
     pd.Field(description="User name", examples=["John"]),
@@ -47,21 +34,21 @@ UserName = Annotated[
 
 UserSurname = Annotated[
     str,
-    pd.Field(description="User surname", examples=['Doe']),
+    pd.Field(description="User surname", examples=["Doe"]),
 ]
 
 UserAge = Annotated[
     int,
-    pd.Field(description="User age", examples=[36]),
+    pd.Field(description="User age", examples=[25]),
 ]
 
 UserId = Annotated[
     uuid.UUID,
-    pd.Field(description="User identifier", examples=["226a2c23-c98b-4729-b398-0dae550e99ff"]),
+    pd.Field(description="User identifier", examples=["08b02cf9-8e07-4d06-b569-2c24309c1dc1"]),
 ]
 
 
-class UserIn(pd.BaseModel):
+class UserIn(pd.BaseModel, title="User data"):
     """
     User registration data.
     """
@@ -71,7 +58,7 @@ class UserIn(pd.BaseModel):
     age: UserAge
 
 
-class UserOut(UserIn):
+class UserOut(UserIn, title="User data"):
     """
     Registered user data.
     """
@@ -98,7 +85,7 @@ class NotFoundError(pjrpc.exc.JsonRpcError):
 
 
 @specs.annotate(
-    summary='Creates a user',
+    summary="Creates a user",
     tags=['users'],
     errors=[AlreadyExistsError],
 )
@@ -125,7 +112,7 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
 
 
 @specs.annotate(
-    summary='Returns a user',
+    summary="Returns a user",
     tags=['users'],
     errors=[NotFoundError],
 )
@@ -149,9 +136,10 @@ def get_user(request: web.Request, user_id: UserId) -> UserOut:
 
 
 @specs.annotate(
-    summary='Deletes a user',
+    summary="Deletes a user",
     tags=['users'],
     errors=[NotFoundError],
+    deprecated=True,
 )
 @methods.add(context='request')
 @validator.validate
@@ -172,30 +160,21 @@ def delete_user(request: web.Request, user_id: UserId) -> None:
 app = web.Application()
 app['users'] = {}
 
-jsonrpc_app = AuthenticatedJsonRPC(
-    '/api/v1',
+jsonrpc_app = integration.Application(
+    '/api',
     json_encoder=JSONEncoder,
-    spec=specs.OpenAPI(
+    spec=specs.OpenRPC(
         info=specs.Info(version="1.0.0", title="User storage"),
         servers=[
             specs.Server(
-                url='http://127.0.0.1:8080',
+                name="api",
+                url="http://127.0.0.1:8080/myapp/api",
             ),
-        ],
-        security_schemes=dict(
-            basicAuth=specs.SecurityScheme(
-                type=specs.SecuritySchemeType.HTTP,
-                scheme='basic',
-            ),
-        ),
-        security=[
-            dict(basicAuth=[]),
         ],
         schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
-        ui=specs.SwaggerUI(),
     ),
 )
-jsonrpc_app.dispatcher.add_methods(methods)
+jsonrpc_app.add_endpoint('/v1').add_methods(methods)
 app.add_subapp('/myapp', jsonrpc_app.app)
 
 cors = aiohttp_cors.setup(
@@ -209,7 +188,6 @@ cors = aiohttp_cors.setup(
 )
 for route in list(app.router.routes()):
     cors.add(route)
-
 
 if __name__ == "__main__":
     web.run_app(app, host='localhost', port=8080)
