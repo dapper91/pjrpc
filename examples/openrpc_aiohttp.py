@@ -161,7 +161,7 @@ app = web.Application()
 app['users'] = {}
 
 jsonrpc_app = integration.Application(
-    '/api',
+    '/api/v1',
     json_encoder=JSONEncoder,
     spec=specs.OpenRPC(
         info=specs.Info(version="1.0.0", title="User storage"),
@@ -174,7 +174,7 @@ jsonrpc_app = integration.Application(
         schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
     ),
 )
-jsonrpc_app.add_endpoint('/v1').add_methods(methods)
+jsonrpc_app.dispatcher.add_methods(methods)
 app.add_subapp('/myapp', jsonrpc_app.app)
 
 cors = aiohttp_cors.setup(
