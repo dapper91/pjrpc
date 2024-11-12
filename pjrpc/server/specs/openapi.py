@@ -7,6 +7,7 @@ try:
 except ImportError:
     raise AssertionError("python 3.7 or later is required")
 
+import copy
 import enum
 import functools as ft
 import pathlib
@@ -521,6 +522,31 @@ class Components:
     pathItems: MaybeSet[Dict[str, Union[Path, Reference]]] = UNSET
 
 
+@dc.dataclass
+class SpecRoot:
+    """
+    The root object of the OpenAPI description.
+
+    :param info: provides metadata about the API
+    :param servers: an array of Server Objects, which provide connectivity information to a target server
+    :param externalDocs: additional external documentation
+    :param openapi: the semantic version number of the OpenAPI Specification version that the OpenAPI document uses
+    :param jsonSchemaDialect: the default value for the $schema keyword within Schema Objects
+    :param tags: a list of tags used by the specification with additional metadata
+    :param security: a declaration of which security mechanisms can be used across the API
+    """
+
+    info: Info
+    paths: Dict[str, Path]
+    components: Components
+    servers: MaybeSet[List[Server]] = UNSET
+    externalDocs: MaybeSet[ExternalDocumentation] = UNSET
+    tags: MaybeSet[List[Tag]] = UNSET
+    security: MaybeSet[List[Dict[str, List[str]]]] = UNSET
+    openapi: str = '3.1.0'
+    jsonSchemaDialect: MaybeSet[str] = UNSET
+
+
 class OpenApiMeta(TypedDict):
     params_schema: MaybeSet[Dict[str, JsonSchema]]
     result_schema: MaybeSet[JsonSchema]
@@ -595,7 +621,6 @@ def annotate(
     return decorator
 
 
-@dc.dataclass(init=False)
 class OpenAPI(Specification):
     """
     OpenAPI Specification.
@@ -616,16 +641,6 @@ class OpenAPI(Specification):
     :param ui_path: wet ui path
     """
 
-    info: Info
-    paths: Dict[str, Path]
-    components: Components
-    servers: MaybeSet[List[Server]] = UNSET
-    externalDocs: MaybeSet[ExternalDocumentation] = UNSET
-    tags: MaybeSet[List[Tag]] = UNSET
-    security: MaybeSet[List[Dict[str, List[str]]]] = UNSET
-    openapi: str = '3.1.0'
-    jsonSchemaDialect: MaybeSet[str] = UNSET
-
     def __init__(
         self,
         info: Info,
@@ -645,16 +660,17 @@ class OpenAPI(Specification):
     ):
         super().__init__(path, ui=ui, ui_path=ui_path)
 
-        self.info = info
-        self.servers = servers
-        self.externalDocs = external_docs
-        self.tags = tags
-        self.security = security
-        self.openapi = openapi
-        self.jsonSchemaDialect = json_schema_dialect
-        self.paths: Dict[str, Path] = {}
-        self.components = Components(securitySchemes=security_schemes)
-
+        self._spec = SpecRoot(
+            info=info,
+            paths={},
+            components=Components(securitySchemes=security_schemes),
+            servers=servers,
+            externalDocs=external_docs,
+            tags=tags,
+            security=security,
+            openapi=openapi,
+            jsonSchemaDialect=json_schema_dialect,
+        )
         self._error_http_status_map = error_http_status_map
         self._schema_extractors = list(schema_extractors) or [schema_extractor or extractors.BaseSchemaExtractor()]
 
@@ -664,6 +680,8 @@ class OpenAPI(Specification):
         methods_map: Mapping[str, Iterable[Method]] = {},
         component_name_prefix: str = '',
     ) -> Dict[str, Any]:
+        spec = copy.deepcopy(self._spec)
+
         methods_list = [
             (utils.join_path(path, prefix), method)
             for prefix, methods in methods_map.items()
@@ -678,10 +696,10 @@ class OpenAPI(Specification):
             status_errors_map = self._extract_errors(method)
             default_status_errors = status_errors_map.pop(HTTP_DEFAULT_STATUS, [])
 
-            errors_schema = self._extract_errors_schema(method, status_errors_map, component_name_prefix)
+            errors_schema = self._extract_errors_schema(spec, method, status_errors_map, component_name_prefix)
 
-            request_schema = self._extract_request_schema(method, component_name_prefix)
-            response_schema = self._extract_response_schema(method, default_status_errors, component_name_prefix)
+            request_schema = self._extract_request_schema(spec, method, component_name_prefix)
+            response_schema = self._extract_response_schema(spec, method, default_status_errors, component_name_prefix)
 
             summary, description = self._extract_description(method)
             tags = self._extract_tags(method)
@@ -695,7 +713,7 @@ class OpenAPI(Specification):
                 method, annotated_spec.get('examples', UNSET) or [],
             )
 
-            self.paths[f'{prefix}#{method.name}'] = Path(
+            spec.paths[f'{prefix}#{method.name}'] = Path(
                 post=Operation(
                     requestBody=RequestBody(
                         description='JSON-RPC Request',
@@ -742,7 +760,7 @@ class OpenAPI(Specification):
                 ),
             )
 
-        return drop_unset(dc.asdict(self))
+        return drop_unset(dc.asdict(spec))
 
     def _extract_errors(self, method: Method) -> Dict[int, List[Type[exceptions.JsonRpcError]]]:
         method_meta = utils.get_meta(method.method)
@@ -762,6 +780,7 @@ class OpenAPI(Specification):
 
     def _extract_errors_schema(
             self,
+            spec: SpecRoot,
             method: Method,
             status_errors_map: Dict[int, List[Type[exceptions.JsonRpcError]]],
             component_name_prefix: str,
@@ -778,7 +797,7 @@ class OpenAPI(Specification):
                 ):
                     schema, components = result
                     if components:
-                        self.components.schemas = schemas = self.components.schemas or {}
+                        spec.components.schemas = schemas = spec.components.schemas or {}
                         schemas.update({
                             f"{component_name_prefix}{name}": component
                             for name, component in components.items()
@@ -788,7 +807,12 @@ class OpenAPI(Specification):
 
         return status_error_schema_map
 
-    def _extract_request_schema(self, method: Method, component_name_prefix: str) -> MaybeSet[Dict[str, Any]]:
+    def _extract_request_schema(
+            self,
+            spec: SpecRoot,
+            method: Method,
+            component_name_prefix: str,
+    ) -> MaybeSet[Dict[str, Any]]:
         method_meta = utils.get_meta(method.method)
         annotations: OpenApiMeta = method_meta.get('openapi_spec', {})
 
@@ -805,7 +829,7 @@ class OpenAPI(Specification):
                 ):
                     request_schema, components = result
                     if components:
-                        self.components.schemas = schemas = self.components.schemas or {}
+                        spec.components.schemas = schemas = spec.components.schemas or {}
                         schemas.update({
                             f"{component_name_prefix}{name}": component
                             for name, component in components.items()
@@ -816,6 +840,7 @@ class OpenAPI(Specification):
 
     def _extract_response_schema(
             self,
+            spec: SpecRoot,
             method: Method,
             errors: List[Type[exceptions.JsonRpcError]],
             component_name_prefix: str,
@@ -836,7 +861,7 @@ class OpenAPI(Specification):
                 ):
                     response_schema, components = result
                     if components:
-                        self.components.schemas = schemas = self.components.schemas or {}
+                        spec.components.schemas = schemas = spec.components.schemas or {}
                         schemas.update({
                             f"{component_name_prefix}{name}": component
                             for name, component in components.items()

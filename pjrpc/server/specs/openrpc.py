@@ -1,6 +1,7 @@
 """
 OpenRPC specification generator. See https://spec.open-rpc.org/.
 """
+import copy
 import enum
 
 try:
@@ -323,6 +324,27 @@ class Components:
     tags: MaybeSet[Dict[str, Tag]] = UNSET
 
 
+@dc.dataclass
+class SpecRoot:
+    """
+    The root object of the OpenRPC document.
+
+    :param info: provides metadata about the API
+    :param components: an element to hold various schemas for the specification.
+    :param methods: the available methods for the API
+    :param servers: connectivity information
+    :param externalDocs: additional external documentation
+    :param openrpc: the semantic version number of the OpenRPC Specification version that the OpenRPC document uses
+    """
+
+    info: Info
+    components: Components
+    methods: List[Union[MethodInfo, Reference]] = dc.field(default_factory=list)
+    servers: MaybeSet[List[Server]] = UNSET
+    externalDocs: MaybeSet[ExternalDocumentation] = UNSET
+    openrpc: str = '1.3.2'
+
+
 class OpenRpcMeta(TypedDict):
     params_schema: MaybeSet[List[ContentDescriptor]]
     result_schema: MaybeSet[ContentDescriptor]
@@ -402,13 +424,6 @@ class OpenRPC(Specification):
     :param schema_extractor: method specification extractor
     """
 
-    info: Info
-    components: Components
-    methods: List[Union[MethodInfo, Reference]] = dc.field(default_factory=list)
-    servers: MaybeSet[List[Server]] = UNSET
-    externalDocs: MaybeSet[ExternalDocumentation] = UNSET
-    openrpc: str = '1.3.2'
-
     def __init__(
         self,
         info: Info,
@@ -420,13 +435,14 @@ class OpenRPC(Specification):
     ):
         super().__init__(path)
 
-        self.info = info
-        self.servers = servers
-        self.externalDocs = external_docs
-        self.openrpc = openrpc
-        self.methods = []
-        self.components = Components()
-
+        self._spec = SpecRoot(
+            info=info,
+            servers=servers,
+            externalDocs=external_docs,
+            openrpc=openrpc,
+            methods=[],
+            components=Components(),
+        )
         self._schema_extractor = schema_extractor or extractors.BaseSchemaExtractor()
 
     def schema(
@@ -434,12 +450,14 @@ class OpenRPC(Specification):
         path: str,
         methods_map: Mapping[str, Iterable[Method]] = {},
     ) -> Dict[str, Any]:
-        self.components.schemas = {}
+        spec = copy.deepcopy(self._spec)
+
+        spec.components.schemas = {}
 
         for method in methods_map.get('', []):
             summary, description = self._extract_description(method)
-            params_schema = self._extract_params_schema(method)
-            result_schema = self._extract_result_schema(method)
+            params_schema = self._extract_params_schema(spec, method)
+            result_schema = self._extract_result_schema(spec, method)
             errors = self._extract_errors(method)
             deprecated = self._extract_deprecated(method)
             tags = self._extract_tags(method)
@@ -447,7 +465,7 @@ class OpenRPC(Specification):
             servers = self._extract_servers(method)
             examples = self._extract_examples(method)
 
-            self.methods.append(
+            spec.methods.append(
                 MethodInfo(
                     name=method.name,
                     params=list(params_schema),
@@ -464,13 +482,13 @@ class OpenRPC(Specification):
             )
 
         return dc.asdict(
-            self,
+            spec,
             dict_factory=lambda iterable: dict(
                 filter(lambda item: not isinstance(item[1], UnsetType), iterable),
             ),
         )
 
-    def _extract_params_schema(self, method: Method) -> List[ContentDescriptor]:
+    def _extract_params_schema(self, spec: SpecRoot, method: Method) -> List[ContentDescriptor]:
         method_meta = utils.get_meta(method.method)
         annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
 
@@ -493,12 +511,12 @@ class OpenRPC(Specification):
                 ) for name, schema in params_schema['properties'].items()
             ]
 
-            self.components.schemas = schemas = self.components.schemas or {}
+            spec.components.schemas = schemas = spec.components.schemas or {}
             schemas.update(components)
 
         return params_descriptors
 
-    def _extract_result_schema(self, method: Method) -> ContentDescriptor:
+    def _extract_result_schema(self, spec: SpecRoot, method: Method) -> ContentDescriptor:
         method_meta = utils.get_meta(method.method)
         annotations: OpenRpcMeta = method_meta.get('openrpc_spec', {})
 
@@ -517,7 +535,7 @@ class OpenRPC(Specification):
                 required='result' in result_schema.get('required', []),
                 deprecated=result_schema.get('deprecated', UNSET),
             )
-            self.components.schemas = schemas = self.components.schemas or {}
+            spec.components.schemas = schemas = spec.components.schemas or {}
             schemas.update(components)
 
         return result_descriptor
