@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional
 import pydantic
 
 from pjrpc.common.typedefs import JsonRpcParams
+from pjrpc.server.typedefs import ExcludeFunc
 
 from . import base
 
@@ -16,9 +17,12 @@ class PydanticValidator(base.BaseValidator):
 
     :param coerce: if ``True`` returns converted (coerced) parameters according to parameter type annotation
                    otherwise returns parameters as is
+    :param exclude_param: a function that decides if the parameters must be excluded
+                          from validation (useful for dependency injection)
     """
 
-    def __init__(self, coerce: bool = True, **config_args: Any):
+    def __init__(self, coerce: bool = True, exclude_param: Optional[ExcludeFunc] = None, **config_args: Any):
+        super().__init__(exclude_param=exclude_param)
         self._coerce = coerce
 
         config_args.setdefault('extra', 'forbid')

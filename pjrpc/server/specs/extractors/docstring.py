@@ -6,12 +6,19 @@ from pjrpc.common import UNSET, MaybeSet, exceptions
 from pjrpc.common.typedefs import MethodType
 from pjrpc.server.specs.extractors import BaseSchemaExtractor, JsonRpcError
 from pjrpc.server.specs.schemas import build_request_schema, build_response_schema
+from pjrpc.server.typedefs import ExcludeFunc
 
 
 class DocstringSchemaExtractor(BaseSchemaExtractor):
     """
     docstring method specification generator.
+
+    :param exclude_param: a function that decides if the parameters must be excluded
+                          from schema (useful for dependency injection)
     """
+
+    def __init__(self, exclude_param: Optional[ExcludeFunc] = None):
+        self._exclude_param = exclude_param or (lambda *args: False)
 
     def extract_params_schema(
             self,
@@ -26,7 +33,7 @@ class DocstringSchemaExtractor(BaseSchemaExtractor):
         if method.__doc__:
             doc = docstring_parser.parse(method.__doc__)
             for param in doc.params:
-                if param.arg_name in exclude:
+                if param.arg_name in exclude or self._exclude_param(param.arg_name, None, None):
                     continue
 
                 parameters_schema[param.arg_name] = {
