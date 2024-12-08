@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.11.0 (2024-12-08)
+------------------
+
+- added exclude_param argument to be able to exclude a json-rpc parameter from validation and schema extraction.
+
+
 1.10.1 (2024-11-13)
 ------------------
 
