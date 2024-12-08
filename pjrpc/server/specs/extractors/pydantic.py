@@ -6,6 +6,7 @@ import pydantic as pd
 from pjrpc.common import exceptions
 from pjrpc.common.typedefs import MethodType
 from pjrpc.server.specs.extractors import BaseSchemaExtractor
+from pjrpc.server.typedefs import ExcludeFunc
 
 
 def to_camel(string: str) -> str:
@@ -86,9 +87,12 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
     Pydantic method specification extractor.
 
     :param config_args: model configuration parameters
+    :param exclude_param: a function that decides if the parameters must be excluded
+                          from schema (useful for dependency injection)
     """
 
-    def __init__(self, **config_args: Any):
+    def __init__(self, exclude_param: Optional[ExcludeFunc] = None, **config_args: Any):
+        self._exclude_param = exclude_param or (lambda *args: False)
         self._config_args = config_args
 
     def extract_params_schema(
@@ -223,7 +227,7 @@ class PydanticSchemaExtractor(BaseSchemaExtractor):
 
         field_definitions: Dict[str, Any] = {}
         for param in signature.parameters.values():
-            if param.name in exclude:
+            if param.name in exclude or self._exclude_param(param.name, param.annotation, param.default):
                 continue
 
             if param.kind in [inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY]:

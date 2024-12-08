@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Optional, Union
+from typing import Any, Awaitable, Callable, Optional, Type, Union
 
 import pjrpc.common.exceptions
 from pjrpc.common import Request, Response, UnsetType
@@ -12,6 +12,7 @@ __all__ = [
     'MiddlewareResponse',
     'MiddlewareType',
     'ErrorHandlerType',
+    'ExcludeFunc',
     'ResponseOrUnset',
     'ContextType',
 ]
@@ -56,3 +57,7 @@ ErrorHandlerType = Callable[
     pjrpc.exceptions.JsonRpcError,
 ]
 '''Synchronous server error handler'''  # for sphinx autodoc
+
+
+ExcludeFunc = Callable[[str, Optional[Type[Any]], Optional[Any]], bool]
+'''Parameter exclude function'''  # for sphinx autodoc

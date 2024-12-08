@@ -3,6 +3,7 @@ from typing import Any, Dict, Iterable, Optional
 import jsonschema
 
 from pjrpc.common.typedefs import JsonRpcParams, MethodType
+from pjrpc.server.typedefs import ExcludeFunc
 
 from . import base
 
@@ -12,9 +13,12 @@ class JsonSchemaValidator(base.BaseValidator):
     Parameters validator based on `jsonschema <https://python-jsonschema.readthedocs.io/en/stable/>`_ library.
 
     :param kwargs: default jsonschema validator arguments
+    :param exclude_param: a function that decides if the parameters must be excluded
+                          from validation (useful for dependency injection)
     """
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, exclude_param: Optional[ExcludeFunc] = None, **kwargs: Any):
+        super().__init__(exclude_param=exclude_param)
         kwargs.setdefault('types', {'array': (list, tuple)})
         self.default_kwargs = kwargs
 
