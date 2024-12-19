@@ -43,7 +43,6 @@ def jsonrpc_request_schema(method_name: str, params_schema: Dict[str, Any]) -> D
                 'description': 'Method name',
                 'type': 'string',
                 'const': method_name,
-                'enum': [method_name],
             },
             'params': params_schema,
         },
@@ -168,7 +167,6 @@ def error_component(code: int) -> Dict[str, Any]:
                 'description': 'Error code',
                 'type': 'integer',
                 'const': code,
-                'enum': [code],
             },
             'data': {
                 'title': 'Data',
