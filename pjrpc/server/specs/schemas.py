@@ -115,7 +115,6 @@ def build_request_schema(method_name: str, parameters_schema: Dict[str, Any]) ->
     reqeust_schema = copy.deepcopy(REQUEST_SCHEMA)
 
     reqeust_schema['properties']['method']['const'] = method_name
-    reqeust_schema['properties']['method']['enum'] = [method_name]
     reqeust_schema['properties']['params'] = {
         'title': 'Parameters',
         'description': 'Reqeust parameters',
@@ -137,9 +136,7 @@ def build_response_schema(result_schema: Dict[str, Any], errors: Iterable[Type[J
             error_schema = copy.deepcopy(ERROR_SCHEMA)
             error_props = error_schema['properties']['error']['properties']
             error_props['code']['const'] = error.code
-            error_props['code']['enum'] = [error.code]
             error_props['message']['const'] = error.message
-            error_props['message']['enum'] = [error.message]
             error_schemas.append(error_schema)
 
         response_schema = {'oneOf': [response_schema] + error_schemas}
