@@ -36,30 +36,41 @@ class Method:
     :param context: context name
     """
 
-    def __init__(self, method: MethodType, name: Optional[str] = None, context: Optional[str] = None):
+    def __init__(
+        self,
+        method: MethodType,
+        name: Optional[str] = None,
+        context: Optional[str] = None,
+        positional: bool = False,
+    ):
         self.method = method
         self.name = name or method.__name__
         self.context = context
+        self.positional = positional
 
         meta = utils.set_meta(method, method_name=self.name, context_name=context)
 
         self.validator, self.validator_args = meta.get('validator', default_validator), meta.get('validator_args', {})
 
     def bind(self, params: Optional['JsonRpcParams'], context: Optional[Any] = None) -> MethodType:
-        method_params = self.validator.validate_method(
+        method_args = []
+        method_kwargs = self.validator.validate_method(
             self.method, params, exclude=(self.context,) if self.context else (), **self.validator_args,
         )
 
         if self.context is not None:
-            method_params[self.context] = context
+            if self.positional:
+                method_args.append(context)
+            else:
+                method_kwargs[self.context] = context
 
-        return ft.partial(self.method, **method_params)
+        return ft.partial(self.method, *method_args, **method_kwargs)
 
     def copy(self, **kwargs: Any) -> 'Method':
         cls_kwargs = dict(name=self.name, context=self.context)
         cls_kwargs.update(kwargs)
 
-        return Method(method=self.method, **cls_kwargs)
+        return Method(method=self.method, **cls_kwargs)  # type: ignore[arg-type]
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Method):
@@ -169,7 +180,11 @@ class MethodRegistry:
         return self._registry.get(item)
 
     def add(
-        self, maybe_method: Optional[MethodType] = None, name: Optional[str] = None, context: Optional[Any] = None,
+        self,
+        maybe_method: Optional[MethodType] = None,
+        name: Optional[str] = None,
+        context: Optional[Any] = None,
+        positional: bool = False,
     ) -> MethodType:
         """
         Decorator adding decorated method to the registry.
@@ -177,12 +192,13 @@ class MethodRegistry:
         :param maybe_method: method or `None`
         :param name: method name to be used instead of `__name__` attribute
         :param context: parameter name to be used as an application context
+        :param positional: pass context as first positional argument
         :returns: decorated method or decorator
         """
 
         def decorator(method: MethodType) -> MethodType:
             full_name = '.'.join(filter(None, (self._prefix, name or method.__name__)))
-            self.add_methods(Method(method, full_name, context))
+            self.add_methods(Method(method, full_name, context, positional))
 
             return method
 
