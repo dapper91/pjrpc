@@ -34,6 +34,7 @@ class Method:
     :param method: method
     :param name: method name
     :param context: context name
+    :param positional: pass context as a first positional argument
     """
 
     def __init__(
@@ -67,7 +68,7 @@ class Method:
         return ft.partial(self.method, *method_args, **method_kwargs)
 
     def copy(self, **kwargs: Any) -> 'Method':
-        cls_kwargs = dict(name=self.name, context=self.context)
+        cls_kwargs = dict(name=self.name, context=self.context, positional=self.positional)
         cls_kwargs.update(kwargs)
 
         return Method(method=self.method, **cls_kwargs)  # type: ignore[arg-type]
@@ -76,7 +77,8 @@ class Method:
         if not isinstance(other, Method):
             return NotImplemented
 
-        return (self.method, self.name, self.context) == (other.method, other.name, other.context)
+        return (self.method, self.name, self.context, self.positional) == \
+               (other.method, other.name, other.context, other.positional)
 
 
 class ViewMethod(Method):
@@ -86,6 +88,7 @@ class ViewMethod(Method):
     :param view_cls: view class
     :param name: view class method name
     :param context: context name
+    :param positional: pass context as a first positional argument
     """
 
     def __init__(
@@ -94,8 +97,9 @@ class ViewMethod(Method):
         method_name: str,
         name: Optional[str] = None,
         context: Optional[Any] = None,
+        positional: bool = False,
     ):
-        super().__init__(getattr(view_cls, method_name), name or method_name, context)
+        super().__init__(getattr(view_cls, method_name), name or method_name, context, positional)
 
         self.view_cls = view_cls
         self.method_name = method_name
@@ -109,10 +113,10 @@ class ViewMethod(Method):
         return ft.partial(method, **method_params)
 
     def copy(self, **kwargs: Any) -> 'ViewMethod':
-        cls_kwargs = dict(name=self.name, context=self.context)
+        cls_kwargs = dict(name=self.name, context=self.context, positional=self.positional)
         cls_kwargs.update(kwargs)
 
-        return ViewMethod(view_cls=self.view_cls, method_name=self.method_name, **cls_kwargs)
+        return ViewMethod(view_cls=self.view_cls, method_name=self.method_name, **cls_kwargs)  # type: ignore[arg-type]
 
 
 class ViewMixin:
@@ -192,7 +196,7 @@ class MethodRegistry:
         :param maybe_method: method or `None`
         :param name: method name to be used instead of `__name__` attribute
         :param context: parameter name to be used as an application context
-        :param positional: pass context as first positional argument
+        :param positional: pass context as a first positional argument
         :returns: decorated method or decorator
         """
 
@@ -222,7 +226,11 @@ class MethodRegistry:
                 self.add(method)
 
     def view(
-        self, maybe_view: Optional[Type[ViewMixin]] = None, context: Optional[Any] = None, prefix: Optional[str] = None,
+        self,
+        maybe_view: Optional[Type[ViewMixin]] = None,
+        context: Optional[Any] = None,
+        prefix: Optional[str] = None,
+        positional: bool = False,
     ) -> Union[ViewMixin, Callable[..., Any]]:
         """
         Methods view decorator.
@@ -230,13 +238,14 @@ class MethodRegistry:
         :param maybe_view: view class instance or `None`
         :param context: application context name
         :param prefix: view methods prefix
+        :param positional: pass context as a first positional argument
         :return: decorator or decorated view
         """
 
         def decorator(view: Type[ViewMixin]) -> Type[ViewMixin]:
             for method in view.__methods__():
                 full_name = '.'.join(filter(None, (self._prefix, prefix, method.__name__)))
-                self._add_method(ViewMethod(view, method.__name__, full_name, context))
+                self._add_method(ViewMethod(view, method.__name__, full_name, context, positional))
 
             return view
 
@@ -326,16 +335,23 @@ class BaseDispatcher:
     def registry(self) -> MethodRegistry:
         return self._registry
 
-    def add(self, method: Callable[..., Any], name: Optional[str] = None, context: Optional[Any] = None) -> None:
+    def add(
+        self,
+        method: Callable[..., Any],
+        name: Optional[str] = None,
+        context: Optional[Any] = None,
+        positional: bool = False,
+    ) -> None:
         """
         Adds method to the registry.
 
         :param method: method
         :param name: method name
         :param context: application context name
+        :param positional: pass context as a first positional argument
         """
 
-        self._registry.add(method, name, context)
+        self._registry.add(method, name, context, positional)
 
     def add_methods(self, *methods: Union[MethodRegistry, Method, Callable[..., Any]]) -> None:
         """
