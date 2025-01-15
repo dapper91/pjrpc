@@ -1,6 +1,12 @@
 Changelog
 =========
 
+1.12.2 (2025-01-15)
+------------------
+
+- aiohttp integration specification wrong path bug fixed.
+
+
 1.12.1 (2024-12-20)
 ------------------
 
