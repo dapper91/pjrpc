@@ -89,7 +89,7 @@ class Application:
         """
 
         prefix = prefix.rstrip('/')
-        self._endpoints[prefix] = subapp.dispatcher
+        self._endpoints[utils.join_path(prefix, subapp._path)] = subapp.dispatcher
         self._app.add_subapp(utils.join_path(self._path, prefix), subapp.app)
 
     def add_endpoint(

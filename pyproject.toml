@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pjrpc"
-version = "1.12.1"
+version = "1.12.2"
 description = "Extensible JSON-RPC library"
 authors = ["Dmitry Pershin <dapper1291@gmail.com>"]
 license = "Unlicense"
@@ -89,7 +89,7 @@ pytest-aiohttp = "^1.0.4"
 pytest-cov = "^4.1.0"
 pytest-mock = "^3.11.1"
 responses = "^0.23.3"
-respx = "^0.20.2"
+respx = "^0.22.0"
 mypy = "^1.7.1"
 pre-commit = "~3.2.0"
 types-jsonschema = "^4.23.0.20240813"
