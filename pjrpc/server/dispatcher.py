@@ -3,8 +3,8 @@ import functools as ft
 import itertools as it
 import json
 import logging
-from typing import Any, Awaitable, Callable, Dict, Generator, ItemsView, Iterable, Iterator, KeysView, List, Optional
-from typing import Tuple, Type, Union, ValuesView, cast
+from typing import Any, Callable, Dict, Generator, Generic, ItemsView, Iterable, Iterator, KeysView, List, Optional
+from typing import Tuple, Type, TypeVar, Union, ValuesView
 
 import pjrpc
 from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, MaybeSet, Request, Response, UnsetType
@@ -379,7 +379,10 @@ class BaseDispatcher:
         self._registry.view(view)
 
 
-class Dispatcher(BaseDispatcher):
+ContextType = TypeVar('ContextType')
+
+
+class Dispatcher(BaseDispatcher, Generic[ContextType]):
     """
     Synchronous method dispatcher.
     """
@@ -395,8 +398,8 @@ class Dispatcher(BaseDispatcher):
         json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
-        middlewares: Iterable['MiddlewareType'] = (),
-        error_handlers: Dict[Union[None, int, Exception], List['ErrorHandlerType']] = {},
+        middlewares: Iterable['MiddlewareType[ContextType]'] = (),
+        error_handlers: Dict[Union[None, int, Exception], List['ErrorHandlerType[ContextType]']] = {},
         max_batch_size: Optional[int] = None,
     ):
         super().__init__(
@@ -412,6 +415,10 @@ class Dispatcher(BaseDispatcher):
             error_handlers=error_handlers,
         )
         self._max_batch_size = max_batch_size
+
+        self._request_handler = self._handle_request
+        for middleware in reversed(self._middlewares):
+            self._request_handler = ft.partial(middleware, handler=self._request_handler)
 
     def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[Tuple[str, Tuple[int, ...]]]:
         """
@@ -449,12 +456,12 @@ class Dispatcher(BaseDispatcher):
                 else:
                     response = self._batch_response(
                         *(
-                            resp for resp in (self._handle_request(request, context) for request in request)
+                            resp for resp in (self._request_handler(request, context) for request in request)
                             if not isinstance(resp, UnsetType)
                         ),
                     )
             else:
-                response = self._handle_request(request, context)
+                response = self._request_handler(request, context)
 
         if not isinstance(response, UnsetType):
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
@@ -466,14 +473,7 @@ class Dispatcher(BaseDispatcher):
 
     def _handle_request(self, request: Request, context: Optional[Any]) -> MaybeSet[Response]:
         try:
-            HandlerType = Callable[[Request, Optional[Any]], MaybeSet[Response]]
-            handler: HandlerType = self._handle_rpc_request
-
-            for middleware in reversed(self._middlewares):
-                handler = cast(HandlerType, ft.partial(middleware, handler=handler))
-
-            return handler(request, context)
-
+            return self._handle_rpc_request(request, context)
         except pjrpc.exceptions.JsonRpcError as e:
             logger.info("method execution error %s(%r): %r", request.method, request.params, e)
             error = e
@@ -523,7 +523,7 @@ class Dispatcher(BaseDispatcher):
             raise pjrpc.exceptions.ServerError() from e
 
 
-class AsyncDispatcher(BaseDispatcher):
+class AsyncDispatcher(BaseDispatcher, Generic[ContextType]):
     """
     Asynchronous method dispatcher.
     """
@@ -539,8 +539,8 @@ class AsyncDispatcher(BaseDispatcher):
         json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
-        middlewares: Iterable['AsyncMiddlewareType'] = (),
-        error_handlers: Dict[Union[None, int, Exception], List['AsyncErrorHandlerType']] = {},
+        middlewares: Iterable['AsyncMiddlewareType[ContextType]'] = (),
+        error_handlers: Dict[Union[None, int, Exception], List['AsyncErrorHandlerType[ContextType]']] = {},
         max_batch_size: Optional[int] = None,
         concurrent_batch: bool = True,
     ):
@@ -558,6 +558,10 @@ class AsyncDispatcher(BaseDispatcher):
         )
         self._max_batch_size = max_batch_size
         self._concurrent_batch = concurrent_batch
+
+        self._request_handler = self._handle_request
+        for middleware in reversed(self._middlewares):
+            self._request_handler = ft.partial(middleware, handler=self._request_handler)
 
     async def dispatch(self, request_text: str, context: Optional[Any] = None) -> Optional[Tuple[str, Tuple[int, ...]]]:
         """
@@ -596,12 +600,12 @@ class AsyncDispatcher(BaseDispatcher):
                     response = self._batch_response(
                         *(
                             resp
-                            for resp in await asyncio.gather(*(self._handle_request(req, context) for req in request))
+                            for resp in await asyncio.gather(*(self._request_handler(req, context) for req in request))
                             if resp
                         ),
                     )
             else:
-                response = await self._handle_request(request, context)
+                response = await self._request_handler(request, context)
 
         if not isinstance(response, UnsetType):
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
@@ -613,14 +617,7 @@ class AsyncDispatcher(BaseDispatcher):
 
     async def _handle_request(self, request: Request, context: Optional[Any]) -> MaybeSet[Response]:
         try:
-            HandlerType = Callable[[Request, Optional[Any]], Awaitable[MaybeSet[Response]]]
-            handler: HandlerType = self._handle_rpc_request
-
-            for middleware in reversed(self._middlewares):
-                handler = cast(HandlerType, ft.partial(middleware, handler=handler))
-
-            return await handler(request, context)
-
+            return await self._handle_rpc_request(request, context)
         except pjrpc.exceptions.JsonRpcError as e:
             logger.info("method execution error %s(%r): %r", request.method, request.params, e)
             error = e

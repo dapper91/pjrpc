@@ -13,6 +13,8 @@ from werkzeug import exceptions
 import pjrpc.server
 from pjrpc.server import specs, utils
 
+FlaskDispatcher = pjrpc.server.Dispatcher[None]
+
 
 class JsonRPC:
     """
@@ -38,12 +40,12 @@ class JsonRPC:
         kwargs.setdefault('json_loader', flask.json.loads)
         kwargs.setdefault('json_dumper', flask.json.dumps)
 
-        self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
-        self._endpoints: Dict[str, pjrpc.server.Dispatcher] = {'': self._dispatcher}
+        self._dispatcher = FlaskDispatcher(**kwargs)
+        self._endpoints: Dict[str, FlaskDispatcher] = {'': self._dispatcher}
         self._blueprints: Dict[str, flask.Blueprint] = {}
 
     @property
-    def dispatcher(self) -> pjrpc.server.Dispatcher:
+    def dispatcher(self) -> FlaskDispatcher:
         """
         JSON-RPC method dispatcher.
         """
@@ -51,7 +53,7 @@ class JsonRPC:
         return self._dispatcher
 
     @property
-    def endpoints(self) -> Dict[str, pjrpc.server.Dispatcher]:
+    def endpoints(self) -> Dict[str, FlaskDispatcher]:
         """
         JSON-RPC application registered endpoints.
         """
@@ -63,7 +65,7 @@ class JsonRPC:
         prefix: str,
         blueprint: Optional[flask.Blueprint] = None,
         **kwargs: Any,
-    ) -> pjrpc.server.Dispatcher:
+    ) -> FlaskDispatcher:
         """
         Adds additional endpoint.
 
@@ -74,7 +76,7 @@ class JsonRPC:
         """
 
         prefix = prefix.rstrip('/')
-        dispatcher = pjrpc.server.Dispatcher(**kwargs)
+        dispatcher = FlaskDispatcher(**kwargs)
 
         self._endpoints[prefix] = dispatcher
         if blueprint is not None:
@@ -160,7 +162,7 @@ class JsonRPC:
 
         return flask.send_from_directory(spec.ui.get_static_folder(), filename)
 
-    def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
+    def _rpc_handle(self, dispatcher: FlaskDispatcher) -> flask.Response:
         """
         Handles JSON-RPC request.
 

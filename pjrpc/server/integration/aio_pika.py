@@ -8,6 +8,8 @@ import pjrpc.server
 
 logger = logging.getLogger(__package__)
 
+AioPikaDispatcher = pjrpc.server.AsyncDispatcher[aio_pika.abc.AbstractIncomingMessage]
+
 
 class Executor:
     """
@@ -43,10 +45,10 @@ class Executor:
         self._exchange: Optional[aio_pika.abc.AbstractExchange] = None
         self._consumer_tag: Optional[str] = None
 
-        self._dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
+        self._dispatcher = AioPikaDispatcher(**kwargs)
 
     @property
-    def dispatcher(self) -> pjrpc.server.AsyncDispatcher:
+    def dispatcher(self) -> AioPikaDispatcher:
         """
         JSON-RPC method dispatcher.
         """
