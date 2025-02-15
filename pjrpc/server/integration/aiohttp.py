@@ -12,6 +12,8 @@ from aiohttp import web
 import pjrpc
 from pjrpc.server import specs, utils
 
+AioHttpDispatcher = pjrpc.server.AsyncDispatcher[web.Request]
+
 
 class Application:
     """
@@ -37,8 +39,8 @@ class Application:
         self._specs = ([spec] if spec else []) + list(specs)
         self._app = app or web.Application()
         self._status_by_error = status_by_error
-        self._dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
-        self._endpoints: Dict[str, pjrpc.server.AsyncDispatcher] = {'': self._dispatcher}
+        self._dispatcher = AioHttpDispatcher(**kwargs)
+        self._endpoints: Dict[str, AioHttpDispatcher] = {'': self._dispatcher}
 
         self._app.router.add_post(path, ft.partial(self._rpc_handle, dispatcher=self._dispatcher))
 
@@ -65,7 +67,7 @@ class Application:
         return self._app
 
     @property
-    def dispatcher(self) -> pjrpc.server.AsyncDispatcher:
+    def dispatcher(self) -> AioHttpDispatcher:
         """
         JSON-RPC method dispatcher.
         """
@@ -73,7 +75,7 @@ class Application:
         return self._dispatcher
 
     @property
-    def endpoints(self) -> Mapping[str, pjrpc.server.AsyncDispatcher]:
+    def endpoints(self) -> Mapping[str, AioHttpDispatcher]:
         """
         JSON-RPC application registered endpoints.
         """
@@ -97,7 +99,7 @@ class Application:
         prefix: str,
         subapp: Optional[aiohttp.web.Application] = None,
         **kwargs: Any,
-    ) -> pjrpc.server.AsyncDispatcher:
+    ) -> AioHttpDispatcher:
         """
         Adds additional endpoint.
 
@@ -108,7 +110,7 @@ class Application:
         """
 
         prefix = prefix.rstrip('/')
-        dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
+        dispatcher = AioHttpDispatcher(**kwargs)
         self._endpoints[prefix] = dispatcher
 
         if subapp:
@@ -143,7 +145,7 @@ class Application:
             content_type='text/html',
         )
 
-    async def _rpc_handle(self, http_request: web.Request, dispatcher: pjrpc.server.AsyncDispatcher) -> web.Response:
+    async def _rpc_handle(self, http_request: web.Request, dispatcher: AioHttpDispatcher) -> web.Response:
         """
         Handles JSON-RPC request.
 

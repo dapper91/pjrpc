@@ -15,6 +15,8 @@ import pjrpc.server
 from pjrpc.common.typedefs import Func
 from pjrpc.server import specs, utils
 
+DjangoDispatcher = pjrpc.server.Dispatcher[HttpRequest]
+
 
 def require_http_methods(request_method_list: List[str]) -> Callable[[Func], Func]:
     def decorator(func: Func) -> Func:
@@ -39,7 +41,7 @@ class JsonRPCSite:
         self._path = path
         self._spec = spec
 
-        self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
+        self._dispatcher = DjangoDispatcher(**kwargs)
         self._urls = [
             urls.path(path, self._rpc_handle),
         ]
@@ -56,7 +58,7 @@ class JsonRPCSite:
                 self._urls.extend(static(path, document_root=str(self._spec.ui.get_static_folder())))
 
     @property
-    def dispatcher(self) -> pjrpc.server.Dispatcher:
+    def dispatcher(self) -> DjangoDispatcher:
         """
         JSON-RPC method dispatcher.
         """

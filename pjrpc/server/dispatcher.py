@@ -3,8 +3,8 @@ import functools as ft
 import itertools as it
 import json
 import logging
-from typing import Any, Awaitable, Callable, Dict, Generator, ItemsView, Iterable, Iterator, KeysView, List, Optional
-from typing import Tuple, Type, Union, ValuesView, cast
+from typing import Any, Awaitable, Callable, Dict, Generator, Generic, ItemsView, Iterable, Iterator, KeysView, List
+from typing import Optional, Tuple, Type, TypeVar, Union, ValuesView, cast
 
 import pjrpc
 from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, MaybeSet, Request, Response, UnsetType
@@ -379,7 +379,10 @@ class BaseDispatcher:
         self._registry.view(view)
 
 
-class Dispatcher(BaseDispatcher):
+ContextType = TypeVar('ContextType')
+
+
+class Dispatcher(BaseDispatcher, Generic[ContextType]):
     """
     Synchronous method dispatcher.
     """
@@ -395,8 +398,8 @@ class Dispatcher(BaseDispatcher):
         json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
-        middlewares: Iterable['MiddlewareType'] = (),
-        error_handlers: Dict[Union[None, int, Exception], List['ErrorHandlerType']] = {},
+        middlewares: Iterable['MiddlewareType[ContextType]'] = (),
+        error_handlers: Dict[Union[None, int, Exception], List['ErrorHandlerType[ContextType]']] = {},
         max_batch_size: Optional[int] = None,
     ):
         super().__init__(
@@ -523,7 +526,7 @@ class Dispatcher(BaseDispatcher):
             raise pjrpc.exceptions.ServerError() from e
 
 
-class AsyncDispatcher(BaseDispatcher):
+class AsyncDispatcher(BaseDispatcher, Generic[ContextType]):
     """
     Asynchronous method dispatcher.
     """
@@ -539,8 +542,8 @@ class AsyncDispatcher(BaseDispatcher):
         json_dumper: Callable[..., str] = json.dumps,
         json_encoder: Type[JSONEncoder] = JSONEncoder,
         json_decoder: Optional[Type[json.JSONDecoder]] = None,
-        middlewares: Iterable['AsyncMiddlewareType'] = (),
-        error_handlers: Dict[Union[None, int, Exception], List['AsyncErrorHandlerType']] = {},
+        middlewares: Iterable['AsyncMiddlewareType[ContextType]'] = (),
+        error_handlers: Dict[Union[None, int, Exception], List['AsyncErrorHandlerType[ContextType]']] = {},
         max_batch_size: Optional[int] = None,
         concurrent_batch: bool = True,
     ):

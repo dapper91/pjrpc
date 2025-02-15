@@ -40,7 +40,7 @@ class BaseBatch(abc.ABC):
             return wrapped
 
         @abc.abstractmethod
-        def __call__(self, _trace_ctx: SimpleNamespace = SimpleNamespace()) -> Union[Awaitable[Any], Any]:
+        def __call__(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Union[Awaitable[Any], Any]:
             """
             Makes an RPC call.
 
@@ -48,7 +48,7 @@ class BaseBatch(abc.ABC):
             """
 
         @abc.abstractmethod
-        def call(self, _trace_ctx: SimpleNamespace = SimpleNamespace()) -> Union[Awaitable[Any], Any]:
+        def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Union[Awaitable[Any], Any]:
             """
             Makes an RPC call.
 
@@ -97,7 +97,7 @@ class BaseBatch(abc.ABC):
         return self.add(method, *args, **kwargs)
 
     @abc.abstractmethod
-    def call(self, _trace_ctx: SimpleNamespace = SimpleNamespace()) -> Union[Awaitable[Any], Any]:
+    def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Union[Awaitable[Any], Any]:
         """
         Makes a JSON-RPC request.
 
@@ -107,7 +107,7 @@ class BaseBatch(abc.ABC):
 
     @abc.abstractmethod
     def send(
-        self, request: BatchRequest, _trace_ctx: SimpleNamespace = SimpleNamespace(), **kwargs: Any,
+        self, request: BatchRequest, _trace_ctx: Optional[SimpleNamespace] = None, **kwargs: Any,
     ) -> Union[Awaitable[Optional[BatchResponse]], Optional[BatchResponse]]:
         """
         Sends a JSON-RPC batch request.
@@ -183,10 +183,10 @@ class Batch(BaseBatch):
         def __init__(self, batch: 'Batch'):
             super().__init__(batch)
 
-        def __call__(self, _trace_ctx: SimpleNamespace = SimpleNamespace()) -> Any:
+        def __call__(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Any:
             return self.call(_trace_ctx)
 
-        def call(self, _trace_ctx: SimpleNamespace = SimpleNamespace()) -> Any:
+        def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Any:
             return self._batch.call(_trace_ctx)
 
     @property
@@ -196,13 +196,13 @@ class Batch(BaseBatch):
     def __init__(self, client: 'AbstractClient'):
         super().__init__(client)
 
-    def call(self, _trace_ctx: SimpleNamespace = SimpleNamespace()) -> Optional[Any]:
-        response = self.send(self._requests)
+    def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Optional[Any]:
+        response = self.send(self._requests, _trace_ctx=_trace_ctx)
 
         return response.result if response is not None else None
 
     def send(
-        self, request: BatchRequest, _trace_ctx: SimpleNamespace = SimpleNamespace(), **kwargs: Any,
+        self, request: BatchRequest, _trace_ctx: Optional[SimpleNamespace] = None, **kwargs: Any,
     ) -> Optional[BatchResponse]:
         return cast(
             Optional[BatchResponse], self._client._send(
@@ -225,10 +225,10 @@ class AsyncBatch(BaseBatch):
         def __init__(self, batch: 'AsyncBatch'):
             super().__init__(batch)
 
-        async def __call__(self, _trace_ctx: SimpleNamespace = SimpleNamespace()) -> Any:
+        async def __call__(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Any:
             return await self.call(_trace_ctx)
 
-        async def call(self, _trace_ctx: SimpleNamespace = SimpleNamespace()) -> Any:
+        async def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Any:
             return await self._batch.call(_trace_ctx)
 
     @property
@@ -238,13 +238,13 @@ class AsyncBatch(BaseBatch):
     def __init__(self, client: 'AbstractAsyncClient'):
         super().__init__(client)
 
-    async def call(self, _trace_ctx: SimpleNamespace = SimpleNamespace()) -> Optional[Any]:
+    async def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Optional[Any]:
         response = await self.send(self._requests, _trace_ctx=_trace_ctx)
 
         return response.result if response is not None else None
 
     async def send(
-        self, request: BatchRequest, _trace_ctx: SimpleNamespace = SimpleNamespace(), **kwargs: Any,
+        self, request: BatchRequest, _trace_ctx: Optional[SimpleNamespace] = None, **kwargs: Any,
     ) -> Optional[BatchResponse]:
         return await cast(
             Awaitable[Optional[BatchResponse]], self._client._send(
@@ -304,7 +304,7 @@ class BaseAbstractClient(abc.ABC):
         json_decoder: Optional[json.JSONDecoder] = None,
         strict: bool = True,
         request_args: Optional[Dict[str, Any]] = None,
-        tracers: Iterable[Tracer] = (),
+        tracers: Iterable[Tracer[Any]] = (),
         retry_strategy: Optional[retry.RetryStrategy] = None,
     ):
         self.request_class = request_class
@@ -326,7 +326,7 @@ class BaseAbstractClient(abc.ABC):
         self,
         method: str,
         *args: Any,
-        _trace_ctx: SimpleNamespace = SimpleNamespace(),
+        _trace_ctx: Optional[SimpleNamespace] = None,
         **kwargs: Any,
     ) -> Union[Awaitable[Any], Any]:
         """
@@ -339,7 +339,7 @@ class BaseAbstractClient(abc.ABC):
         :returns: response result
         """
 
-        return self.call(method, *args, **kwargs)
+        return self.call(method, *args, _trace_ctx=_trace_ctx, **kwargs)
 
     @property
     def proxy(self) -> 'Proxy':
@@ -359,7 +359,7 @@ class BaseAbstractClient(abc.ABC):
         request: AbstractRequest,
         response_class: Type[AbstractResponse],
         validator: Callable[..., None],
-        _trace_ctx: SimpleNamespace = SimpleNamespace(),
+        _trace_ctx: Optional[SimpleNamespace] = None,
         **kwargs: Any,
     ) -> Union[Awaitable[Optional[AbstractResponse]], Optional[AbstractResponse]]:
         pass
@@ -407,7 +407,7 @@ class AbstractClient(BaseAbstractClient):
         self,
         method: str,
         *args: Any,
-        _trace_ctx: SimpleNamespace = SimpleNamespace(),
+        _trace_ctx: Optional[SimpleNamespace] = None,
         **kwargs: Any,
     ) -> Optional[Response]:
         """
@@ -429,7 +429,7 @@ class AbstractClient(BaseAbstractClient):
         return self.send(request, _trace_ctx=_trace_ctx)
 
     def call(
-        self, method: str, *args: Any, _trace_ctx: SimpleNamespace = SimpleNamespace(), **kwargs: Any,
+        self, method: str, *args: Any, _trace_ctx: Optional[SimpleNamespace] = None, **kwargs: Any,
     ) -> Any:
         """
         Makes JSON-RPC call.
@@ -456,7 +456,7 @@ class AbstractClient(BaseAbstractClient):
     def send(
         self,
         request: Request,
-        _trace_ctx: SimpleNamespace = SimpleNamespace(),
+        _trace_ctx: Optional[SimpleNamespace] = None,
         _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
         **kwargs: Any,
     ) -> Optional[Response]:
@@ -486,25 +486,27 @@ class AbstractClient(BaseAbstractClient):
         def wrapper(
             self: 'AbstractClient',
             request: AbstractRequest,
-            _trace_ctx: SimpleNamespace,
+            _trace_ctx: Optional[SimpleNamespace] = None,
             **kwargs: Any,
         ) -> Optional[AbstractResponse]:
             """
             Adds tracing logic to the method.
             """
 
+            trace_ctx = _trace_ctx or SimpleNamespace()
+
             for tracer in self._tracers:
-                tracer.on_request_begin(_trace_ctx, request)
+                tracer.on_request_begin(trace_ctx, request)
 
             try:
-                response = method(self, request, _trace_ctx=_trace_ctx, **kwargs)
+                response = method(self, request, _trace_ctx=trace_ctx, **kwargs)
             except BaseException as e:
                 for tracer in self._tracers:
-                    tracer.on_error(_trace_ctx, request, e)
+                    tracer.on_error(trace_ctx, request, e)
                 raise
 
             for tracer in self._tracers:
-                tracer.on_request_end(_trace_ctx, request, response)
+                tracer.on_request_end(trace_ctx, request, response)
 
             return response
 
@@ -541,7 +543,7 @@ class AbstractClient(BaseAbstractClient):
         request: AbstractRequest,
         response_class: Type[AbstractResponse],
         validator: Callable[..., None],
-        _trace_ctx: SimpleNamespace = SimpleNamespace(),
+        _trace_ctx: Optional[SimpleNamespace] = None,
         **kwargs: Any,
     ) -> Optional[AbstractResponse]:
         kwargs = {**self._request_args, **kwargs}
@@ -588,7 +590,7 @@ class AbstractAsyncClient(BaseAbstractClient):
     async def send(
         self,
         request: Request,
-        _trace_ctx: SimpleNamespace = SimpleNamespace(),
+        _trace_ctx: Optional[SimpleNamespace] = None,
         _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
         **kwargs: Any,
     ) -> Optional[Response]:
@@ -618,25 +620,27 @@ class AbstractAsyncClient(BaseAbstractClient):
         async def wrapper(
             self: 'AbstractAsyncClient',
             request: Request,
-            _trace_ctx: SimpleNamespace = SimpleNamespace(),
+            _trace_ctx: Optional[SimpleNamespace] = None,
             **kwargs: Any,
         ) -> Response:
             """
             Adds tracing logic to the method.
             """
 
+            trace_ctx = _trace_ctx or SimpleNamespace()
+
             for tracer in self._tracers:
-                tracer.on_request_begin(_trace_ctx, request)
+                tracer.on_request_begin(trace_ctx, request)
 
             try:
-                response = await method(self, request, _trace_ctx=_trace_ctx, **kwargs)
+                response = await method(self, request, _trace_ctx=trace_ctx, **kwargs)
             except BaseException as e:
                 for tracer in self._tracers:
-                    tracer.on_error(_trace_ctx, request, e)
+                    tracer.on_error(trace_ctx, request, e)
                 raise
 
             for tracer in self._tracers:
-                tracer.on_request_end(_trace_ctx, request, response)
+                tracer.on_request_end(trace_ctx, request, response)
 
             return response
 
@@ -673,7 +677,7 @@ class AbstractAsyncClient(BaseAbstractClient):
         request: AbstractRequest,
         response_class: Type[AbstractResponse],
         validator: Callable[..., None],
-        _trace_ctx: SimpleNamespace = SimpleNamespace(),
+        _trace_ctx: Optional[SimpleNamespace] = None,
         **kwargs: Any,
     ) -> Optional[AbstractResponse]:
         kwargs = {**self._request_args, **kwargs}
@@ -697,7 +701,7 @@ class AbstractAsyncClient(BaseAbstractClient):
         self,
         method: str,
         *args: Any,
-        _trace_ctx: SimpleNamespace = SimpleNamespace(),
+        _trace_ctx: Optional[SimpleNamespace] = None,
         **kwargs: Any,
     ) -> Optional[Response]:
         """
@@ -719,7 +723,7 @@ class AbstractAsyncClient(BaseAbstractClient):
         return await self.send(request, _trace_ctx=_trace_ctx)
 
     async def call(
-        self, method: str, *args: Any, _trace_ctx: SimpleNamespace = SimpleNamespace(), **kwargs: Any,
+        self, method: str, *args: Any, _trace_ctx: Optional[SimpleNamespace] = None, **kwargs: Any,
     ) -> Any:
         """
         Makes JSON-RPC call.
