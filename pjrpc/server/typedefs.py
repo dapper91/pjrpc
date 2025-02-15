@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Optional, Type, Union
+from typing import Any, Awaitable, Callable, Optional, Type, TypeVar, Union
 
 import pjrpc.common.exceptions
 from pjrpc.common import Request, Response, UnsetType
@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 
-ContextType = Optional[Any]
+ContextType = TypeVar('ContextType')
 '''Context argument for RPC methods and middlewares'''  # for sphinx autodoc
 
 ResponseOrUnset = Union[UnsetType, Response]
@@ -34,7 +34,7 @@ MiddlewareResponse = Union[UnsetType, Response]
 '''middlewares and handlers return Response or UnsetType'''  # for sphinx autodoc
 
 AsyncMiddlewareType = Callable[
-    [Request, ContextType, AsyncHandlerType],
+    [Request, ContextType, AsyncHandlerType[ContextType]],
     Awaitable[MiddlewareResponse],
 ]
 '''Asynchronous middleware type'''  # for sphinx autodoc
@@ -47,7 +47,7 @@ AsyncErrorHandlerType = Callable[
 
 
 MiddlewareType = Callable[
-    [Request, ContextType, HandlerType],
+    [Request, ContextType, HandlerType[ContextType]],
     MiddlewareResponse,
 ]
 '''Synchronous middleware type'''  # for sphinx autodoc

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pjrpc"
-version = "1.12.2"
+version = "1.13.0"
 description = "Extensible JSON-RPC library"
 authors = ["Dmitry Pershin <dapper1291@gmail.com>"]
 license = "Unlicense"

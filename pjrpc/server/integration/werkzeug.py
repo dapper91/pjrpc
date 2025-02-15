@@ -5,6 +5,8 @@ from werkzeug import exceptions
 
 import pjrpc.server
 
+WerkzeugDispatcher = pjrpc.server.Dispatcher[werkzeug.Request]
+
 
 class JsonRPC:
     """
@@ -16,7 +18,7 @@ class JsonRPC:
 
     def __init__(self, path: str = '', **kwargs: Any):
         self._path = path
-        self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
+        self._dispatcher = WerkzeugDispatcher(**kwargs)
 
     def __call__(self, environ: Dict[str, Any], start_response: Callable[..., Any]) -> Iterable[bytes]:
         return self.wsgi_app(environ, start_response)
@@ -28,7 +30,7 @@ class JsonRPC:
         return response(environ, start_response)
 
     @property
-    def dispatcher(self) -> pjrpc.server.Dispatcher:
+    def dispatcher(self) -> WerkzeugDispatcher:
         """
         JSON-RPC method dispatcher.
         """

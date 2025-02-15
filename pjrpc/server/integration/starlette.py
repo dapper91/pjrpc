@@ -15,6 +15,8 @@ from starlette.staticfiles import StaticFiles
 import pjrpc
 from pjrpc.server import specs, utils
 
+StarletteDispatcher = pjrpc.server.AsyncDispatcher[Request]
+
 
 class Application:
     """
@@ -40,8 +42,8 @@ class Application:
         self._specs = ([spec] if spec else []) + list(specs)
         self._app = app or Starlette()
         self._status_by_error = status_by_error
-        self._dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
-        self._endpoints: Dict[str, pjrpc.server.AsyncDispatcher] = {'': self._dispatcher}
+        self._dispatcher = StarletteDispatcher(**kwargs)
+        self._endpoints: Dict[str, StarletteDispatcher] = {'': self._dispatcher}
 
         self._app.add_route(path, ft.partial(self._rpc_handle, dispatcher=self._dispatcher), methods=['POST'])
 
@@ -74,7 +76,7 @@ class Application:
         return self._app
 
     @property
-    def dispatcher(self) -> pjrpc.server.AsyncDispatcher:
+    def dispatcher(self) -> StarletteDispatcher:
         """
         JSON-RPC method dispatcher.
         """
@@ -82,14 +84,14 @@ class Application:
         return self._dispatcher
 
     @property
-    def endpoints(self) -> Mapping[str, pjrpc.server.AsyncDispatcher]:
+    def endpoints(self) -> Mapping[str, StarletteDispatcher]:
         """
         JSON-RPC application registered endpoints.
         """
 
         return self._endpoints
 
-    def add_endpoint(self, prefix: str, **kwargs: Any) -> pjrpc.server.AsyncDispatcher:
+    def add_endpoint(self, prefix: str, **kwargs: Any) -> StarletteDispatcher:
         """
         Adds additional endpoint.
 
@@ -98,7 +100,7 @@ class Application:
         :return: dispatcher
         """
 
-        dispatcher = pjrpc.server.AsyncDispatcher(**kwargs)
+        dispatcher = StarletteDispatcher(**kwargs)
         self._endpoints[prefix] = dispatcher
 
         self._app.add_route(
@@ -133,7 +135,7 @@ class Application:
             media_type='text/html',
         )
 
-    async def _rpc_handle(self, http_request: Request, dispatcher: pjrpc.server.AsyncDispatcher) -> Response:
+    async def _rpc_handle(self, http_request: Request, dispatcher: StarletteDispatcher) -> Response:
         """
         Handles JSON-RPC request.
 

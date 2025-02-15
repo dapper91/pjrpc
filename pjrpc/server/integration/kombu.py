@@ -12,6 +12,8 @@ import pjrpc.server
 
 logger = logging.getLogger(__package__)
 
+KombuDispatcher = pjrpc.server.Dispatcher[kombu.Message]
+
 
 class Executor(kombu.mixins.ConsumerProducerMixin):
     """
@@ -42,10 +44,10 @@ class Executor(kombu.mixins.ConsumerProducerMixin):
         self._prefetch_count = prefetch_count
         self._publish_args = publish_args
 
-        self._dispatcher = pjrpc.server.Dispatcher(**kwargs)
+        self._dispatcher = KombuDispatcher(**kwargs)
 
     @property
-    def dispatcher(self) -> pjrpc.server.Dispatcher:
+    def dispatcher(self) -> KombuDispatcher:
         """
         JSON-RPC method dispatcher.
         """

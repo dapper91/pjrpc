@@ -1,6 +1,13 @@
 Changelog
 =========
 
+1.13.0 (2025-02-15)
+------------------
+
+- initialize dispatcher middleware stack in constructor.
+- generic context type added.
+
+
 1.12.2 (2025-01-15)
 ------------------
 
