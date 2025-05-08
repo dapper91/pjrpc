@@ -57,7 +57,7 @@ class PydanticValidator(base.BaseValidator):
     @ft.lru_cache(maxsize=None)
     def build_validation_model(self, method_name: str, signature: inspect.Signature) -> Type[pydantic.BaseModel]:
         schema = self.build_validation_schema(signature)
-        return pydantic.create_model(method_name, **schema, model_config=self._model_config)
+        return pydantic.create_model(method_name, **schema, __config__=self._model_config)
 
     def build_validation_schema(self, signature: inspect.Signature) -> Dict[str, Any]:
         """
