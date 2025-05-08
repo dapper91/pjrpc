@@ -1,6 +1,14 @@
 Changelog
 =========
 
+1.14.0 (2025-04-08)
+-------------------
+
+- pydantic 2.11 compatibility.
+- request kwargs passed to a tracer.
+- pydantic validator model cached.
+
+
 1.13.0 (2025-02-15)
 ------------------
 

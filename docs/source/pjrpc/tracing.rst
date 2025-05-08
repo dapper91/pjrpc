@@ -28,7 +28,7 @@ The following example illustrate opentracing integration. All you need is just i
             super().__init__()
             self._tracer = opentracing.global_tracer()
 
-        async def on_request_begin(self, trace_context, request):
+        async def on_request_begin(self, trace_context, request, request_kwargs):
             span = self._tracer.start_active_span(f'jsonrpc.{request.method}').span
             span.set_tag(tags.COMPONENT, 'pjrpc.client')
             span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
