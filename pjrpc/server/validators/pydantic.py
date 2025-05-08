@@ -1,6 +1,6 @@
 import functools as ft
 import inspect
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type
 
 import pydantic
 
@@ -45,10 +45,7 @@ class PydanticValidator(base.BaseValidator):
         """
 
         signature = self.signature(method, tuple(exclude))
-        schema = self.build_validation_schema(signature)
-
-        params_model = pydantic.create_model(method.__name__, **schema, model_config=self._model_config)
-
+        params_model = self.build_validation_model(method.__name__, signature)
         bound_params = self.bind(signature, params)
         try:
             obj = params_model(**bound_params.arguments)
@@ -58,6 +55,10 @@ class PydanticValidator(base.BaseValidator):
         return {attr: getattr(obj, attr) for attr in obj.model_fields} if self._coerce else bound_params.arguments
 
     @ft.lru_cache(maxsize=None)
+    def build_validation_model(self, method_name: str, signature: inspect.Signature) -> Type[pydantic.BaseModel]:
+        schema = self.build_validation_schema(signature)
+        return pydantic.create_model(method_name, **schema, __config__=self._model_config)
+
     def build_validation_schema(self, signature: inspect.Signature) -> Dict[str, Any]:
         """
         Builds pydantic model based validation schema from method signature.

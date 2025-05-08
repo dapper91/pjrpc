@@ -54,7 +54,7 @@ def test_request_tracing(mocker, req, resp, exc):
         else:
             cli.send(req, _trace_ctx=trace_ctx)
 
-        tracer.on_request_begin.assert_called_once_with(trace_ctx, req)
+        tracer.on_request_begin.assert_called_once_with(trace_ctx, req, {})
         tracer.on_request_end.assert_called_once_with(trace_ctx, req, resp)
 
 
@@ -106,5 +106,5 @@ async def test_async_request_tracing(mocker, req, resp, exc):
         else:
             await cli.send(req, _trace_ctx=trace_ctx)
 
-        tracer.on_request_begin.assert_called_once_with(trace_ctx, req)
+        tracer.on_request_begin.assert_called_once_with(trace_ctx, req, {})
         tracer.on_request_end.assert_called_once_with(trace_ctx, req, resp)

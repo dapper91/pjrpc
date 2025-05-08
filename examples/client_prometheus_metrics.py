@@ -11,7 +11,7 @@ method_errors_total = prom_cli.Counter('method_errors_total', 'Method errors cou
 
 
 class PrometheusTracer(tracer.Tracer):
-    def on_request_begin(self, trace_context, request):
+    def on_request_begin(self, trace_context, request, request_kwargs):
         trace_context.started_at = time.time()
         method_call_total.labels(request.method).inc()
 
