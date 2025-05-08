@@ -486,6 +486,8 @@ class AbstractClient(BaseAbstractClient):
         def wrapper(
             self: 'AbstractClient',
             request: AbstractRequest,
+            response_class: Type[AbstractResponse],
+            validator: Callable[..., None],
             _trace_ctx: Optional[SimpleNamespace] = None,
             **kwargs: Any,
         ) -> Optional[AbstractResponse]:
@@ -496,10 +498,12 @@ class AbstractClient(BaseAbstractClient):
             trace_ctx = _trace_ctx or SimpleNamespace()
 
             for tracer in self._tracers:
-                tracer.on_request_begin(trace_ctx, request)
+                tracer.on_request_begin(trace_ctx, request, kwargs)
 
             try:
-                response = method(self, request, _trace_ctx=trace_ctx, **kwargs)
+                response = method(
+                    self, request, response_class=response_class, validator=validator, _trace_ctx=trace_ctx, **kwargs,
+                )
             except BaseException as e:
                 for tracer in self._tracers:
                     tracer.on_error(trace_ctx, request, e)
@@ -620,6 +624,8 @@ class AbstractAsyncClient(BaseAbstractClient):
         async def wrapper(
             self: 'AbstractAsyncClient',
             request: Request,
+            response_class: Type[AbstractResponse],
+            validator: Callable[..., None],
             _trace_ctx: Optional[SimpleNamespace] = None,
             **kwargs: Any,
         ) -> Response:
@@ -630,10 +636,12 @@ class AbstractAsyncClient(BaseAbstractClient):
             trace_ctx = _trace_ctx or SimpleNamespace()
 
             for tracer in self._tracers:
-                tracer.on_request_begin(trace_ctx, request)
+                tracer.on_request_begin(trace_ctx, request, kwargs)
 
             try:
-                response = await method(self, request, _trace_ctx=trace_ctx, **kwargs)
+                response = await method(
+                    self, request, response_class=response_class, validator=validator, _trace_ctx=trace_ctx, **kwargs,
+                )
             except BaseException as e:
                 for tracer in self._tracers:
                     tracer.on_error(trace_ctx, request, e)
