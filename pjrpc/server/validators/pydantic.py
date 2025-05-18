@@ -1,10 +1,9 @@
-import functools as ft
 import inspect
-from typing import Any, Callable, Dict, Iterable, List, Optional, Type
+from typing import Any, Dict, Iterable, List, Optional, Type
 
 import pydantic
 
-from pjrpc.common.typedefs import JsonRpcParams
+from pjrpc.common.typedefs import JsonRpcParams, MethodType
 from pjrpc.server.typedefs import ExcludeFunc
 
 from . import base
@@ -12,7 +11,7 @@ from . import base
 
 class PydanticValidator(base.BaseValidator):
     """
-    Parameters validator based on `pydantic <https://pydantic-docs.helpmanual.io/>`_ library.
+    Method parameters validator factory based on `pydantic <https://pydantic-docs.helpmanual.io/>`_ library.
     Uses python type annotations for parameters validation.
 
     :param coerce: if ``True`` returns converted (coerced) parameters according to parameter type annotation
@@ -30,36 +29,56 @@ class PydanticValidator(base.BaseValidator):
         # https://pydantic-docs.helpmanual.io/usage/model_config/
         self._model_config = pydantic.ConfigDict(**config_args)  # type: ignore[typeddict-item]
 
-    def validate_method(
-        self, method: Callable[..., Any], params: Optional['JsonRpcParams'], exclude: Iterable[str] = (), **kwargs: Any,
-    ) -> Dict[str, Any]:
+    def build_method_validator(
+            self,
+            method: MethodType,
+            exclude: Iterable[str] = (),
+            **kwargs: Any,
+    ) -> 'PydanticMethodValidator':
+        return PydanticMethodValidator(method, self._exclude_param, exclude, self._coerce, self._model_config)
+
+
+class PydanticMethodValidator(base.BaseMethodValidator):
+    """
+    Pydantic method parameters validator based on `pydantic <https://pydantic-docs.helpmanual.io/>`_ library.
+    """
+
+    def __init__(
+            self,
+            method: MethodType,
+            exclude_func: ExcludeFunc,
+            exclude: Iterable[str],
+            coerce: bool,
+            model_config: pydantic.ConfigDict,
+    ):
+        super().__init__(method, exclude_func, exclude)
+        self._coerce = coerce
+        self._model_config = model_config
+        self._params_model = self._build_validation_model(method.__name__)
+
+    def validate_params(self, params: Optional['JsonRpcParams']) -> Dict[str, Any]:
         """
         Validates params against method using ``pydantic`` validator.
 
-        :param method: method to validate parameters against
         :param params: parameters to be validated
-        :param exclude: parameter names to be excluded from validation
 
         :returns: coerced parameters if `coerce` flag is ``True`` otherwise parameters as is
         :raises: ValidationError
         """
 
-        signature = self.signature(method, tuple(exclude))
-        params_model = self.build_validation_model(method.__name__, signature)
-        bound_params = self.bind(signature, params)
+        bound_params = self._bind(params)
         try:
-            obj = params_model(**bound_params.arguments)
+            obj = self._params_model(**bound_params.arguments)
         except pydantic.ValidationError as e:
             raise base.ValidationError(*e.errors()) from e
 
         return {attr: getattr(obj, attr) for attr in obj.model_fields} if self._coerce else bound_params.arguments
 
-    @ft.lru_cache(maxsize=None)
-    def build_validation_model(self, method_name: str, signature: inspect.Signature) -> Type[pydantic.BaseModel]:
-        schema = self.build_validation_schema(signature)
+    def _build_validation_model(self, method_name: str) -> Type[pydantic.BaseModel]:
+        schema = self._build_validation_schema(self._signature)
         return pydantic.create_model(method_name, **schema, __config__=self._model_config)
 
-    def build_validation_schema(self, signature: inspect.Signature) -> Dict[str, Any]:
+    def _build_validation_schema(self, signature: inspect.Signature) -> Dict[str, Any]:
         """
         Builds pydantic model based validation schema from method signature.
 

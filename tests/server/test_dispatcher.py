@@ -111,10 +111,8 @@ async def test_method_registry_view():
 
     registry.view(MethodView, prefix='view')
 
-    assert registry['view.method1'].validator == validator
-    assert registry['view.method1'].validator_args == validator_args
-    assert registry['view.method2'].validator == validator
-    assert registry['view.method2'].validator_args == validator_args
+    assert isinstance(registry['view.method1'].validator, validators.BaseMethodValidator)
+    assert isinstance(registry['view.method2'].validator, validators.BaseMethodValidator)
 
 
 async def test_method_view_validation():
