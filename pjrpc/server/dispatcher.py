@@ -51,13 +51,18 @@ class Method:
 
         meta = utils.set_meta(method, method_name=self.name, context_name=context)
 
-        self.validator, self.validator_args = meta.get('validator', default_validator), meta.get('validator_args', {})
+        validator_factory: validators.BaseValidator = meta.get('validator', default_validator)
+        validator_args = meta.get('validator_args', {})
+
+        self.validator = validator_factory.build_method_validator(
+            method,
+            exclude=(self.context,) if self.context else (),
+            **validator_args,
+        )
 
     def bind(self, params: Optional['JsonRpcParams'], context: Optional[Any] = None) -> MethodType:
         method_args = []
-        method_kwargs = self.validator.validate_method(
-            self.method, params, exclude=(self.context,) if self.context else (), **self.validator_args,
-        )
+        method_kwargs = self.validator.validate_params(params)
 
         if self.context is not None:
             if self.positional:
@@ -99,16 +104,17 @@ class ViewMethod(Method):
         context: Optional[Any] = None,
         positional: bool = False,
     ):
-        super().__init__(getattr(view_cls, method_name), name or method_name, context, positional)
+        super().__init__(getattr(view_cls, method_name), name or method_name, 'self', positional)
+        self.view_context = context
 
         self.view_cls = view_cls
         self.method_name = method_name
 
     def bind(self, params: Optional['JsonRpcParams'], context: Optional[Any] = None) -> MethodType:
-        view = self.view_cls(context) if self.context else self.view_cls()
+        view = self.view_cls(context) if self.view_context else self.view_cls()
         method = getattr(view, self.method_name)
 
-        method_params = self.validator.validate_method(method, params, **self.validator_args)
+        method_params = self.validator.validate_params(params)
 
         return ft.partial(method, **method_params)
 

@@ -1,4 +1,3 @@
-import functools as ft
 import inspect
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -15,7 +14,7 @@ class ValidationError(Exception):
 
 class BaseValidator:
     """
-    Base method parameters validator. Uses :py:func:`inspect.signature` for validation.
+    Base method parameters validator factory. Uses :py:func:`inspect.signature` for validation.
 
     :param exclude_param: a function that decides if the parameters must be excluded
                           from validation (useful for dependency injection)
@@ -29,7 +28,7 @@ class BaseValidator:
         Decorator marks a method the parameters of which to be validated when calling it using JSON-RPC protocol.
 
         :param maybe_method: method the parameters of which to be validated or ``None`` if called as @validate(...)
-        :param kwargs: validator arguments
+        :param kwargs: method validator arguments
         """
 
         def decorator(method: MethodType) -> MethodType:
@@ -43,28 +42,39 @@ class BaseValidator:
         else:
             return decorator(maybe_method)
 
-    def validate_method(
-        self, method: MethodType, params: Optional['JsonRpcParams'], exclude: Iterable[str] = (), **kwargs: Any,
-    ) -> Dict[str, Any]:
+    def build_method_validator(
+            self,
+            method: MethodType,
+            exclude: Iterable[str] = (),
+            **kwargs: Any,
+    ) -> 'BaseMethodValidator':
+        return BaseMethodValidator(method, self._exclude_param, exclude)
+
+
+class BaseMethodValidator:
+    """
+    Base method parameters validator.
+    """
+
+    def __init__(self, method: MethodType, exclude_func: ExcludeFunc, exclude: Iterable[str] = ()):
+        self._method = method
+        self._signature = self._build_signature(method, exclude_func, tuple(exclude))
+
+    def validate_params(self, params: Optional['JsonRpcParams']) -> Dict[str, Any]:
         """
         Validates params against method signature.
 
-        :param method: method to validate parameters against
         :param params: parameters to be validated
-        :param exclude: parameter names to be excluded from validation
-        :param kwargs: additional validator arguments
 
         :raises: :py:class:`pjrpc.server.validators.ValidationError`
         :returns: bound method parameters
         """
 
-        signature = self.signature(method, tuple(exclude))
-        return self.bind(signature, params).arguments
+        return self._bind(params).arguments
 
-    def bind(self, signature: inspect.Signature, params: Optional['JsonRpcParams']) -> inspect.BoundArguments:
+    def _bind(self, params: Optional['JsonRpcParams']) -> inspect.BoundArguments:
         """
         Binds parameters to method.
-        :param signature: method to bind parameters to
         :param params: parameters to be bound
 
         :raises: ValidationError is parameters binding failed
@@ -75,12 +85,16 @@ class BaseValidator:
         method_kwargs = params if isinstance(params, dict) else {}
 
         try:
-            return signature.bind(*method_args, **method_kwargs)
+            return self._signature.bind(*method_args, **method_kwargs)
         except TypeError as e:
             raise ValidationError(str(e)) from e
 
-    @ft.lru_cache(None)
-    def signature(self, method: MethodType, exclude: Tuple[str, ...]) -> inspect.Signature:
+    def _build_signature(
+            self,
+            method: MethodType,
+            exclude_func: ExcludeFunc,
+            exclude: Tuple[str, ...] = (),
+    ) -> inspect.Signature:
         """
         Returns method signature.
 
@@ -93,7 +107,7 @@ class BaseValidator:
 
         method_parameters: List[inspect.Parameter] = []
         for param in signature.parameters.values():
-            if param.name not in exclude and not self._exclude_param(param.name, param.annotation, param.default):
+            if param.name not in exclude and not exclude_func(param.name, param.annotation, param.default):
                 method_parameters.append(param)
 
         return signature.replace(parameters=method_parameters)

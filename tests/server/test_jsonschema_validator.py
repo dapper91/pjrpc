@@ -156,8 +156,10 @@ from pjrpc.server.validators import jsonschema
     ], indirect=['dyn_method'],
 )
 def test_validation_success(dyn_method, params, schema):
-    validator = jsonschema.JsonSchemaValidator()
-    validator.validate_method(dyn_method, params, schema=schema)
+    validator_factory = jsonschema.JsonSchemaValidator()
+    validator = validator_factory.build_method_validator(dyn_method, schema=schema)
+
+    validator.validate_params(params)
 
 
 @pytest.mark.parametrize(
@@ -258,7 +260,8 @@ def test_validation_success(dyn_method, params, schema):
     ], indirect=['dyn_method'],
 )
 def test_validation_error(dyn_method, params, schema):
-    validator = jsonschema.JsonSchemaValidator()
+    validator_factory = jsonschema.JsonSchemaValidator()
+    validator = validator_factory.build_method_validator(dyn_method, schema=schema)
 
     with pytest.raises(validators.ValidationError):
-        validator.validate_method(dyn_method, params, schema=schema)
+        validator.validate_params(params)
