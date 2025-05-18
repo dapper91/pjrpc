@@ -1,12 +1,10 @@
 Changelog
 =========
 
-1.14.0 (2025-04-08)
+1.15.0 (2025-05-18)
 -------------------
 
-- pydantic 2.11 compatibility.
-- request kwargs passed to a tracer.
-- pydantic validator model cached.
+- request validator refactored. Validator is built once on method initialization to increase request handling performance.
 
 
 1.13.0 (2025-02-15)

@@ -19,8 +19,10 @@ from pjrpc.server import validators
     ], indirect=['dyn_method'],
 )
 def test_validation_success(dyn_method, params):
-    validator = validators.BaseValidator()
-    validator.validate_method(dyn_method, params)
+    validator_factory = validators.BaseValidator()
+    validator = validator_factory.build_method_validator(dyn_method)
+
+    validator.validate_params(params)
 
 
 @pytest.mark.parametrize(
@@ -35,10 +37,11 @@ def test_validation_success(dyn_method, params):
     ], indirect=['dyn_method'],
 )
 def test_validation_error(dyn_method, params):
-    validator = validators.BaseValidator()
+    validator_factory = validators.BaseValidator()
+    validator = validator_factory.build_method_validator(dyn_method)
 
     with pytest.raises(validators.ValidationError):
-        validator.validate_method(dyn_method, params)
+        validator.validate_params(params)
 
 
 @pytest.mark.parametrize(
@@ -51,8 +54,10 @@ def test_validation_error(dyn_method, params):
     ], indirect=['dyn_method'],
 )
 def test_validation_exclude_success(dyn_method, exclude, params):
-    validator = validators.BaseValidator()
-    validator.validate_method(dyn_method, params, exclude=exclude)
+    validator_factory = validators.BaseValidator()
+    validator = validator_factory.build_method_validator(dyn_method, exclude=exclude)
+
+    validator.validate_params(params)
 
 
 @pytest.mark.parametrize(
@@ -63,7 +68,8 @@ def test_validation_exclude_success(dyn_method, exclude, params):
     ], indirect=['dyn_method'],
 )
 def test_validation_exclude_error(dyn_method, exclude, params):
-    validator = validators.BaseValidator()
+    validator_factory = validators.BaseValidator()
+    validator = validator_factory.build_method_validator(dyn_method, exclude=exclude)
 
     with pytest.raises(validators.ValidationError):
-        validator.validate_method(dyn_method, params, exclude=exclude)
+        validator.validate_params(params)

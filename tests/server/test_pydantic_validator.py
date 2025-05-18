@@ -21,9 +21,11 @@ from pjrpc.server.validators import ValidationError, pydantic
     ], indirect=['dyn_method'],
 )
 def test_validation_success(dyn_method, params):
-    validator = pydantic.PydanticValidator()
-    validator.validate_method(dyn_method, params)
-    validator.validate_method(dyn_method, params)
+    validator_factory = pydantic.PydanticValidator()
+    validator = validator_factory.build_method_validator(dyn_method)
+
+    validator.validate_params(params)
+    validator.validate_params(params)
 
 
 @pytest.mark.parametrize(
@@ -38,10 +40,11 @@ def test_validation_success(dyn_method, params):
     ], indirect=['dyn_method'],
 )
 def test_validation_error(dyn_method, params):
-    validator = pydantic.PydanticValidator()
+    validator_factory = pydantic.PydanticValidator()
+    validator = validator_factory.build_method_validator(dyn_method)
 
     with pytest.raises(ValidationError):
-        validator.validate_method(dyn_method, params)
+        validator.validate_params(params)
 
 
 @pytest.mark.parametrize(
@@ -54,8 +57,10 @@ def test_validation_error(dyn_method, params):
     ], indirect=['dyn_method'],
 )
 def test_validation_exclude_success(dyn_method, exclude, params):
-    validator = pydantic.PydanticValidator()
-    validator.validate_method(dyn_method, params, exclude=exclude)
+    validator_factory = pydantic.PydanticValidator()
+    validator = validator_factory.build_method_validator(dyn_method, exclude=exclude)
+
+    validator.validate_params(params)
 
 
 @pytest.mark.parametrize(
@@ -66,7 +71,8 @@ def test_validation_exclude_success(dyn_method, exclude, params):
     ], indirect=['dyn_method'],
 )
 def test_validation_exclude_error(dyn_method, exclude, params):
-    validator = pydantic.PydanticValidator()
+    validator_factory = pydantic.PydanticValidator()
+    validator = validator_factory.build_method_validator(dyn_method, exclude=exclude)
 
     with pytest.raises(ValidationError):
-        validator.validate_method(dyn_method, params, exclude=exclude)
+        validator.validate_params(params)
