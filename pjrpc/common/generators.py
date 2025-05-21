@@ -5,7 +5,7 @@ Builtin request id generators. Implements several identifier types and generatio
 import itertools as it
 import random as _random
 import string
-import uuid as _uuid
+import uuid as std_uuid
 from typing import Generator
 
 
@@ -44,10 +44,10 @@ def random(length: int = 8, chars: str = string.digits + string.ascii_lowercase)
         yield ''.join((_random.choice(chars) for _ in range(length)))
 
 
-def uuid() -> Generator[_uuid.UUID, None, None]:
+def uuid() -> Generator[std_uuid.UUID, None, None]:
     """
     UUID id generator. Returns random UUIDs.
     """
 
     while True:
-        yield _uuid.uuid4()
+        yield std_uuid.uuid4()

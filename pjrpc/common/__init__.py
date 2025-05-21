@@ -3,8 +3,9 @@ Client and server common functions, types and classes that implements JSON-RPC p
 and agnostic to any transport protocol layer (http, socket, amqp) and server-side implementation.
 """
 
-from . import generators, typedefs
+from . import exceptions, generators, typedefs
 from .common import UNSET, JSONEncoder, MaybeSet, UnsetType
+from .exceptions import JsonRpcError
 from .v20 import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response
 
 DEFAULT_CONTENT_TYPE = 'application/json'
@@ -30,18 +31,20 @@ def set_default_content_type(content_type: str) -> None:
 __all__ = [
     'AbstractRequest',
     'AbstractResponse',
-    'Request',
-    'Response',
     'BatchRequest',
     'BatchResponse',
+    'DEFAULT_CONTENT_TYPE',
+    'exceptions',
+    'generators',
+    'JSONEncoder',
+    'JsonRpcError',
+    'MaybeSet',
+    'Request',
+    'REQUEST_CONTENT_TYPES',
+    'Response',
+    'RESPONSE_CONTENT_TYPES',
+    'set_default_content_type',
+    'typedefs',
     'UNSET',
     'UnsetType',
-    'MaybeSet',
-    'JSONEncoder',
-    'DEFAULT_CONTENT_TYPE',
-    'REQUEST_CONTENT_TYPES',
-    'RESPONSE_CONTENT_TYPES',
-    'generators',
-    'typedefs',
-    'set_default_content_type',
 ]
