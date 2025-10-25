@@ -8,7 +8,7 @@ from pjrpc.server.integration import werkzeug as integration
 methods = pjrpc.server.MethodRegistry()
 
 
-@methods.add(context='request')
+@methods.add(pass_context='request')
 def add_user(request: werkzeug.Request, user: dict):
     user_id = uuid.uuid4().hex
     request.environ['app'].users[user_id] = user

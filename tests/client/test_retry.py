@@ -6,18 +6,17 @@ import pjrpc
 from pjrpc.client import retry
 from pjrpc.client.backend import aiohttp as aiohttp_backend
 from pjrpc.client.backend import requests as requests_backend
-from pjrpc.common import UNSET
 
 
 @pytest.mark.parametrize(
     'strategy, expected',
     [
         (
-            retry.PeriodicBackoff(attempts=5, interval=1.0, jitter=lambda: 0.1),
+            retry.PeriodicBackoff(attempts=5, interval=1.0, jitter=lambda a: 0.1),
             (1.1, 1.1, 1.1, 1.1, 1.1),
         ),
         (
-            retry.ExponentialBackoff(attempts=5, base=1.0, factor=2.0, max_value=10.0, jitter=lambda: -0.2),
+            retry.ExponentialBackoff(attempts=5, base=1.0, factor=2.0, max_value=10.0, jitter=lambda a: -0.2),
             (0.8, 1.8, 3.8, 7.8, 10.0),
         ),
         (
@@ -58,10 +57,14 @@ async def test_async_client_retry_strategy_by_code(resp_code, resp_errors, retry
 
         client = aiohttp_backend.Client(
             url=test_url,
-            retry_strategy=retry.RetryStrategy(
-                codes=retry_codes,
-                backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
-            ),
+            middlewares=[
+                retry.AsyncRetryMiddleware(
+                    retry.RetryStrategy(
+                        codes=retry_codes,
+                        backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
+                    ),
+                ),
+            ],
         )
 
         for _ in range(resp_errors):
@@ -106,10 +109,14 @@ async def test_async_client_retry_strategy_by_exception(resp_exc, resp_errors, r
 
         client = aiohttp_backend.Client(
             url=test_url,
-            retry_strategy=retry.RetryStrategy(
-                exceptions=retry_exc,
-                backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
-            ),
+            middlewares=[
+                retry.AsyncRetryMiddleware(
+                    retry.RetryStrategy(
+                        exceptions=retry_exc,
+                        backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
+                    ),
+                ),
+            ],
         )
 
         for _ in range(resp_errors):
@@ -156,10 +163,14 @@ def test_client_retry_strategy_by_code(resp_code, resp_errors, retry_codes, retr
 
     client = requests_backend.Client(
         url=test_url,
-        retry_strategy=retry.RetryStrategy(
-            codes=retry_codes,
-            backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
-        ),
+        middlewares=[
+            retry.RetryMiddleware(
+                retry.RetryStrategy(
+                    codes=retry_codes,
+                    backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
+                ),
+            ),
+        ],
     )
 
     for _ in range(resp_errors):
@@ -208,10 +219,14 @@ def test_client_retry_strategy_by_exception(resp_exc, resp_errors, retry_exc, re
 
     client = requests_backend.Client(
         url=test_url,
-        retry_strategy=retry.RetryStrategy(
-            exceptions=retry_exc,
-            backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
-        ),
+        middlewares=[
+            retry.RetryMiddleware(
+                retry.RetryStrategy(
+                    exceptions=retry_exc,
+                    backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
+                ),
+            ),
+        ],
     )
 
     for _ in range(resp_errors):
@@ -233,11 +248,15 @@ def test_client_retry_strategy_by_code_and_exception():
 
     client = requests_backend.Client(
         url=test_url,
-        retry_strategy=retry.RetryStrategy(
-            codes={2000},
-            exceptions={TimeoutError},
-            backoff=retry.PeriodicBackoff(attempts=2, interval=0.0),
-        ),
+        middlewares=[
+            retry.RetryMiddleware(
+                retry.RetryStrategy(
+                    codes={2000},
+                    exceptions={TimeoutError},
+                    backoff=retry.PeriodicBackoff(attempts=2, interval=0.0),
+                ),
+            ),
+        ],
     )
 
     responses.add(
@@ -267,53 +286,3 @@ def test_client_retry_strategy_by_code_and_exception():
 
     actual_result = client.proxy.method()
     assert actual_result == expected_result
-
-
-@pytest.mark.parametrize(
-    'resp_code, default_retry_codes, request_retry_codes, success',
-    [
-        (2001, None, None, False),
-        (2001, {2001}, None, True),
-        (2001, None, {2001}, True),
-        (2001, {2001}, {2002}, False),
-        (2001, {2002}, {2001}, True),
-    ],
-)
-@responses.activate
-def test_request_retry_strategy(resp_code, default_retry_codes, request_retry_codes, success):
-    test_url = 'http://test.com/api'
-    expected_result = 'result'
-
-    resp_success = responses.Response(
-        method=responses.POST,
-        url=test_url,
-        status=200,
-        json={"jsonrpc": "2.0", "result": expected_result, "id": 1},
-    )
-    resp_error = responses.Response(
-        method=responses.POST,
-        url=test_url,
-        status=200,
-        json={"jsonrpc": "2.0", "error": {"code": resp_code, "message": "error"}, "id": 1},
-    )
-
-    default_retry_strategy = retry.RetryStrategy(
-        codes=default_retry_codes,
-        backoff=retry.PeriodicBackoff(attempts=1, interval=0.0),
-    ) if default_retry_codes else None
-
-    client = requests_backend.Client(url=test_url, retry_strategy=default_retry_strategy)
-
-    responses.add(resp_error)
-    responses.add(resp_success)
-
-    request_retry_strategy = retry.RetryStrategy(
-        codes=request_retry_codes,
-        backoff=retry.PeriodicBackoff(attempts=1, interval=0.0),
-    ) if request_retry_codes else UNSET
-
-    actual_result = client.send(pjrpc.Request('method', id=1), _retry_strategy=request_retry_strategy)
-    if success:
-        assert actual_result == pjrpc.Response(id=1, result=expected_result)
-    else:
-        assert actual_result == pjrpc.Response(id=1, error=pjrpc.exc.JsonRpcError(code=resp_code, message="error"))

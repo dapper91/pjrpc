@@ -1,6 +1,17 @@
 Changelog
 =========
 
+
+2.0.0 (2025-10-24)
+-------------------
+
+- client batch reqeust api simplified.
+- client tracers replaced by middlewares
+- server method params validation performance improved
+- server schema generation bugs fixed
+- client/server typing improved
+
+
 1.15.0 (2025-05-18)
 -------------------
 

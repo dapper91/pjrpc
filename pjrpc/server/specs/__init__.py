@@ -1,7 +1,8 @@
 import abc
 import enum
 import json
-from typing import Any, Dict, Iterable, Mapping, Optional
+import pathlib
+from typing import Any, Iterable, Mapping
 
 from pjrpc.server import Method
 
@@ -24,7 +25,7 @@ class BaseUI(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_static_folder(self) -> str:
+    def get_static_folder(self) -> pathlib.Path:
         """
         Returns ui statics folder.
         """
@@ -41,51 +42,14 @@ class BaseUI(abc.ABC):
 class Specification(abc.ABC):
     """
     JSON-RPC specification.
-
-    :param path: specification url path suffix
-    :param ui: specification ui instance
-    :param ui_path: specification ui url path suffix
     """
 
-    def __init__(self, path: str = '/spec.json', ui: Optional[BaseUI] = None, ui_path: Optional[str] = None):
-        self._path = path
-        self._ui = ui
-        self._ui_path = ui_path
-
-    @property
-    def path(self) -> str:
-        """
-        Returns specification url path.
-        """
-
-        return self._path
-
-    @property
-    def ui(self) -> Optional[BaseUI]:
-        """
-        Returns ui instance.
-        """
-
-        return self._ui
-
-    @property
-    def ui_path(self) -> Optional[str]:
-        """
-        Returns specification ui url path.
-        """
-
-        return self._ui_path
-
     @abc.abstractmethod
-    def schema(
-        self,
-        path: str,
-        methods_map: Mapping[str, Iterable[Method]] = {},
-    ) -> Dict[str, Any]:
+    def generate(self, root_endpoint: str, methods: Mapping[str, Iterable[Method]]) -> dict[str, Any]:
         """
         Returns specification schema.
 
-        :param path: methods endpoint path
-        :param methods_map: methods map the specification is generated for.
-                            Each item is a mapping from a prefix to methods on which the methods will be served
+        :param root_endpoint: root endpoint all the methods are served on
+        :param methods: methods map the specification is generated for.
+                        Each item is a mapping from a endpoint to methods on which the methods will be served
         """

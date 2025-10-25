@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pjrpc"
-version = "1.15.0"
+version = "2.0.0"
 description = "Extensible JSON-RPC library"
 authors = ["Dmitry Pershin <dapper1291@gmail.com>"]
 license = "Unlicense"
@@ -8,18 +8,13 @@ readme = "README.rst"
 homepage = "https://github.com/dapper91/pjrpc"
 repository = "https://github.com/dapper91/pjrpc"
 documentation = "https://pjrpc.readthedocs.io"
-keywords = [
-    'json-rpc', 'rpc', 'jsonrpc-client', 'jsonrpc-server',
-    'requests', 'aiohttp', 'flask', 'httpx', 'aio-pika', 'kombu',
-    'openapi', 'openrpc', 'starlette', 'django',
-]
+keywords = ['json-rpc', 'jsonrpc-client', 'jsonrpc-server', 'openapi', 'openrpc']
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "License :: Public Domain",
     "Framework :: AsyncIO",
-    "Framework :: Django",
     "Framework :: Flask",
     "Framework :: Pytest",
     "Typing :: Typed",
@@ -38,63 +33,53 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
 aio-pika = { version = ">=8.0", optional = true }
-aiofiles = { version = ">=0.7", optional = true }
 aiohttp = { version = ">=3.7", optional = true }
-django = { version = ">=3.0", optional = true }
-docstring-parser = { version = ">=0.8", optional = true }
 flask = { version = ">=2.0.0", optional = true }
 httpx = { version = ">=0.23.0", optional = true }
-jsonschema = {version = ">=3.0,<4.0", optional = true}
-kombu = { version = ">=5.1", optional = true }
-markupsafe = { version = "==2.0.1", optional = true }
 openapi-ui-bundles = { version = ">=0.1", optional = true }
-pydantic = {version = ">=2.0", optional = true}
+pydantic = {version = ">=1.10.20", optional = true}
 requests = { version = ">=2.0", optional = true }
-starlette = { version = ">=0.25.0", optional = true }
 werkzeug = { version = ">=2.0", optional = true}
-
-furo = {version = "^2022.12.7", optional = true}
-Sphinx = {version = "^5.3.0", optional = true}
-sphinx-copybutton = {version = "^0.5.1", optional = true}
-sphinx_design = {version = "^0.3.0", optional = true}
-toml = {version = "^0.10.2", optional = true}
 
 
 [tool.poetry.extras]
 aio-pika = ['aio-pika']
 aiohttp = ['aiohttp']
-django = ['django']
-docstring-parser = ['docstring-parser']
-flask = ['flask', 'markupsafe']
+flask = ['flask']
 httpx = ['httpx']
-jsonschema = ['jsonschema']
-kombu = ['kombu']
 openapi-ui-bundles = ['openapi-ui-bundles']
 pydantic = ['pydantic']
 requests = ['requests']
-starlette = ['starlette', 'aiofiles']
-test = ['docstring-parser', 'flask', 'jsonschema', 'openapi-ui-bundles', 'pydantic', 'werkzeug']
 werkzeug = ['werkzeug']
-docs = [
-    'sphinx', 'sphinx-copybutton', 'sphinx_design', 'furo', 'toml',
-    'aiohttp', 'aio-pika', 'flask', 'jsonschema', 'pydantic', 'requests', 'kombu'
-]
+
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+furo = "^2022.12.7"
+Sphinx = "^5.3.0"
+sphinx-copybutton = "^0.5.1"
+sphinx_design = "^0.3.0"
+toml = "^0.10.2"
+standard-imghdr = "^3.13.0"
+
 
 [tool.poetry.group.dev.dependencies]
+codecov = "^2.1.13"
+mypy = "^1.15.0"
+pre-commit = "~3.2.0"
 aioresponses = "^0.7.4"
 asynctest = "^0.13.0"
-codecov = "^2.1.13"
+deepdiff = "^8.0.1"
 pytest = "^7.4.0"
 pytest-aiohttp = "^1.0.4"
 pytest-cov = "^4.1.0"
 pytest-mock = "^3.11.1"
 responses = "^0.23.3"
 respx = "^0.22.0"
-mypy = "^1.7.1"
-pre-commit = "~3.2.0"
-types-jsonschema = "^4.23.0.20240813"
 types-requests = "^2.32.0.20241016"
-deepdiff = "^8.0.1"
+jsonschema = "^4.25.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -110,12 +95,3 @@ no_implicit_optional = true
 show_error_codes = true
 strict_equality = true
 warn_unused_ignores = true
-
-
-[[tool.mypy.overrides]]
-module = "django.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "kombu.*"
-ignore_missing_imports = true

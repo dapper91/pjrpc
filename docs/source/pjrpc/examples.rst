@@ -18,13 +18,6 @@ aio_pika server
     :language: python
 
 
-aiohttp class-based handler
----------------------------
-
-.. literalinclude:: ../../../examples/aiohttp_class_based_handler.py
-    :language: python
-
-
 aiohttp client
 --------------
 
@@ -74,13 +67,6 @@ client tracing
     :language: python
 
 
-flask class-based handler
--------------------------
-
-.. literalinclude:: ../../../examples/flask_class_based_handler.py
-    :language: python
-
-
 flask server
 ------------
 
@@ -99,27 +85,6 @@ httpserver
 ----------
 
 .. literalinclude:: ../../../examples/httpserver.py
-    :language: python
-
-
-jsonschema validator
---------------------
-
-.. literalinclude:: ../../../examples/jsonschema_validator.py
-    :language: python
-
-
-kombu client
-------------
-
-.. literalinclude:: ../../../examples/kombu_client.py
-    :language: python
-
-
-kombu server
-------------
-
-.. literalinclude:: ../../../examples/kombu_server.py
     :language: python
 
 
@@ -197,11 +162,4 @@ aiohttp OpenAPI specification
 -----------------------------
 
 .. literalinclude:: ../../../examples/openapi_aiohttp.py
-    :language: python
-
-
-flask OpenRPC specification
----------------------------
-
-.. literalinclude:: ../../../examples/openrpc_flask.py
     :language: python

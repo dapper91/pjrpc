@@ -1,47 +1,55 @@
+from typing import Any, Mapping, Optional
+
 import opentracing
 from opentracing import propagation, tags
 
-from pjrpc.client import tracer
+from pjrpc.client import MiddlewareHandler
 from pjrpc.client.backend import requests as pjrpc_client
+from pjrpc.common import AbstractRequest, AbstractResponse, BatchRequest, Request
+
+tracer = opentracing.global_tracer()
 
 
-class ClientTracer(tracer.Tracer):
-
-    def __init__(self):
-        super().__init__()
-        self._tracer = opentracing.global_tracer()
-
-    def on_request_begin(self, trace_context, request, request_kwargs):
-        span = self._tracer.start_active_span(f'jsonrpc.{request.method}').span
+def tracing_middleware(
+    request: AbstractRequest,
+    request_kwargs: Mapping[str, Any],
+    /,
+    handler: MiddlewareHandler,
+) -> Optional[AbstractResponse]:
+    if isinstance(request, Request):
+        span = tracer.start_active_span(f'jsonrpc.{request.method}').span
         span.set_tag(tags.COMPONENT, 'pjrpc.client')
         span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
+        if http_headers := request_kwargs.get('headers', {}):
+            tracer.inject(
+                span_context=span,
+                format=propagation.Format.HTTP_HEADERS,
+                carrier=http_headers,
+            )
 
-        http_headers = request_kwargs.setdefault('headers', {})
-        self._tracer.inject(
-            span_context=span,
-            format=propagation.Format.HTTP_HEADERS,
-            carrier=http_headers,
-        )
-
-    def on_request_end(self, trace_context, request, response):
-        span = self._tracer.active_span
-        span.set_tag(tags.ERROR, response.is_error)
+        response = handler(request, request_kwargs)
         if response.is_error:
-            span.set_tag('jsonrpc.error_code', response.error.code)
-            span.set_tag('jsonrpc.error_message', response.error.message)
+            span = tracer.active_span
+            span.set_tag(tags.ERROR, response.is_error)
+            span.set_tag('jsonrpc.error_code', response.unwrap_error().code)
+            span.set_tag('jsonrpc.error_message', response.unwrap_error().message)
 
-        span.finish()
+            span.finish()
 
-    def on_error(self, trace_context, request, error):
-        span = self._tracer.active_span
-        span.set_tag(tags.ERROR, True)
-        span.finish()
+    elif isinstance(request, BatchRequest):
+        response = handler(request, request_kwargs)
+
+    else:
+        raise AssertionError("unreachable")
+
+    return response
 
 
 client = pjrpc_client.Client(
-    'http://localhost/api/v1', tracers=(
-        ClientTracer(),
-    ),
+    'http://localhost:8080/api/v1',
+    middlewares=[
+        tracing_middleware,
+    ],
 )
 
 result = client.proxy.sum(1, 2)

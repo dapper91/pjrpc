@@ -2,12 +2,12 @@
 Definition of package exceptions and JSON-RPC protocol errors.
 """
 
-import typing
-from typing import Any, Dict, Optional, Tuple, Type
-
-from pjrpc.common.typedefs import Json
+import dataclasses as dc
+from typing import Any, ClassVar, Optional
 
 from .common import UNSET, MaybeSet
+
+JsonT = Any
 
 
 class BaseError(Exception):
@@ -16,37 +16,27 @@ class BaseError(Exception):
     """
 
 
-class IdentityError(BaseError):
+class ProtocolError(BaseError):
+    """
+    Raised when JSON-RPC protocol is violated.
+    """
+
+
+class IdentityError(ProtocolError):
     """
     Raised when a batch requests/responses identifiers are not unique or missing.
     """
 
 
-class DeserializationError(BaseError, ValueError):
+class DeserializationError(ProtocolError, ValueError):
     """
     Request/response deserializatoin error.
     Raised when request/response json has incorrect format.
     """
 
 
-class JsonRpcErrorMeta(type):
-    """
-    :py:class:`pjrpc.common.exceptions.JsonRpcError` metaclass.
-    Builds a mapping from an error code number to an error class
-    inherited from a :py:class:`pjrpc.common.exceptions.JsonRpcError`.
-    """
-
-    __errors_mapping__: Dict[int, Type['JsonRpcError']] = {}
-
-    def __new__(mcs, name: str, bases: Tuple[type, ...], dct: Dict[str, Any]) -> Type['JsonRpcError']:
-        cls: Type['JsonRpcError'] = typing.cast(Type['JsonRpcError'], super().__new__(mcs, name, bases, dct))
-        if hasattr(cls, 'code') and cls.code is not None:
-            mcs.__errors_mapping__[cls.code] = cls
-
-        return cls
-
-
-class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
+@dc.dataclass(frozen=True)
+class JsonRpcError(BaseError):
     """
     `JSON-RPC <https://www.jsonrpc.org>`_ protocol error.
     For more information see `Error object <https://www.jsonrpc.org/specification#error_object>`_.
@@ -57,15 +47,19 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
     :param data: value that contains additional information about the error. May be omitted.
     """
 
-    # a number that indicates the error type that occurred
-    code: int = None  # type: ignore[assignment]
+    # typed subclasses error mapping
+    __TYPED_ERRORS__: ClassVar[dict[int, type['TypedError']]] = {}
 
-    # a string providing a short description of the error.
-    # the message SHOULD be limited to a concise single sentence.
-    message: str = None  # type: ignore[assignment]
+    code: int
+    message: str
+    data: MaybeSet[JsonT] = dc.field(repr=False, default=UNSET)
 
     @classmethod
-    def from_json(cls, json_data: 'Json') -> 'JsonRpcError':
+    def get_error_by_code(cls, code: int) -> Optional[type['TypedError']]:
+        return cls.__TYPED_ERRORS__.get(code)
+
+    @classmethod
+    def from_json(cls, json_data: JsonT) -> 'JsonRpcError':
         """
         Deserializes an error from json data. If data format is not correct :py:class:`ValueError` is raised.
 
@@ -87,48 +81,24 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
             if not isinstance(message, str):
                 raise DeserializationError("field 'message' must be of type string")
 
-            error_class = cls.get_error_cls(code, cls)
+            data = json_data.get('data', UNSET)
 
-            return error_class(code, message, json_data.get('data', UNSET))
+            if error_class := cls.get_error_by_code(code):
+                return error_class(message, data)
+            else:
+                return JsonRpcError(code, message, data)
+
         except KeyError as e:
             raise DeserializationError(f"required field {e} not found") from e
 
-    @classmethod
-    def get_error_cls(cls, code: int, default: Type['JsonRpcError']) -> Type['JsonRpcError']:
-        return type(cls).__errors_mapping__.get(code, default)
-
-    def __init__(self, code: Optional[int] = None, message: Optional[str] = None, data: MaybeSet[Any] = UNSET):
-        assert code or self.code, "code is not provided"
-        assert message or self.message, "message is not provided"
-
-        self.code = code or self.code
-        self.message = message or self.message
-        self.data = data
-
-        super().__init__(code, message)
-
-    def __str__(self) -> str:
-        return "({code}) {message}".format(code=self.code, message=self.message)
-
-    def __repr__(self) -> str:
-        return "{class_name}(code={code}, message={message}, data={data})".format(
-            class_name=self.__class__.__name__, code=repr(self.code), message=repr(self.message), data=repr(self.data),
-        )
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, JsonRpcError):
-            return NotImplemented
-
-        return (self.code, self.message, self.data) == (other.code, other.message, other.data)
-
-    def to_json(self) -> 'Json':
+    def to_json(self) -> JsonT:
         """
-        Serializes the error to a dict.
+        Serializes the error into a dict.
 
         :returns: serialized error
         """
 
-        json: Dict[str, Any] = {
+        json: dict[str, JsonT] = {
             'code': self.code,
             'message': self.message,
         }
@@ -137,64 +107,100 @@ class JsonRpcError(BaseError, metaclass=JsonRpcErrorMeta):
 
         return json
 
+    def __str__(self) -> str:
+        return f"({self.code}) {self.message}"
 
-class ClientError(JsonRpcError):
+
+class TypedError(JsonRpcError):
+    """
+    Typed JSON-RPC error.
+    Must not be instantiated directly, only subclassed.
+    """
+
+    # a number that indicates the error type that occurred
+    CODE: ClassVar[int]
+
+    # a string providing a short description of the error.
+    # the message SHOULD be limited to a concise single sentence.
+    MESSAGE: ClassVar[str]
+
+    def __init_subclass__(cls, base: bool = False, **kwargs: Any):
+        super().__init_subclass__(**kwargs)
+        if base:
+            cls.__TYPED_ERRORS__ = cls.__TYPED_ERRORS__.copy()
+
+        if issubclass(cls, TypedError) and (code := getattr(cls, 'CODE', None)) is not None:
+            cls.__TYPED_ERRORS__[code] = cls
+
+    def __init__(self, message: Optional[str] = None, data: MaybeSet[JsonT] = UNSET):
+        super().__init__(self.CODE, message or self.MESSAGE, data)
+
+
+class ClientBaseError(TypedError):
     """
     Raised when a client sent an incorrect request.
+    Must not be instantiated directly, only subclassed.
     """
 
 
-class ParseError(ClientError):
+class ParseError(ClientBaseError):
     """
     Invalid JSON was received by the server.
     An error occurred on the server while parsing the JSON text.
     """
 
-    code: int = -32700
-    message: str = 'Parse error'
+    CODE: ClassVar[int] = -32700
+    MESSAGE: ClassVar[str] = 'Parse error'
 
 
-class InvalidRequestError(ClientError):
+class InvalidRequestError(ClientBaseError):
     """
     The JSON sent is not a valid request object.
     """
 
-    code: int = -32600
-    message: str = 'Invalid Request'
+    CODE: ClassVar[int] = -32600
+    MESSAGE: ClassVar[str] = 'Invalid Request'
 
 
-class MethodNotFoundError(ClientError):
+class MethodNotFoundError(ClientBaseError):
     """
     The method does not exist / is not available.
     """
 
-    code: int = -32601
-    message: str = 'Method not found'
+    CODE: ClassVar[int] = -32601
+    MESSAGE: ClassVar[str] = 'Method not found'
 
 
-class InvalidParamsError(ClientError):
+class InvalidParamsError(ClientBaseError):
     """
     Invalid method parameter(s).
     """
 
-    code: int = -32602
-    message: str = 'Invalid params'
+    CODE: ClassVar[int] = -32602
+    MESSAGE: ClassVar[str] = 'Invalid params'
 
 
-class InternalError(JsonRpcError):
+class ServerBaseError(TypedError):
+    """
+    Raised when a server failed to process a reqeust.
+    Must not be instantiated directly, only subclassed.
+    """
+
+
+class InternalError(ServerBaseError):
     """
     Internal JSON-RPC error.
     """
 
-    code: int = -32603
-    message: str = 'Internal error'
+    CODE: ClassVar[int] = -32603
+    MESSAGE: ClassVar[str] = 'Internal error'
 
 
-class ServerError(JsonRpcError):
+class ServerError(ServerBaseError):
     """
     Reserved for implementation-defined server-errors.
     Codes from -32000 to -32099.
     """
 
-    code: int = -32000
-    message: str = 'Server error'
+    CODE: ClassVar[int] = -32000
+    MESSAGE: ClassVar[str] = 'Server error'

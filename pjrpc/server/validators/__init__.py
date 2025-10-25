@@ -2,11 +2,11 @@
 JSON-RPC method parameters validators.
 """
 
-from .base import BaseMethodValidator, BaseValidator, ExcludeFunc, ValidationError
+from .base import BaseValidator, BaseValidatorFactory, ExcludeFunc, ValidationError
 
 __all__ = [
     'BaseValidator',
-    'BaseMethodValidator',
+    'BaseValidatorFactory',
     'ExcludeFunc',
     'ValidationError',
 ]

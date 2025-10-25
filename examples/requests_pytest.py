@@ -4,7 +4,7 @@ import pytest
 
 import pjrpc
 from pjrpc.client.backend import requests as requests_client
-from pjrpc.client.integrations.pytest import PjRpcRequestsMocker
+from pjrpc.client.integrations.pytest_requests import PjRpcRequestsMocker
 
 
 def test_using_fixture(pjrpc_requests_mocker):
@@ -41,8 +41,12 @@ def test_using_resource_manager():
         mocker.add('http://localhost/api/v1', 'mult', result=4)
         mocker.add('http://localhost/api/v1', 'div', callback=lambda a, b: a/b)
 
-        result = client.batch.proxy.div(4, 2).mult(2, 2).call()
-        assert result == (2, 4)
+        with client.batch() as batch:
+            batch.proxy.div(4, 2)
+            batch.proxy.mult(2, 2)
+
+        result = batch.get_results()
+        assert result == [2, 4]
 
         localhost_calls = mocker.calls['http://localhost/api/v1']
         assert localhost_calls[('2.0', 'div')].mock_calls == [mock.call(4, 2)]

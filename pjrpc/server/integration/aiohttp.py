@@ -3,14 +3,23 @@ aiohttp JSON-RPC server integration.
 """
 
 import functools as ft
+import inspect
 import json
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Tuple
+from typing import Any, Callable, Iterable, Mapping, Optional
 
-import aiohttp.web
 from aiohttp import web
 
 import pjrpc
 from pjrpc.server import specs, utils
+from pjrpc.server.dispatcher import AsyncExecutor, AsyncMiddlewareType, JSONEncoder, MethodRegistry
+
+
+def is_aiohttp_request(idx: int, name: str, annotation: Optional[type[Any]], default: Optional[Any]) -> bool:
+    if annotation is None:
+        return False
+
+    return inspect.isclass(annotation) and issubclass(annotation, web.Request)
+
 
 AioHttpDispatcher = pjrpc.server.AsyncDispatcher[web.Request]
 
@@ -19,60 +28,46 @@ class Application:
     """
     `aiohttp <https://aiohttp.readthedocs.io/en/stable/web.html>`_ based JSON-RPC server.
 
-    :param path: JSON-RPC handler base path
-    :param spec: api specification instance
-    :param app: aiohttp application instance
+    :param prefix: JSON-RPC handler base path
+    :param http_app: aiohttp application instance
     :param status_by_error: a function returns http status code by json-rpc error codes, 200 for all errors by default
-    :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.AsyncDispatcher`
     """
 
     def __init__(
         self,
-        path: str = '',
-        spec: Optional[specs.Specification] = None,
-        specs: Iterable[specs.Specification] = (),
-        app: Optional[web.Application] = None,
-        status_by_error: Callable[[Tuple[int, ...]], int] = lambda codes: 200,
-        **kwargs: Any,
+        prefix: str = '',
+        http_app: Optional[web.Application] = None,
+        status_by_error: Callable[[tuple[int, ...]], int] = lambda codes: 200,
+        executor: Optional[AsyncExecutor] = None,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
+        json_encoder: type[JSONEncoder] = JSONEncoder,
+        json_decoder: Optional[type[json.JSONDecoder]] = None,
+        middlewares: Iterable[AsyncMiddlewareType[web.Request]] = (),
+        max_batch_size: Optional[int] = None,
     ):
-        self._path = path = path.rstrip('/')
-        self._specs = ([spec] if spec else []) + list(specs)
-        self._app = app or web.Application()
+        self._prefix = prefix.rstrip('/')
+        self._http_app = http_app or web.Application()
         self._status_by_error = status_by_error
-        self._dispatcher = AioHttpDispatcher(**kwargs)
-        self._endpoints: Dict[str, AioHttpDispatcher] = {'': self._dispatcher}
 
-        self._app.router.add_post(path, ft.partial(self._rpc_handle, dispatcher=self._dispatcher))
+        self._executor: Optional[AsyncExecutor] = executor
+        self._json_loader: Callable[..., Any] = json_loader
+        self._json_dumper: Callable[..., str] = json_dumper
+        self._json_encoder: type[JSONEncoder] = json_encoder
+        self._json_decoder: Optional[type[json.JSONDecoder]] = json_decoder
+        self._middlewares: Iterable[AsyncMiddlewareType[web.Request]] = middlewares
+        self._max_batch_size: Optional[int] = max_batch_size
 
-        for spec in self._specs:
-            self._app.router.add_get(
-                utils.join_path(path, spec.path),
-                ft.partial(self._generate_spec, spec=spec),
-            )
-
-            if spec.ui and spec.ui_path:
-                ui_app = web.Application()
-                ui_app.router.add_get('/', ft.partial(self._ui_index_page, spec=spec))
-                ui_app.router.add_get('/index.html', ft.partial(self._ui_index_page, spec=spec))
-                ui_app.router.add_static('/', spec.ui.get_static_folder())
-
-                self._app.add_subapp(utils.join_path(path, spec.ui_path), ui_app)
+        self._endpoints: dict[str, AioHttpDispatcher] = {}
+        self._subapps: dict[str, Application] = {}
 
     @property
-    def app(self) -> web.Application:
+    def http_app(self) -> web.Application:
         """
         aiohttp application.
         """
 
-        return self._app
-
-    @property
-    def dispatcher(self) -> AioHttpDispatcher:
-        """
-        JSON-RPC method dispatcher.
-        """
-
-        return self._dispatcher
+        return self._http_app
 
     @property
     def endpoints(self) -> Mapping[str, AioHttpDispatcher]:
@@ -82,68 +77,126 @@ class Application:
 
         return self._endpoints
 
+    def add_methods(self, registry: MethodRegistry, endpoint: str = '') -> 'Application':
+        """
+        Adds methods to the provided endpoint.
+
+        :param registry: methods registry
+        :param endpoint: endpoint path
+        """
+
+        dispatcher = self._get_endpoint(endpoint)
+        dispatcher.add_methods(registry)
+        return self
+
     def add_subapp(self, prefix: str, subapp: 'Application') -> None:
         """
-        Adds sub-application.
+        Adds sub-application accessible under provided prefix.
 
-        :param prefix: sub-application prefix
-        :param subapp: sub-application to be added
+        :param prefix: path under which sub-application is accessed.
+        :param subapp: sub-application instance
         """
 
         prefix = prefix.rstrip('/')
-        self._endpoints[utils.join_path(prefix, subapp._path)] = subapp.dispatcher
-        self._app.add_subapp(utils.join_path(self._path, prefix), subapp.app)
+        if not prefix:
+            raise ValueError("prefix cannot be empty")
 
-    def add_endpoint(
-        self,
-        prefix: str,
-        subapp: Optional[aiohttp.web.Application] = None,
-        **kwargs: Any,
-    ) -> AioHttpDispatcher:
+        for dispatcher in subapp.endpoints.values():
+            dispatcher.add_middlewares(*self._middlewares, before=True)
+
+        self._http_app.add_subapp(utils.join_path(self._prefix, prefix), subapp.http_app)
+        self._subapps[prefix] = subapp
+
+    def add_spec(self, spec: specs.Specification, endpoint: str = '', path: str = '') -> None:
         """
-        Adds additional endpoint.
+        Adds JSON-RPC specification of the provided endpoint to the provided path.
 
-        :param prefix: endpoint prefix
-        :param subapp: aiohttp subapp the endpoint will be served on
-        :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
-        :return: dispatcher
+        :param spec: JSON-RPC specification
+        :param endpoint: specification endpoint
+        :param path: path under witch the specification will be accessible.
         """
 
-        prefix = prefix.rstrip('/')
-        dispatcher = AioHttpDispatcher(**kwargs)
-        self._endpoints[prefix] = dispatcher
+        self._http_app.router.add_get(
+            utils.join_path(self._prefix, endpoint, path),
+            ft.partial(self._get_spec, endpoint=endpoint, spec=spec, path=path),
+        )
 
-        if subapp:
-            subapp.router.add_post('', ft.partial(self._rpc_handle, dispatcher=dispatcher))
-            self._app.add_subapp(utils.join_path(self._path, prefix), subapp)
-        else:
-            self._app.router.add_post(
-                utils.join_path(self._path, prefix),
+    def add_spec_ui(self, path: str, ui: specs.BaseUI, spec_url: str) -> None:
+        """
+        Adds JSON-RPC specification ui.
+
+        :param path: path under which ui will be accessible.
+        :param ui: specification ui instance
+        :param spec_url: specification url
+        """
+
+        ui_app = web.Application()
+        ui_app.router.add_get('/', ft.partial(self._ui_index_page, ui=ui, spec_url=spec_url))
+        ui_app.router.add_get('/index.html', ft.partial(self._ui_index_page, ui=ui, spec_url=spec_url))
+        ui_app.router.add_static('/', ui.get_static_folder())
+
+        self._http_app.add_subapp(utils.join_path(self._prefix, path), ui_app)
+
+    def generate_spec(self, spec: specs.Specification, base_path: str = '', endpoint: str = '') -> dict[str, Any]:
+        """
+        Generates JSON-RPC specification of the provided endpoint.
+
+        :param spec: JSON-RPC specification
+        :param base_path: specification base path
+        :param endpoint: endpoint the specification is generated for
+        """
+
+        app_endpoints = self._endpoints
+        for prefix, subapp in self._subapps.items():
+            for subprefix, dispatcher in subapp.endpoints.items():
+                app_endpoints[utils.join_path(prefix, subprefix)] = dispatcher
+
+        methods = {
+            utils.remove_prefix(dispatcher_endpoint, endpoint): dispatcher.registry.values()
+            for dispatcher_endpoint, dispatcher in app_endpoints.items()
+            if dispatcher_endpoint.startswith(endpoint)
+        }
+        return spec.generate(
+            root_endpoint=utils.join_path(base_path, endpoint),
+            methods=methods,
+        )
+
+    async def _ui_index_page(self, request: web.Request, ui: specs.BaseUI, spec_url: str) -> web.Response:
+        return web.Response(text=ui.get_index_page(spec_url), content_type='text/html')
+
+    def _get_endpoint(self, endpoint: str) -> AioHttpDispatcher:
+        endpoint = endpoint.rstrip('/')
+
+        if endpoint not in self._endpoints:
+            self._endpoints[endpoint] = dispatcher = AioHttpDispatcher(
+                executor=self._executor,
+                json_loader=self._json_loader,
+                json_dumper=self._json_dumper,
+                json_encoder=self._json_encoder,
+                json_decoder=self._json_decoder,
+                middlewares=self._middlewares,
+                max_batch_size=self._max_batch_size,
+            )
+            self._http_app.router.add_post(
+                utils.join_path(self._prefix, endpoint),
                 ft.partial(self._rpc_handle, dispatcher=dispatcher),
             )
+        else:
+            dispatcher = self._endpoints[endpoint]
 
         return dispatcher
 
-    def generate_spec(self, spec: specs.Specification, path: str = '') -> Dict[str, Any]:
-        methods = {path: dispatcher.registry.values() for path, dispatcher in self._endpoints.items()}
-        return spec.schema(path=path, methods_map=methods)
+    async def _get_spec(
+        self,
+        request: web.Request,
+        endpoint: str,
+        spec: specs.Specification,
+        path: str,
+    ) -> web.Response:
+        base_path = utils.remove_suffix(request.path, suffix=utils.join_path(endpoint, path))
+        schema = self.generate_spec(base_path=base_path, endpoint=endpoint.rstrip('/'), spec=spec)
 
-    async def _generate_spec(self, request: web.Request, spec: specs.Specification) -> web.Response:
-        endpoint_path = utils.remove_suffix(request.path, suffix=spec.path)
-        schema = self.generate_spec(path=endpoint_path, spec=spec)
-
-        return web.json_response(text=json.dumps(schema, cls=specs.JSONEncoder))
-
-    async def _ui_index_page(self, request: web.Request, spec: specs.Specification) -> web.Response:
-        assert spec.ui is not None, "spec is not set"
-
-        app_path = request.path.rsplit(spec.ui_path, maxsplit=1)[0]
-        spec_full_path = utils.join_path(app_path, spec.path)
-
-        return web.Response(
-            text=spec.ui.get_index_page(spec_url=spec_full_path),
-            content_type='text/html',
-        )
+        return web.json_response(text=self._json_dumper(schema, cls=self._json_encoder))
 
     async def _rpc_handle(self, http_request: web.Request, dispatcher: AioHttpDispatcher) -> web.Response:
         """

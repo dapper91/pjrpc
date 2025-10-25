@@ -1,7 +1,7 @@
 import pytest
 
 import pjrpc
-from pjrpc.common import exceptions, v20
+from pjrpc.common import BatchRequest, Request
 
 
 @pytest.mark.parametrize(
@@ -16,7 +16,7 @@ from pjrpc.common import exceptions, v20
     ],
 )
 def test_request_serialization(id, params):
-    request = v20.Request('method', params, id=id)
+    request = Request('method', params, id=id)
 
     actual_dict = request.to_json()
     expected_dict = {
@@ -51,7 +51,7 @@ def test_request_deserialization(id, params):
     if params:
         data.update(params=params)
 
-    request = v20.Request.from_json(data)
+    request = Request.from_json(data)
 
     assert request.id == id
     assert request.method == 'method'
@@ -60,46 +60,44 @@ def test_request_deserialization(id, params):
 
 
 def test_request_properties():
-    request = v20.Request('method')
+    request = Request('method', {})
 
     assert request.is_notification is True
 
 
 def test_request_repr():
-    request = v20.Request(method='method', params={'a': 1, 'b': 2})
-    assert str(request) == "method(a=1,b=2)"
+    request = Request(method='method', params={'a': 1, 'b': 2})
     assert repr(request) == "Request(method='method', params={'a': 1, 'b': 2}, id=None)"
 
-    request = v20.Request(method='method', params=[1, 2], id=1)
-    assert str(request) == "method(1, 2)"
+    request = Request(method='method', params=[1, 2], id=1)
     assert repr(request) == "Request(method='method', params=[1, 2], id=1)"
 
 
 def test_request_deserialization_error():
     with pytest.raises(pjrpc.exc.DeserializationError, match="data must be of type dict"):
-        v20.Request.from_json([])
+        Request.from_json([])
 
     with pytest.raises(pjrpc.exc.DeserializationError, match="required field 'jsonrpc' not found"):
-        v20.Request.from_json({})
+        Request.from_json({})
 
     with pytest.raises(pjrpc.exc.DeserializationError, match="jsonrpc version '2.1' is not supported"):
-        v20.Request.from_json({'jsonrpc': '2.1'})
+        Request.from_json({'jsonrpc': '2.1'})
 
     with pytest.raises(pjrpc.exc.DeserializationError, match="field 'id' must be of type integer or string"):
-        v20.Request.from_json({'jsonrpc': '2.0', 'id': {}})
+        Request.from_json({'jsonrpc': '2.0', 'id': {}})
 
     with pytest.raises(pjrpc.exc.DeserializationError, match="field 'method' must be of type string"):
-        v20.Request.from_json({'jsonrpc': '2.0', 'id': 1, 'method': 1})
+        Request.from_json({'jsonrpc': '2.0', 'id': 1, 'method': 1})
 
     with pytest.raises(pjrpc.exc.DeserializationError, match="field 'params' must be of type list or dict"):
-        v20.Request.from_json({'jsonrpc': '2.0', 'id': 1, 'method': 'method', 'params': 'params'})
+        Request.from_json({'jsonrpc': '2.0', 'id': 1, 'method': 'method', 'params': 'params'})
 
 
 def test_batch_request_serialization():
-    request = v20.BatchRequest(
-        v20.Request('method0', [], id=None),
-        v20.Request('method1', [1, 2], id=1),
-        v20.Request('method2', {'a': 1, 'b': 2}, id=None),
+    request = BatchRequest(
+        Request('method0', [], id=None),
+        Request('method1', [1, 2], id=1),
+        Request('method2', {'a': 1, 'b': 2}, id=None),
     )
 
     actual_dict = request.to_json()
@@ -146,7 +144,7 @@ def test_batch_request_deserialization():
         },
     ]
 
-    request = v20.BatchRequest.from_json(data)
+    request = BatchRequest.from_json(data)
 
     assert request[0].id is None
     assert request[0].method == 'method0'
@@ -162,50 +160,32 @@ def test_batch_request_deserialization():
 
 
 def test_batch_request_methods():
-    request = v20.BatchRequest(
-        v20.Request('method1', [1], id=None),
-        v20.Request('method2', [1], id=None),
-        v20.Request('method3', [1], id=1),
+    request = BatchRequest(
+        Request('method1', [1], id=None),
+        Request('method2', [1], id=None),
+        Request('method3', [1], id=1),
     )
     assert len(request) == 3
     assert not request.is_notification
 
-    request.append(v20.Request('method4', [2], id=2))
-    assert len(request) == 4
-
-    request.extend([
-        v20.Request('method5', [3], id=3),
-        v20.Request('method6', [4], id=4),
-    ])
-    assert len(request) == 6
-
-    request = v20.BatchRequest(
-        v20.Request(id=None, method='method1'),
-        v20.Request(id=None, method='method2'),
+    request = BatchRequest(
+        Request(id=None, method='method1', params={}),
+        Request(id=None, method='method2', params={}),
     )
 
     assert request.is_notification
 
 
-def test_batch_request_errors():
-    with pytest.raises(exceptions.IdentityError):
-        v20.BatchRequest(
-            v20.Request(id=1, method='method'),
-            v20.Request(id=1, method='method'),
-        )
-
-
 def test_batch_request_repr():
-    request = v20.BatchRequest(
-        v20.Request('method1', [1, 2]),
-        v20.Request('method2', {'a': 1, 'b': 2}, id='2'),
+    request = BatchRequest(
+        Request('method1', [1, 2]),
+        Request('method2', {'a': 1, 'b': 2}, id='2'),
     )
 
-    assert str(request) == "[method1(1, 2), method2(a=1,b=2)]"
-    assert repr(request) == "BatchRequest(Request(method='method1', params=[1, 2], id=None)," \
-                            "Request(method='method2', params={'a': 1, 'b': 2}, id='2'))"
+    assert repr(request) == "BatchRequest(requests=(Request(method='method1', params=[1, 2], id=None), "\
+                            "Request(method='method2', params={'a': 1, 'b': 2}, id='2')))"
 
 
 def test_batch_request_deserialization_error():
     with pytest.raises(pjrpc.exc.DeserializationError, match="data must be of type list"):
-        v20.BatchRequest.from_json({})
+        BatchRequest.from_json({})

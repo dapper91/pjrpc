@@ -1,43 +1,31 @@
 import uuid
 from typing import Annotated, Any
 
+import aiohttp.typedefs
 import aiohttp_cors
 import pydantic as pd
 from aiohttp import helpers, web
 
 import pjrpc.server.specs.extractors.pydantic
+import pjrpc.server.specs.openapi.ui
 from pjrpc.server.integration import aiohttp as integration
 from pjrpc.server.specs import extractors
 from pjrpc.server.specs import openapi as specs
 from pjrpc.server.validators import pydantic as validators
 
-methods = pjrpc.server.MethodRegistry()
-validator = validators.PydanticValidator()
-
 credentials = {"admin": "admin"}
 
 
-class JSONEncoder(pjrpc.JSONEncoder):
-    def default(self, o: Any) -> Any:
-        if isinstance(o, pd.BaseModel):
-            return o.model_dump()
-        if isinstance(o, uuid.UUID):
-            return str(o)
-
-        return super().default(o)
-
-
-class AuthenticatedJsonRPC(integration.Application):
-    async def _rpc_handle(self, http_request: web.Request, dispatcher: pjrpc.server.Dispatcher) -> web.Response:
-        try:
-            auth = helpers.BasicAuth.decode(http_request.headers.get('Authorization', ''))
-        except ValueError:
-            raise web.HTTPUnauthorized
-
-        if credentials.get(auth.login) != auth.password:
-            raise web.HTTPUnauthorized
-
-        return await super()._rpc_handle(http_request=http_request, dispatcher=dispatcher)
+methods = pjrpc.server.MethodRegistry(
+    validator_factory=validators.PydanticValidatorFactory(exclude=integration.is_aiohttp_request),
+    metadata_processors=[
+        specs.MethodSpecificationGenerator(
+            extractor=extractors.pydantic.PydanticMethodInfoExtractor(
+                exclude=integration.is_aiohttp_request,
+            ),
+        ),
+    ],
+)
 
 
 UserName = Annotated[
@@ -79,31 +67,34 @@ class UserOut(UserIn):
     id: UserId
 
 
-class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+class AlreadyExistsError(pjrpc.exc.TypedError):
     """
     User already registered error.
     """
 
-    code = 2001
-    message = "user already exists"
+    CODE = 2001
+    MESSAGE = "user already exists"
 
 
-class NotFoundError(pjrpc.exc.JsonRpcError):
+class NotFoundError(pjrpc.exc.TypedError):
     """
     User not found error.
     """
 
-    code = 2002
-    message = "user not found"
+    CODE = 2002
+    MESSAGE = "user not found"
 
 
-@specs.annotate(
-    summary='Creates a user',
-    tags=['users'],
-    errors=[AlreadyExistsError],
+@methods.add(
+    pass_context='request',
+    metadata=[
+        specs.metadata(
+            summary='Creates a user',
+            tags=['users'],
+            errors=[AlreadyExistsError],
+        ),
+    ],
 )
-@methods.add(context='request')
-@validator.validate
 def add_user(request: web.Request, user: UserIn) -> UserOut:
     """
     Creates a user.
@@ -118,19 +109,22 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
         if user.name == existing_user.name:
             raise AlreadyExistsError()
 
-    user_id = uuid.uuid4().hex
+    user_id = uuid.uuid4()
     request.config_dict['users'][user_id] = user
 
     return UserOut(id=user_id, **user.model_dump())
 
 
-@specs.annotate(
-    summary='Returns a user',
-    tags=['users'],
-    errors=[NotFoundError],
+@methods.add(
+    pass_context='request',
+    metadata=[
+        specs.metadata(
+            summary='Returns a user',
+            tags=['users'],
+            errors=[NotFoundError],
+        ),
+    ],
 )
-@methods.add(context='request')
-@validator.validate
 def get_user(request: web.Request, user_id: UserId) -> UserOut:
     """
     Returns a user.
@@ -148,13 +142,16 @@ def get_user(request: web.Request, user_id: UserId) -> UserOut:
     return UserOut(id=user_id, **user.model_dump())
 
 
-@specs.annotate(
-    summary='Deletes a user',
-    tags=['users'],
-    errors=[NotFoundError],
+@methods.add(
+    pass_context='request',
+    metadata=[
+        specs.metadata(
+            summary='Deletes a user',
+            tags=['users'],
+            errors=[NotFoundError],
+        ),
+    ],
 )
-@methods.add(context='request')
-@validator.validate
 def delete_user(request: web.Request, user_id: UserId) -> None:
     """
     Deletes a user.
@@ -169,37 +166,70 @@ def delete_user(request: web.Request, user_id: UserId) -> None:
         raise NotFoundError()
 
 
-app = web.Application()
-app['users'] = {}
+class JSONEncoder(pjrpc.server.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, pd.BaseModel):
+            return o.model_dump()
+        if isinstance(o, uuid.UUID):
+            return str(o)
 
-jsonrpc_app = AuthenticatedJsonRPC(
-    '/api/v1',
-    json_encoder=JSONEncoder,
-    spec=specs.OpenAPI(
-        info=specs.Info(version="1.0.0", title="User storage"),
-        servers=[
-            specs.Server(
-                url='http://127.0.0.1:8080',
-            ),
-        ],
-        security_schemes=dict(
-            basicAuth=specs.SecurityScheme(
-                type=specs.SecuritySchemeType.HTTP,
-                scheme='basic',
-            ),
+        return super().default(o)
+
+
+async def basic_auth_middleware(request: web.Request, handler: aiohttp.typedefs.Handler) -> web.StreamResponse:
+    try:
+        auth = helpers.BasicAuth.decode(request.headers.get('Authorization', ''))
+    except ValueError:
+        raise web.HTTPUnauthorized
+
+    if credentials.get(auth.login) != auth.password:
+        raise web.HTTPUnauthorized
+
+    return await handler(request)
+
+
+openapi_spec = specs.OpenAPI(
+    info=specs.Info(version="1.0.0", title="User storage"),
+    servers=[
+        specs.Server(
+            url='http://127.0.0.1:8080',
         ),
-        security=[
-            dict(basicAuth=[]),
-        ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
-        ui=specs.SwaggerUI(),
+    ],
+    security_schemes=dict(
+        basicAuth=specs.SecurityScheme(
+            type=specs.SecuritySchemeType.HTTP,
+            scheme='basic',
+        ),
     ),
+    security=[
+        dict(basicAuth=[]),
+    ],
 )
-jsonrpc_app.dispatcher.add_methods(methods)
-app.add_subapp('/myapp', jsonrpc_app.app)
+
+http_app = web.Application()
+http_app['users'] = {}
+
+jsonrpc_app = integration.Application('/api')
+jsonrpc_app.add_spec(openapi_spec, path='openapi.json')
+jsonrpc_app.add_spec_ui('swagger', specs.ui.SwaggerUI(), spec_url='../openapi.json')
+jsonrpc_app.add_spec_ui('redoc', specs.ui.ReDoc(), spec_url='../openapi.json')
+
+jsonrpc_v1_app = integration.Application(
+    http_app=web.Application(
+        middlewares=[
+            basic_auth_middleware,
+        ],
+    ),
+    json_encoder=JSONEncoder,
+)
+jsonrpc_v1_app.add_methods(methods)
+
+
+jsonrpc_app.add_subapp('/v1', jsonrpc_v1_app)
+http_app.add_subapp('/rpc', jsonrpc_app.http_app)
 
 cors = aiohttp_cors.setup(
-    app, defaults={
+    http_app, defaults={
         '*': aiohttp_cors.ResourceOptions(
             allow_credentials=True,
             expose_headers='*',
@@ -207,9 +237,9 @@ cors = aiohttp_cors.setup(
         ),
     },
 )
-for route in list(app.router.routes()):
+for route in list(http_app.router.routes()):
     cors.add(route)
 
 
 if __name__ == "__main__":
-    web.run_app(app, host='localhost', port=8080)
+    web.run_app(http_app, host='localhost', port=8080)

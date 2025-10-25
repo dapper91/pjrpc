@@ -33,12 +33,6 @@ _____
 .. automodule:: pjrpc.server.integration.flask
     :members:
 
-kombu
-_____
-
-.. automodule:: pjrpc.server.integration.kombu
-    :members:
-
 aio_pika
 ________
 
@@ -59,11 +53,6 @@ Validators
 .. automodule:: pjrpc.server.validators
     :members:
 
-jsonschema
-__________
-
-.. automodule:: pjrpc.server.validators.jsonschema
-    :members:
 
 pydantic
 ________
@@ -89,16 +78,18 @@ __________
     :members:
 
 
-.. automodule:: pjrpc.server.specs.extractors.docstring
-    :members:
-
 schemas
 _______
 
+openapi
+.......
 
 .. automodule:: pjrpc.server.specs.openapi
     :members:
 
+
+openrpc
+.......
 
 .. automodule:: pjrpc.server.specs.openrpc
     :members:

@@ -4,7 +4,7 @@ Flask JSON-RPC extension.
 
 import functools as ft
 import json
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Iterable, Optional, Union
 
 import flask
 from flask import current_app
@@ -12,6 +12,7 @@ from werkzeug import exceptions
 
 import pjrpc.server
 from pjrpc.server import specs, utils
+from pjrpc.server.dispatcher import Executor, JSONEncoder, MethodRegistry, MiddlewareType
 
 FlaskDispatcher = pjrpc.server.Dispatcher[None]
 
@@ -20,147 +21,195 @@ class JsonRPC:
     """
     `Flask <https://flask.palletsprojects.com/en/1.1.x/>`_ framework JSON-RPC extension class.
 
-    :param path: JSON-RPC handler base path
-    :param spec: JSON-RPC specification
-    :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
+    :param prefix: JSON-RPC handler base path
+    :param status_by_error: a function returns http status code by json-rpc error codes, 200 for all errors by default
     """
 
     def __init__(
         self,
-        path: str,
-        spec: Optional[specs.Specification] = None,
-        specs: Iterable[specs.Specification] = (),
-        status_by_error: Callable[[Tuple[int, ...]], int] = lambda codes: 200,
-        **kwargs: Any,
+        prefix: str = '',
+        http_app: Optional[Union[flask.Flask, flask.Blueprint]] = None,
+        status_by_error: Callable[[tuple[int, ...]], int] = lambda codes: 200,
+        executor: Optional[Executor] = None,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
+        json_encoder: type[JSONEncoder] = JSONEncoder,
+        json_decoder: Optional[type[json.JSONDecoder]] = None,
+        middlewares: Iterable[MiddlewareType[None]] = (),
+        max_batch_size: Optional[int] = None,
     ):
-        self._path = path.rstrip('/')
-        self._specs = ([spec] if spec else []) + list(specs)
+        self._prefix = prefix.rstrip('/')
+        self._http_app = http_app or flask.Flask(__name__)
         self._status_by_error = status_by_error
 
-        kwargs.setdefault('json_loader', flask.json.loads)
-        kwargs.setdefault('json_dumper', flask.json.dumps)
+        self._executor = executor
+        self._json_loader = json_loader
+        self._json_dumper = json_dumper
+        self._json_encoder = json_encoder
+        self._json_decoder = json_decoder
+        self._middlewares = middlewares
+        self._max_batch_size = max_batch_size
 
-        self._dispatcher = FlaskDispatcher(**kwargs)
-        self._endpoints: Dict[str, FlaskDispatcher] = {'': self._dispatcher}
-        self._blueprints: Dict[str, flask.Blueprint] = {}
-
-    @property
-    def dispatcher(self) -> FlaskDispatcher:
-        """
-        JSON-RPC method dispatcher.
-        """
-
-        return self._dispatcher
+        self._endpoints: dict[str, FlaskDispatcher] = {}
+        self._subapps: dict[str, JsonRPC] = {}
 
     @property
-    def endpoints(self) -> Dict[str, FlaskDispatcher]:
+    def http_app(self) -> Union[flask.Flask, flask.Blueprint]:
+        """
+        aiohttp application.
+        """
+
+        return self._http_app
+
+    @property
+    def endpoints(self) -> dict[str, FlaskDispatcher]:
         """
         JSON-RPC application registered endpoints.
         """
 
         return self._endpoints
 
-    def add_endpoint(
-        self,
-        prefix: str,
-        blueprint: Optional[flask.Blueprint] = None,
-        **kwargs: Any,
-    ) -> FlaskDispatcher:
+    def add_methods(self, registry: MethodRegistry, endpoint: str = '') -> 'JsonRPC':
         """
-        Adds additional endpoint.
+        Adds methods to the provided endpoint.
 
-        :param prefix: endpoint prefix
-        :param blueprint: flask blueprint the endpoint will be served on
-        :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
-        :return: dispatcher
+        :param registry: methods registry
+        :param endpoint: endpoint path
         """
+
+        dispatcher = self._get_endpoint(endpoint)
+        dispatcher.add_methods(registry)
+        return self
+
+    def add_subapp(self, prefix: str, subapp: 'JsonRPC') -> None:
+        """
+        Adds sub-application accessible under provided prefix.
+
+        :param prefix: path under which sub-application is accessed.
+        :param subapp: sub-application instance
+        """
+
+        assert isinstance(subapp.http_app, flask.Blueprint), "subapp must be a sub-application instance"
 
         prefix = prefix.rstrip('/')
-        dispatcher = FlaskDispatcher(**kwargs)
+        if not prefix:
+            raise ValueError("prefix cannot be empty")
 
-        self._endpoints[prefix] = dispatcher
-        if blueprint is not None:
-            self._blueprints[prefix] = blueprint
+        for dispatcher in subapp.endpoints.values():
+            dispatcher.add_middlewares(*self._middlewares, before=True)
+
+        self._http_app.register_blueprint(subapp.http_app, url_prefix=utils.join_path(self._prefix, prefix))
+        self._subapps[prefix] = subapp
+
+    def add_spec(self, spec: specs.Specification, endpoint: str = '', path: str = '') -> None:
+        """
+        Adds JSON-RPC specification of the provided endpoint to the provided path.
+
+        :param spec: JSON-RPC specification
+        :param endpoint: specification endpoint
+        :param path: path under witch the specification will be accessible.
+        """
+
+        self._http_app.add_url_rule(
+            f"/{utils.join_path(self._prefix, endpoint, path)}",
+            methods=['GET'],
+            endpoint=self._get_spec.__name__,
+            view_func=ft.partial(self._get_spec, endpoint=endpoint, spec=spec, path=path),
+        )
+
+    def add_spec_ui(self, path: str, ui: specs.BaseUI, spec_url: str) -> None:
+        """
+        Adds JSON-RPC specification ui.
+
+        :param path: path under which ui will be accessible.
+        :param ui: specification ui instance
+        :param spec_url: specification url
+        """
+
+        ui_app = flask.Blueprint(ui.__class__.__name__, __name__)
+        ui_app.add_url_rule(
+            '/',
+            methods=['GET'],
+            endpoint=self._ui_index_page.__name__,
+            view_func=ft.partial(self._ui_index_page, ui=ui, spec_url=spec_url),
+        )
+        ui_app.add_url_rule(
+            '/index.html',
+            methods=['GET'],
+            endpoint=f'{self._ui_index_page.__name__}-index',
+            view_func=ft.partial(self._ui_index_page, ui=ui, spec_url=spec_url),
+        )
+        ui_app.add_url_rule(
+            '/<path:filename>',
+            methods=['GET'],
+            endpoint=self._ui_static.__name__,
+            view_func=ft.partial(self._ui_static, ui=ui),
+        )
+
+        self._http_app.register_blueprint(ui_app, url_prefix=utils.join_path(self._prefix, path))
+
+    def generate_spec(self, spec: specs.Specification, base_path: str = '', endpoint: str = '') -> dict[str, Any]:
+        """
+        Generates JSON-RPC specification of the provided endpoint.
+
+        :param spec: JSON-RPC specification
+        :param base_path: specification base path
+        :param endpoint: endpoint the specification is generated for
+        """
+
+        app_endpoints = self._endpoints
+        for prefix, subapp in self._subapps.items():
+            for subprefix, dispatcher in subapp.endpoints.items():
+                app_endpoints[utils.join_path(prefix, subprefix)] = dispatcher
+
+        methods = {
+            utils.remove_prefix(dispatcher_endpoint, endpoint): dispatcher.registry.values()
+            for dispatcher_endpoint, dispatcher in app_endpoints.items()
+            if dispatcher_endpoint.startswith(endpoint)
+        }
+        return spec.generate(
+            root_endpoint=utils.join_path(base_path, endpoint),
+            methods=methods,
+        )
+
+    def _ui_index_page(self, ui: specs.BaseUI, spec_url: str) -> flask.Response:
+        return current_app.response_class(response=ui.get_index_page(spec_url), content_type='text/html')
+
+    def _ui_static(self, ui: specs.BaseUI, filename: str) -> flask.Response:
+        return flask.send_from_directory(ui.get_static_folder(), filename)
+
+    def _get_endpoint(self, endpoint: str) -> FlaskDispatcher:
+        endpoint = endpoint.rstrip('/')
+
+        if endpoint not in self._endpoints:
+            self._endpoints[endpoint] = dispatcher = FlaskDispatcher(
+                executor=self._executor,
+                json_loader=self._json_loader,
+                json_dumper=self._json_dumper,
+                json_encoder=self._json_encoder,
+                json_decoder=self._json_decoder,
+                middlewares=self._middlewares,
+                max_batch_size=self._max_batch_size,
+            )
+            self._http_app.add_url_rule(
+                f"/{utils.join_path(self._prefix, endpoint)}",
+                methods=['POST'],
+                endpoint="rpc_handle",
+                view_func=ft.partial(self._rpc_handle, dispatcher=dispatcher),
+            )
+        else:
+            dispatcher = self._endpoints[endpoint]
 
         return dispatcher
 
-    def init_app(self, app: Union[flask.Flask, flask.Blueprint]) -> None:
-        """
-        Initializes flask application with JSON-RPC extension.
-
-        :param app: flask application instance
-        """
-
-        for prefix, dispatcher in self._endpoints.items():
-            path = utils.join_path(self._path, prefix)
-            blueprint = self._blueprints.get(prefix)
-
-            (blueprint or app).add_url_rule(
-                path,
-                methods=['POST'],
-                view_func=ft.partial(self._rpc_handle, dispatcher=dispatcher),
-                endpoint=path.replace('/', '_'),
-            )
-            if blueprint:
-                app.register_blueprint(blueprint)
-
-        for spec in self._specs:
-            app.add_url_rule(
-                utils.join_path(self._path, spec.path),
-                methods=['GET'],
-                endpoint=self._generate_spec.__name__,
-                view_func=ft.partial(self._generate_spec, spec=spec),
-            )
-
-            if spec.ui and spec.ui_path:
-                path = utils.join_path(self._path, spec.ui_path)
-                app.add_url_rule(
-                    f'{path}/',
-                    methods=['GET'],
-                    endpoint=self._ui_index_page.__name__,
-                    view_func=ft.partial(self._ui_index_page, spec=spec),
-                )
-                app.add_url_rule(
-                    f'{path}/index.html',
-                    methods=['GET'],
-                    endpoint=f'{self._ui_index_page.__name__}-index',
-                    view_func=ft.partial(self._ui_index_page, spec=spec),
-                )
-                app.add_url_rule(
-                    f'{path}/<path:filename>',
-                    methods=['GET'],
-                    endpoint=self._ui_static.__name__,
-                    view_func=ft.partial(self._ui_static, spec=spec),
-                )
-
-    def generate_spec(self, spec: specs.Specification, path: str = '') -> Dict[str, Any]:
-        methods = {path: dispatcher.registry.values() for path, dispatcher in self._endpoints.items()}
-        return spec.schema(path=path, methods_map=methods)
-
-    def _generate_spec(self, spec: specs.Specification) -> flask.Response:
-        endpoint_path = utils.remove_suffix(flask.request.path, suffix=spec.path)
-        schema = self.generate_spec(spec, path=endpoint_path)
+    def _get_spec(self, endpoint: str, spec: specs.Specification, path: str) -> flask.Response:
+        base_path = utils.remove_suffix(flask.request.path, suffix=utils.join_path(endpoint, path))
+        schema = self.generate_spec(base_path=base_path, endpoint=endpoint.rstrip('/'), spec=spec)
 
         return current_app.response_class(
-            json.dumps(schema, cls=specs.JSONEncoder),
+            self._json_dumper(schema, cls=self._json_encoder),
             mimetype=pjrpc.common.DEFAULT_CONTENT_TYPE,
         )
-
-    def _ui_index_page(self, spec: specs.Specification) -> flask.Response:
-        assert spec.ui is not None, "spec is not set"
-
-        app_path = flask.request.path.rsplit(spec.ui_path, maxsplit=1)[0]
-        spec_full_path = utils.join_path(app_path, spec.path)
-
-        return current_app.response_class(
-            response=spec.ui.get_index_page(spec_url=spec_full_path),
-            content_type='text/html',
-        )
-
-    def _ui_static(self, filename: str, spec: specs.Specification) -> flask.Response:
-        assert spec.ui is not None, "spec is not set"
-
-        return flask.send_from_directory(spec.ui.get_static_folder(), filename)
 
     def _rpc_handle(self, dispatcher: FlaskDispatcher) -> flask.Response:
         """
@@ -173,12 +222,11 @@ class JsonRPC:
             raise exceptions.UnsupportedMediaType()
 
         try:
-            flask.request.encoding_errors = 'strict'  # type: ignore[attr-defined]
             request_text = flask.request.get_data(as_text=True)
         except UnicodeDecodeError as e:
             raise exceptions.BadRequest() from e
 
-        response = dispatcher.dispatch(request_text)
+        response = dispatcher.dispatch(request_text, context=None)
         if response is None:
             return current_app.response_class()
         else:

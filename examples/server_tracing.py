@@ -2,14 +2,17 @@ import asyncio
 
 import opentracing
 from aiohttp import web
+from aiohttp.typedefs import Handler as HttpHandler
 from opentracing import tags
 
 import pjrpc.server
+from pjrpc import Request, Response
+from pjrpc.server import AsyncHandlerType
 from pjrpc.server.integration import aiohttp
 
 
 @web.middleware
-async def http_tracing_middleware(request, handler):
+async def http_tracing_middleware(request: web.Request, handler: HttpHandler) -> web.StreamResponse:
     """
     aiohttp server tracer.
     """
@@ -28,7 +31,7 @@ async def http_tracing_middleware(request, handler):
     span.set_tag(tags.HTTP_METHOD, request.method)
 
     with tracer.scope_manager.activate(span, finish_on_close=True):
-        response: web.Response = await handler(request)
+        response = await handler(request)
         span.set_tag(tags.HTTP_STATUS_CODE, response.status)
         span.set_tag(tags.ERROR, response.status >= 400)
 
@@ -43,14 +46,16 @@ http_app = web.Application(
 methods = pjrpc.server.MethodRegistry()
 
 
-@methods.add(context='context')
-async def method(context):
+@methods.add(pass_context='context')
+async def sum(context: web.Request, a: int, b: int) -> int:
     print("method started")
     await asyncio.sleep(1)
     print("method finished")
 
+    return a + b
 
-async def jsonrpc_tracing_middleware(request, context, handler):
+
+async def jsonrpc_tracing_middleware(request: Request, context: web.Request, handler: AsyncHandlerType) -> Response:
     tracer = opentracing.global_tracer()
     span = tracer.start_span(f'jsonrpc.{request.method}')
 
@@ -61,22 +66,24 @@ async def jsonrpc_tracing_middleware(request, context, handler):
     span.set_tag('jsonrpc.method', request.method)
 
     with tracer.scope_manager.activate(span, finish_on_close=True):
-        response = await handler(request, context)
-        if response.is_error:
-            span.set_tag('jsonrpc.error_code', response.error.code)
-            span.set_tag('jsonrpc.error_message', response.error.message)
-            span.set_tag(tags.ERROR, True)
-        else:
-            span.set_tag(tags.ERROR, False)
+        if response := await handler(request, context):
+            if response.is_error:
+                span.set_tag('jsonrpc.error_code', response.error.code)
+                span.set_tag('jsonrpc.error_message', response.error.message)
+                span.set_tag(tags.ERROR, True)
+            else:
+                span.set_tag(tags.ERROR, False)
 
     return response
 
 jsonrpc_app = aiohttp.Application(
-    '/api/v1', app=http_app, middlewares=(
+    '/api/v1',
+    http_app=http_app,
+    middlewares=[
         jsonrpc_tracing_middleware,
-    ),
+    ],
 )
-jsonrpc_app.dispatcher.add_methods(methods)
+jsonrpc_app.add_methods(methods)
 
 if __name__ == "__main__":
-    web.run_app(jsonrpc_app.app, host='localhost', port=8080)
+    web.run_app(jsonrpc_app.http_app, host='localhost', port=8080)

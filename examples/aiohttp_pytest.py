@@ -4,7 +4,7 @@ import pytest
 
 import pjrpc
 from pjrpc.client.backend import aiohttp as aiohttp_client
-from pjrpc.client.integrations.pytest import PjRpcAiohttpMocker
+from pjrpc.client.integrations.pytest_aiohttp import PjRpcAiohttpMocker
 
 
 async def test_using_fixture(pjrpc_aiohttp_mocker):

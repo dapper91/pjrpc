@@ -3,9 +3,12 @@ Client and server common functions, types and classes that implements JSON-RPC p
 and agnostic to any transport protocol layer (http, socket, amqp) and server-side implementation.
 """
 
-from . import generators, typedefs
-from .common import UNSET, JSONEncoder, MaybeSet, UnsetType
-from .v20 import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response
+from . import exceptions, generators, typedefs
+from .common import UNSET, JsonT, MaybeSet, UnsetType
+from .encoder import JSONEncoder
+from .exceptions import JsonRpcError
+from .request import AbstractRequest, BatchRequest, Request
+from .response import AbstractResponse, BatchResponse, Response
 
 DEFAULT_CONTENT_TYPE = 'application/json'
 '''default JSON-RPC client/server content type'''  # for sphinx autodoc
@@ -17,31 +20,23 @@ RESPONSE_CONTENT_TYPES = ('application/json', 'application/json-rpc')
 '''allowed JSON-RPC client responses content types'''  # for sphinx autodoc
 
 
-def set_default_content_type(content_type: str) -> None:
-    """
-    Sets default json-rpc client request / json-rpc server response content type.
-    """
-
-    global DEFAULT_CONTENT_TYPE
-
-    DEFAULT_CONTENT_TYPE = content_type
-
-
 __all__ = [
     'AbstractRequest',
     'AbstractResponse',
-    'Request',
-    'Response',
     'BatchRequest',
     'BatchResponse',
+    'DEFAULT_CONTENT_TYPE',
+    'exceptions',
+    'generators',
+    'JSONEncoder',
+    'JsonRpcError',
+    'JsonT',
+    'MaybeSet',
+    'Request',
+    'REQUEST_CONTENT_TYPES',
+    'Response',
+    'RESPONSE_CONTENT_TYPES',
+    'typedefs',
     'UNSET',
     'UnsetType',
-    'MaybeSet',
-    'JSONEncoder',
-    'DEFAULT_CONTENT_TYPE',
-    'REQUEST_CONTENT_TYPES',
-    'RESPONSE_CONTENT_TYPES',
-    'generators',
-    'typedefs',
-    'set_default_content_type',
 ]

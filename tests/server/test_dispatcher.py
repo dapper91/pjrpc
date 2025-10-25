@@ -1,11 +1,13 @@
 import json
 
-from pjrpc.server import Method, ViewMixin, dispatcher, validators
+from pjrpc.server import MethodRegistry, dispatcher, exclude_named_param, validators
 from tests.common import _
 
 
 def test_method_registry():
-    registry = dispatcher.MethodRegistry()
+    registry = dispatcher.MethodRegistry(
+        validator_factory=validators.BaseValidatorFactory(exclude=exclude_named_param('ctx')),
+    )
 
     context = object()
 
@@ -16,42 +18,16 @@ def test_method_registry():
         assert ctx is context
         assert param1 == 'param1'
 
-    registry.add_methods(
-        method1,
-        Method(method2, name='custom_name2', context='ctx'),
-    )
+    registry.add_method(method1)
+    registry.add_method(method2, name='custom_name2', pass_context='ctx')
 
-    assert registry['method1'].method is method1
-    assert registry['method1'].context is None
-    assert registry.get('custom_name2').method is method2
-    assert registry.get('custom_name2').context == 'ctx'
+    assert registry['method1'].func is method1
+    assert registry['method1'].pass_context is False
+    assert registry.get('custom_name2').func is method2
+    assert registry.get('custom_name2').pass_context == 'ctx'
 
     registry['method1'].bind(params=())()
     registry['custom_name2'].bind(params=dict(param1='param1'), context=context)()
-
-
-async def test_method_registry_prefix():
-    registry = dispatcher.MethodRegistry(prefix='prefix')
-
-    context = object()
-
-    async def method1():
-        pass
-
-    async def method2(ctx, param1):
-        assert ctx is context
-        assert param1 == 'param1'
-
-    registry.add(method1)
-    registry.add(method2, 'custom_name2', context='ctx')
-
-    assert registry['prefix.method1'].method is method1
-    assert registry['prefix.method1'].context is None
-    assert registry.get('prefix.custom_name2').method is method2
-    assert registry.get('prefix.custom_name2').context == 'ctx'
-
-    await registry['prefix.method1'].bind(params=())()
-    await registry['prefix.custom_name2'].bind(params=('param1',), context=context)()
 
 
 def test_method_registry_merge():
@@ -61,83 +37,17 @@ def test_method_registry_merge():
     def method1():
         pass
 
-    registry1.add(method1)
+    registry1.add_method(method1)
 
     def method2():
         pass
 
-    registry2.add(method2)
+    registry2.add_method(method2)
 
     registry1.merge(registry2)
 
-    assert registry1['method1'].method is method1
-    assert registry1['method2'].method is method2
-
-
-def test_method_registry_merge_prefix():
-    registry1 = dispatcher.MethodRegistry(prefix='prefix1')
-    registry2 = dispatcher.MethodRegistry(prefix='prefix2')
-
-    def test_method():
-        pass
-
-    registry1.add(test_method, name='method1', context='ctx1')
-    registry2.add(test_method, name='method2', context='ctx2')
-
-    assert list(registry1.items()) == [('prefix1.method1', Method(test_method, 'prefix1.method1', 'ctx1'))]
-    assert list(registry2.items()) == [('prefix2.method2', Method(test_method, 'prefix2.method2', 'ctx2'))]
-
-    registry2.merge(registry1)
-
-    assert list(registry2.items()) == [
-        ('prefix2.method2', Method(test_method, 'prefix2.method2', 'ctx2')),
-        ('prefix2.prefix1.method1', Method(test_method, 'prefix2.prefix1.method1', 'ctx1')),
-    ]
-
-
-async def test_method_registry_view():
-    registry = dispatcher.MethodRegistry()
-    validator = validators.BaseValidator()
-    validator_args = {'arg': 'value'}
-
-    class MethodView(ViewMixin):
-        @validator.validate(**validator_args)
-        def method1(self):
-            pass
-
-        @validator.validate(**validator_args)
-        async def method2(self, param1):
-            assert param1 == 'param1'
-
-    registry.view(MethodView, prefix='view')
-
-    assert isinstance(registry['view.method1'].validator, validators.BaseMethodValidator)
-    assert isinstance(registry['view.method2'].validator, validators.BaseMethodValidator)
-
-
-async def test_method_view_validation():
-    registry = dispatcher.MethodRegistry()
-
-    context = object()
-
-    class MethodView(ViewMixin):
-
-        def __init__(self, ctx):
-            assert ctx is context
-
-        def method1(self):
-            pass
-
-        async def method2(self, param1):
-            assert param1 == 'param1'
-
-    registry.view(MethodView, prefix='view', context='ctx')
-
-    assert registry['view.method1'].view_cls is MethodView
-    assert registry.get('view.method2').view_cls is MethodView
-
-    registry['view.method1'].bind(params=(), context=context)()
-    await registry['view.method2'].bind(params=('param1',), context=context)()
+    assert registry1['method1'].func is method1
+    assert registry1['method2'].func is method2
 
 
 def test_dispatcher():
@@ -149,7 +59,7 @@ def test_dispatcher():
         'method': 'method',
     })
 
-    response, error_codes = disp.dispatch(request)
+    response, error_codes = disp.dispatch(request, context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
@@ -166,12 +76,14 @@ def test_dispatcher():
         'method': 'method',
     })
 
-    assert disp.dispatch(request) is None
+    assert disp.dispatch(request, context=None) is None
 
     def method1(param):
         return param
 
-    disp.add(method1)
+    registry = MethodRegistry()
+    registry.add_method(method1)
+    disp.add_methods(registry)
 
     request = json.dumps({
         'jsonrpc': '2.0',
@@ -180,7 +92,7 @@ def test_dispatcher():
         'params': ['param1'],
     })
 
-    response, error_codes = disp.dispatch(request)
+    response, error_codes = disp.dispatch(request, context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
@@ -190,7 +102,9 @@ def test_dispatcher():
     def method2():
         raise Exception('unhandled error')
 
-    disp.add(method2)
+    registry = MethodRegistry()
+    registry.add_method(method2)
+    disp.add_methods(registry)
 
     request = json.dumps({
         'jsonrpc': '2.0',
@@ -198,7 +112,7 @@ def test_dispatcher():
         'method': 'method2',
     })
 
-    response, error_codes = disp.dispatch(request)
+    response, error_codes = disp.dispatch(request, context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
@@ -228,7 +142,7 @@ def test_dispatcher():
         },
     ])
 
-    response, error_codes = disp.dispatch(request)
+    response, error_codes = disp.dispatch(request, context=None)
     assert json.loads(response) == [
         {
             'jsonrpc': '2.0',
@@ -250,7 +164,7 @@ def test_dispatcher():
 def test_dispatcher_errors():
     disp = dispatcher.Dispatcher()
 
-    response, error_codes = disp.dispatch('')
+    response, error_codes = disp.dispatch('', context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
@@ -261,7 +175,7 @@ def test_dispatcher_errors():
         },
     }
 
-    response, error_codes = disp.dispatch('{}')
+    response, error_codes = disp.dispatch('{}', context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
@@ -272,7 +186,7 @@ def test_dispatcher_errors():
         },
     }
 
-    response, error_codes = disp.dispatch('[]')
+    response, error_codes = disp.dispatch('[]', context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
@@ -280,41 +194,6 @@ def test_dispatcher_errors():
             'code': -32600,
             'message': 'Invalid Request',
             'data': _,
-        },
-    }
-
-    request = json.dumps([
-        {
-            'jsonrpc': '2.0',
-            'id': 1,
-            'method': 'method',
-        },
-        {
-            'jsonrpc': '2.0',
-            'id': 1,
-            'method': 'method',
-        },
-    ])
-
-    response, error_codes = disp.dispatch(request)
-    assert json.loads(response) == {
-        'jsonrpc': '2.0',
-        'id': None,
-        'error': {
-            'code': -32600,
-            'message': 'Invalid Request',
-            'data': 'request id duplicates found: 1',
-        },
-    }
-
-    response, error_codes = disp.dispatch(request)
-    assert json.loads(response) == {
-        'jsonrpc': '2.0',
-        'id': None,
-        'error': {
-            'code': -32600,
-            'message': 'Invalid Request',
-            'data': 'request id duplicates found: 1',
         },
     }
 
@@ -337,7 +216,7 @@ def test_dispatcher_batch_too_large_errors():
         ],
     )
 
-    response, error_codes = disp.dispatch(request)
+    response, error_codes = disp.dispatch(request, context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
@@ -358,7 +237,7 @@ async def test_async_dispatcher():
         'method': 'method',
     })
 
-    response, error_codes = await disp.dispatch(request)
+    response, error_codes = await disp.dispatch(request, context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
@@ -375,12 +254,14 @@ async def test_async_dispatcher():
         'method': 'method',
     })
 
-    assert await disp.dispatch(request) is None
+    assert await disp.dispatch(request, context=None) is None
 
     async def method1(param):
         return param
 
-    disp.add(method1)
+    registry = MethodRegistry()
+    registry.add_method(method1)
+    disp.add_methods(registry)
 
     request = json.dumps({
         'jsonrpc': '2.0',
@@ -389,7 +270,7 @@ async def test_async_dispatcher():
         'params': ['param1'],
     })
 
-    response, error_codes = await disp.dispatch(request)
+    response, error_codes = await disp.dispatch(request, context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
@@ -399,7 +280,9 @@ async def test_async_dispatcher():
     async def method2():
         raise Exception('unhandled error')
 
-    disp.add(method2)
+    registry = MethodRegistry()
+    registry.add_method(method2)
+    disp.add_methods(registry)
 
     request = json.dumps({
         'jsonrpc': '2.0',
@@ -407,7 +290,7 @@ async def test_async_dispatcher():
         'method': 'method2',
     })
 
-    response, error_codes = await disp.dispatch(request)
+    response, error_codes = await disp.dispatch(request, context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': 1,
@@ -437,7 +320,7 @@ async def test_async_dispatcher():
         },
     ])
 
-    response, error_codes = await disp.dispatch(request)
+    response, error_codes = await disp.dispatch(request, context=None)
     assert json.loads(response) == [
         {
             'jsonrpc': '2.0',
@@ -459,7 +342,7 @@ async def test_async_dispatcher():
 async def test_async_dispatcher_errors():
     disp = dispatcher.AsyncDispatcher()
 
-    response, error_codes = await disp.dispatch('')
+    response, error_codes = await disp.dispatch('', context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
@@ -470,7 +353,7 @@ async def test_async_dispatcher_errors():
         },
     }
 
-    response, error_codes = await disp.dispatch('{}')
+    response, error_codes = await disp.dispatch('{}', context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
@@ -478,41 +361,6 @@ async def test_async_dispatcher_errors():
             'code': -32600,
             'message': 'Invalid Request',
             'data': _,
-        },
-    }
-
-    request = json.dumps([
-        {
-            'jsonrpc': '2.0',
-            'id': 1,
-            'method': 'method',
-        },
-        {
-            'jsonrpc': '2.0',
-            'id': 1,
-            'method': 'method',
-        },
-    ])
-
-    response, error_codes = await disp.dispatch(request)
-    assert json.loads(response) == {
-        'jsonrpc': '2.0',
-        'id': None,
-        'error': {
-            'code': -32600,
-            'message': 'Invalid Request',
-            'data': 'request id duplicates found: 1',
-        },
-    }
-
-    response, error_codes = await disp.dispatch(request)
-    assert json.loads(response) == {
-        'jsonrpc': '2.0',
-        'id': None,
-        'error': {
-            'code': -32600,
-            'message': 'Invalid Request',
-            'data': 'request id duplicates found: 1',
         },
     }
 
@@ -535,7 +383,7 @@ async def test_async_dispatcher_batch_too_large_errors():
         ],
     )
 
-    response, error_codes = await disp.dispatch(request)
+    response, error_codes = await disp.dispatch(request, context=None)
     assert json.loads(response) == {
         'jsonrpc': '2.0',
         'id': None,
