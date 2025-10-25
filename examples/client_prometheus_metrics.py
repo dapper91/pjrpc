@@ -1,8 +1,10 @@
 import time
+from typing import Any, Mapping, Optional
 
 import prometheus_client as prom_cli
 
-from pjrpc.client import tracer
+from pjrpc import AbstractRequest, AbstractResponse, BatchRequest, Request
+from pjrpc.client import MiddlewareHandler
 from pjrpc.client.backend import requests as pjrpc_client
 
 method_latency_hist = prom_cli.Histogram('method_latency', 'Method latency', labelnames=['method'])
@@ -10,23 +12,34 @@ method_call_total = prom_cli.Counter('method_call_total', 'Method call count', l
 method_errors_total = prom_cli.Counter('method_errors_total', 'Method errors count', labelnames=['method', 'code'])
 
 
-class PrometheusTracer(tracer.Tracer):
-    def on_request_begin(self, trace_context, request, request_kwargs):
-        trace_context.started_at = time.time()
+def prometheus_tracing_middleware(
+    request: AbstractRequest,
+    request_kwargs: Mapping[str, Any],
+    /,
+    handler: MiddlewareHandler,
+) -> Optional[AbstractResponse]:
+    if isinstance(request, Request):
+        started_at = time.time()
         method_call_total.labels(request.method).inc()
-
-    def on_request_end(self, trace_context, request, response):
-        method_latency_hist.labels(request.method).observe(time.time() - trace_context.started_at)
+        response = handler(request, request_kwargs)
         if response.is_error:
-            method_call_total.labels(request.method, response.error.code).inc()
+            method_call_total.labels(request.method, response.unwrap_error().code).inc()
 
-    def on_error(self, trace_context, request, error):
-        method_latency_hist.labels(request.method).observe(time.time() - trace_context.started_at)
+        method_latency_hist.labels(request.method).observe(time.time() - started_at)
+
+    elif isinstance(request, BatchRequest):
+        response = handler(request, request_kwargs)
+
+    else:
+        raise AssertionError("unreachable")
+
+    return response
 
 
 client = pjrpc_client.Client(
-    'http://localhost/api/v1', tracers=(
-        PrometheusTracer(),
+    'http://localhost:8080/api/v1',
+    middlewares=(
+        prometheus_tracing_middleware,
     ),
 )
 

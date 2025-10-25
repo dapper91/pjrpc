@@ -16,88 +16,35 @@ Web UI extra dependency can be installed using the following code:
     $ pip install pjrpc[openapi-ui-bundles]
 
 
-To enable Web UI pass :py:class:`pjrpc.server.specs.openapi.SwaggerUI`, :py:class:`pjrpc.server.specs.openapi.RapiDoc` or
-:py:class:`pjrpc.server.specs.openapi.ReDoc` to a specification generator as a ``ui`` parameter.
-Web UI will be available at ``/ui/`` path.
-It can be overridden by passing ``ui_path`` parameter to the specification generator.
-
-.. code-block:: python
-
-    json_rpc = AuthenticatedJsonRPC(
-        '/api/v1',
-        json_encoder=JSONEncoder,
-        spec=specs.OpenAPI(
-            info=specs.Info(version="1.0.0", title="User storage"),
-            servers=[
-                specs.Server(
-                    url='http://127.0.0.1:8080',
-                ),
-            ],
-            security_schemes=dict(
-                basicAuth=specs.SecurityScheme(
-                    type=specs.SecuritySchemeType.HTTP,
-                    scheme='basic',
-                ),
-            ),
-            security=[
-                dict(basicAuth=[])
-            ],
-            schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
-            ui=specs.SwaggerUI(),
-        ),
-    )
-
-
 The following example illustrates how to configure specification generation and Swagger UI web tool with basic auth
 using flask web framework:
 
 .. code-block:: python
 
     import uuid
-    from typing import Annotated, Any, Optional
+    from typing import Annotated, Any
 
-    import flask
-    import flask_cors
-    import flask_httpauth
+    import aiohttp.typedefs
     import pydantic as pd
-    from werkzeug import security
+    from aiohttp import web
 
     import pjrpc.server.specs.extractors.pydantic
-    from pjrpc.server.integration import flask as integration
+    import pjrpc.server.specs.openapi.ui
+    from pjrpc.server.integration import aiohttp as integration
     from pjrpc.server.specs import extractors
     from pjrpc.server.specs import openapi as specs
     from pjrpc.server.validators import pydantic as validators
 
-    app = flask.Flask('myapp')
-    flask_cors.CORS(app, resources={"/myapp/api/v1/*": {"origins": "*"}})
-
-    methods = pjrpc.server.MethodRegistry()
-    validator = validators.PydanticValidator()
-
-    auth = flask_httpauth.HTTPBasicAuth()
-    credentials = {"admin": security.generate_password_hash("admin")}
-
-
-    @auth.verify_password
-    def verify_password(username: str, password: str) -> Optional[str]:
-        if username in credentials and security.check_password_hash(credentials.get(username), password):
-            return username
-
-
-    class AuthenticatedJsonRPC(integration.JsonRPC):
-        @auth.login_required
-        def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
-            return super()._rpc_handle(dispatcher)
-
-
-    class JSONEncoder(pjrpc.JSONEncoder):
-        def default(self, o: Any) -> Any:
-            if isinstance(o, pd.BaseModel):
-                return o.model_dump()
-            if isinstance(o, uuid.UUID):
-                return str(o)
-
-            return super().default(o)
+    methods = pjrpc.server.MethodRegistry(
+        validator_factory=validators.PydanticValidatorFactory(exclude=integration.is_aiohttp_request),
+        metadata_processors=[
+            specs.MethodSpecificationGenerator(
+                extractor=extractors.pydantic.PydanticMethodInfoExtractor(
+                    exclude=integration.is_aiohttp_request,
+                ),
+            ),
+        ],
+    )
 
 
     UserName = Annotated[
@@ -112,12 +59,12 @@ using flask web framework:
 
     UserAge = Annotated[
         int,
-        pd.Field(description="User age", examples=[25]),
+        pd.Field(description="User age", examples=[36]),
     ]
 
     UserId = Annotated[
         uuid.UUID,
-        pd.Field(description="User identifier", examples=["c47726c6-a232-45f1-944f-60b98966ff1b"]),
+        pd.Field(description="User identifier", examples=["226a2c23-c98b-4729-b398-0dae550e99ff"]),
     ]
 
 
@@ -139,149 +86,174 @@ using flask web framework:
         id: UserId
 
 
-    class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+    class AlreadyExistsError(pjrpc.exc.TypedError):
         """
         User already registered error.
         """
 
-        code = 2001
-        message = "user already exists"
+        CODE = 2001
+        MESSAGE = "user already exists"
 
 
-    class NotFoundError(pjrpc.exc.JsonRpcError):
+    class NotFoundError(pjrpc.exc.TypedError):
         """
         User not found error.
         """
 
-        code = 2002
-        message = "user not found"
+        CODE = 2002
+        MESSAGE = "user not found"
 
 
-    @specs.annotate(
-        summary='Creates a user',
-        tags=['users'],
-        errors=[AlreadyExistsError],
+    @methods.add(
+        pass_context='request',
+        metadata=[
+            specs.metadata(
+                summary='Creates a user',
+                tags=['users'],
+                errors=[AlreadyExistsError],
+            ),
+        ],
     )
-    @methods.add
-    @validator.validate
-    def add_user(user: UserIn) -> UserOut:
+    def add_user(request: web.Request, user: UserIn) -> UserOut:
         """
         Creates a user.
 
+        :param request: http request
         :param object user: user data
         :return object: registered user
         :raise AlreadyExistsError: user already exists
         """
 
-        for existing_user in flask.current_app.users_db.values():
+        for existing_user in request.config_dict['users'].values():
             if user.name == existing_user.name:
                 raise AlreadyExistsError()
 
-        user_id = uuid.uuid4().hex
-        flask.current_app.users_db[user_id] = user
+        user_id = uuid.uuid4()
+        request.config_dict['users'][user_id] = user
 
         return UserOut(id=user_id, **user.model_dump())
 
 
-    @specs.annotate(
-        summary='Returns a user',
-        tags=['users'],
-        errors=[NotFoundError],
+    @methods.add(
+        pass_context='request',
+        metadata=[
+            specs.metadata(
+                summary='Returns a user',
+                tags=['users'],
+                errors=[NotFoundError],
+            ),
+        ],
     )
-    @methods.add
-    @validator.validate
-    def get_user(user_id: UserId) -> UserOut:
+    def get_user(request: web.Request, user_id: UserId) -> UserOut:
         """
         Returns a user.
 
+        :param request: http request
         :param object user_id: user id
         :return object: registered user
         :raise NotFoundError: user not found
         """
 
-        user = flask.current_app.users_db.get(user_id.hex)
+        user = request.config_dict['users'].get(user_id.hex)
         if not user:
             raise NotFoundError()
 
         return UserOut(id=user_id, **user.model_dump())
 
 
-    @specs.annotate(
-        summary='Deletes a user',
-        tags=['users'],
-        errors=[NotFoundError],
+    @methods.add(
+        pass_context='request',
+        metadata=[
+            specs.metadata(
+                summary='Deletes a user',
+                tags=['users'],
+                errors=[NotFoundError],
+            ),
+        ],
     )
-    @methods.add
-    @validator.validate
-    def delete_user(user_id: UserId) -> None:
+    def delete_user(request: web.Request, user_id: UserId) -> None:
         """
         Deletes a user.
 
+        :param request: http request
         :param object user_id: user id
         :raise NotFoundError: user not found
         """
 
-        user = flask.current_app.users_db.pop(user_id.hex, None)
+        user = request.config_dict['users'].pop(user_id.hex, None)
         if not user:
             raise NotFoundError()
 
 
-    json_rpc = AuthenticatedJsonRPC(
-        '/api/v1',
-        json_encoder=JSONEncoder,
-        spec=specs.OpenAPI(
-            info=specs.Info(version="1.0.0", title="User storage"),
-            servers=[
-                specs.Server(
-                    url='http://127.0.0.1:8080',
-                ),
-            ],
-            security_schemes=dict(
-                basicAuth=specs.SecurityScheme(
-                    type=specs.SecuritySchemeType.HTTP,
-                    scheme='basic',
-                ),
+    class JSONEncoder(pjrpc.server.JSONEncoder):
+        def default(self, o: Any) -> Any:
+            if isinstance(o, pd.BaseModel):
+                return o.model_dump()
+            if isinstance(o, uuid.UUID):
+                return str(o)
+
+            return super().default(o)
+
+
+    openapi_spec = specs.OpenAPI(
+        info=specs.Info(version="1.0.0", title="User storage"),
+        servers=[
+            specs.Server(
+                url='http://127.0.0.1:8080',
             ),
-            security=[
-                dict(basicAuth=[]),
-            ],
-            schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
-            ui=specs.SwaggerUI(),
+        ],
+        security_schemes=dict(
+            basicAuth=specs.SecurityScheme(
+                type=specs.SecuritySchemeType.HTTP,
+                scheme='basic',
+            ),
         ),
+        security=[
+            dict(basicAuth=[]),
+        ],
     )
-    json_rpc.dispatcher.add_methods(methods)
 
-    app.users_db = {}
+    http_app = web.Application()
+    http_app['users'] = {}
 
-    myapp = flask.Blueprint('myapp', __name__, url_prefix='/myapp')
-    json_rpc.init_app(myapp)
+    jsonrpc_app = integration.Application('/api')
+    jsonrpc_app.add_spec(openapi_spec, path='openapi.json')
+    jsonrpc_app.add_spec_ui('swagger', specs.ui.SwaggerUI(), spec_url='../openapi.json')
+    jsonrpc_app.add_spec_ui('redoc', specs.ui.ReDoc(), spec_url='../openapi.json')
 
-    app.register_blueprint(myapp)
+    jsonrpc_v1_app = integration.Application(http_app=web.Application(), json_encoder=JSONEncoder)
+    jsonrpc_v1_app.add_methods(methods)
+
+
+    jsonrpc_app.add_subapp('/v1', jsonrpc_v1_app)
+    http_app.add_subapp('/rpc', jsonrpc_app.http_app)
+
 
     if __name__ == "__main__":
-        app.run(port=8080)
+        web.run_app(http_app, host='localhost', port=8080)
+
 
 
 Specification is available on http://localhost:8080/myapp/api/v1/openapi.json
 
 Web UI is running on http://localhost:8080/myapp/api/v1/ui/
 
-Swagger UI:
-~~~~~~~~~~~
+Swagger UI
+~~~~~~~~~~
 
 .. image:: ../_static/swagger-ui-screenshot.png
   :width: 1024
   :alt: OpenAPI full example
 
-RapiDoc:
-~~~~~~~~
+RapiDoc
+~~~~~~~
 
 .. image:: ../_static/rapidoc-screenshot.png
   :width: 1024
   :alt: OpenAPI cli example
 
-ReDoc:
-~~~~~~
+ReDoc
+~~~~~
 
 .. image:: ../_static/redoc-screenshot.png
   :width: 1024

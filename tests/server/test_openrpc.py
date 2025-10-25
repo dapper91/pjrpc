@@ -7,11 +7,13 @@ import pytest
 from deepdiff.diff import DeepDiff
 
 from pjrpc.common import exceptions
+from pjrpc.server import MethodRegistry
 from pjrpc.server.dispatcher import Method
 from pjrpc.server.specs import openrpc
-from pjrpc.server.specs.extractors.pydantic import PydanticSchemaExtractor
+from pjrpc.server.specs.extractors.pydantic import PydanticMethodInfoExtractor
 from pjrpc.server.specs.openrpc import Contact, ContentDescriptor, ExampleObject, ExternalDocumentation, Info, License
 from pjrpc.server.specs.openrpc import MethodExample, OpenRPC, Server, ServerVariable, Tag
+from pjrpc.server.utils import exclude_positional_param
 
 
 @pytest.fixture(scope='session')
@@ -38,7 +40,7 @@ def test_info_schema(resources, openrpc13_meta):
         ),
     )
 
-    actual_schema = spec.schema(path='/')
+    actual_schema = spec.generate(root_endpoint='/', methods={})
     jsonschema.validate(actual_schema, openrpc13_meta)
 
     expected_schema = {
@@ -86,7 +88,7 @@ def test_servers_schema(resources, openrpc13_meta):
         ],
     )
 
-    actual_schema = spec.schema(path='/')
+    actual_schema = spec.generate(root_endpoint='/', methods={})
     jsonschema.validate(actual_schema, openrpc13_meta)
 
     expected_schema = {
@@ -131,7 +133,7 @@ def test_external_docs_schema(resources, openrpc13_meta):
         ),
     )
 
-    actual_schema = spec.schema(path='/')
+    actual_schema = spec.generate(root_endpoint='/', methods={})
     jsonschema.validate(actual_schema, openrpc13_meta)
 
     expected_schema = {
@@ -159,17 +161,20 @@ def test_custom_method_name_schema(resources, openrpc13_meta):
             title='api title',
             version='1.0',
         ),
-        schema_extractor=PydanticSchemaExtractor(),
     )
 
     def test_method():
         pass
 
-    actual_schema = spec.schema(
-        path='/',
-        methods_map={
+    test_method = Method(test_method, name='custom_method_name')
+    generator = openrpc.MethodSpecificationGenerator(PydanticMethodInfoExtractor())
+    generator(test_method)
+
+    actual_schema = spec.generate(
+        root_endpoint='/',
+        methods={
             '': [
-                Method(test_method, name='custom_method_name'),
+                test_method,
             ],
         },
     )
@@ -209,17 +214,20 @@ def test_method_context_schema(resources, openrpc13_meta):
             title='api title',
             version='1.0',
         ),
-        schema_extractor=PydanticSchemaExtractor(),
     )
 
     def test_method(ctx):
         pass
 
-    actual_schema = spec.schema(
-        path='/',
-        methods_map={
+    test_method = Method(test_method)
+    generator = openrpc.MethodSpecificationGenerator(PydanticMethodInfoExtractor(exclude=exclude_positional_param(0)))
+    generator(test_method)
+
+    actual_schema = spec.generate(
+        root_endpoint='/',
+        methods={
             '': [
-                Method(test_method, context='ctx'),
+                test_method,
             ],
         },
     )
@@ -259,7 +267,6 @@ def test_method_request_schema(resources, openrpc13_meta):
             title='api title',
             version='1.0',
         ),
-        schema_extractor=PydanticSchemaExtractor(),
     )
 
     class Model(pd.BaseModel):
@@ -276,10 +283,16 @@ def test_method_request_schema(resources, openrpc13_meta):
     ) -> None:
         pass
 
-    actual_schema = spec.schema(
-        path='/',
-        methods_map={
-            '': [Method(test_method)],
+    test_method = Method(test_method)
+    generator = openrpc.MethodSpecificationGenerator(PydanticMethodInfoExtractor())
+    generator(test_method)
+
+    actual_schema = spec.generate(
+        root_endpoint='/',
+        methods={
+            '': [
+                test_method,
+            ],
         },
     )
 
@@ -395,7 +408,6 @@ def test_method_response_schema(resources, openrpc13_meta):
             title='api title',
             version='1.0',
         ),
-        schema_extractor=PydanticSchemaExtractor(),
     )
 
     class Model(pd.BaseModel):
@@ -414,14 +426,24 @@ def test_method_response_schema(resources, openrpc13_meta):
     def test_method4() -> Model:
         pass
 
-    actual_schema = spec.schema(
-        path='/',
-        methods_map={
+    test_method1 = Method(test_method1)
+    test_method2 = Method(test_method2)
+    test_method3 = Method(test_method3)
+    test_method4 = Method(test_method4)
+    generator = openrpc.MethodSpecificationGenerator(PydanticMethodInfoExtractor())
+    generator(test_method1)
+    generator(test_method2)
+    generator(test_method3)
+    generator(test_method4)
+
+    actual_schema = spec.generate(
+        root_endpoint='/',
+        methods={
             '': [
-                Method(test_method1),
-                Method(test_method2),
-                Method(test_method3),
-                Method(test_method4),
+                test_method1,
+                test_method2,
+                test_method3,
+                test_method4,
             ],
         },
     )
@@ -516,47 +538,66 @@ def test_method_response_schema(resources, openrpc13_meta):
 
 
 def test_method_description_annotation_schema(resources, openrpc13_meta):
+    registry = MethodRegistry()
+
     spec = OpenRPC(
         info=Info(
             title='api title',
             version='1.0',
         ),
-        schema_extractor=PydanticSchemaExtractor(),
     )
 
-    @openrpc.annotate(
-        summary='method summary',
-        description='method description',
-        tags=[
-            'tag1',
-            Tag(
-                name="tag2",
-                description="tag2 description",
-                externalDocs=ExternalDocumentation(url="http://tag-ext-doc.com", description="tag doc description"),
-            ),
-        ],
-        external_docs=ExternalDocumentation(url="http://ext-doc.com", description="ext doc description"),
-        deprecated=True,
-        servers=[
-            Server(
-                name="server name",
-                summary="server summary",
-                description="server description",
-                url="http://server.com",
-                variables={
-                    'name1': ServerVariable(default='var1', enum=['var1', 'var2'], description='var description'),
-                },
+    @registry.add(
+        metadata=[
+            openrpc.metadata(
+                summary='method summary',
+                description='method description',
+                tags=[
+                    'tag1',
+                    Tag(
+                        name="tag2",
+                        description="tag2 description",
+                        externalDocs=ExternalDocumentation(
+                            url="http://tag-ext-doc.com",
+                            description="tag doc description",
+                        ),
+                    ),
+                ],
+                external_docs=ExternalDocumentation(
+                    url="http://ext-doc.com",
+                    description="ext doc description",
+                ),
+                deprecated=True,
+                servers=[
+                    Server(
+                        name="server name",
+                        summary="server summary",
+                        description="server description",
+                        url="http://server.com",
+                        variables={
+                            'name1': ServerVariable(
+                                default='var1',
+                                enum=['var1', 'var2'],
+                                description='var description',
+                            ),
+                        },
+                    ),
+                ],
             ),
         ],
     )
     def test_method():
         pass
 
-    actual_schema = spec.schema(
-        path='/',
-        methods_map={
+    method = registry.get('test_method')
+    generator = openrpc.MethodSpecificationGenerator(PydanticMethodInfoExtractor())
+    generator(method)
+
+    actual_schema = spec.generate(
+        root_endpoint='/',
+        methods={
             '': [
-                Method(test_method),
+                method,
             ],
         },
     )
@@ -626,47 +667,56 @@ def test_method_description_annotation_schema(resources, openrpc13_meta):
 
 
 def test_method_examples_annotation_schema(resources, openrpc13_meta):
+    registry = MethodRegistry()
+
     spec = OpenRPC(
         info=Info(
             title='api title',
             version='1.0',
         ),
-        schema_extractor=PydanticSchemaExtractor(),
     )
 
-    @openrpc.annotate(
-        examples=[
-            MethodExample(
-                name='example name',
-                params=[
-                    ExampleObject(
-                        value={"param1": "value1", "param2": 2},
-                        name="param name",
-                        summary="param summary",
-                        description="param description",
-                        externalValue="http://param.com",
+    @registry.add(
+        metadata=[
+            openrpc.metadata(
+                examples=[
+                    MethodExample(
+                        name='example name',
+                        params=[
+                            ExampleObject(
+                                value={"param1": "value1", "param2": 2},
+                                name="param name",
+                                summary="param summary",
+                                description="param description",
+                                externalValue="http://param.com",
+                            ),
+                        ],
+                        result=ExampleObject(
+                            value="method result",
+                            name="result name",
+                            summary="result summary",
+                            description="result description",
+                            externalValue="http://result.com",
+                        ),
+                        summary="example summary",
+                        description="example description",
                     ),
                 ],
-                result=ExampleObject(
-                    value="method result",
-                    name="result name",
-                    summary="result summary",
-                    description="result description",
-                    externalValue="http://result.com",
-                ),
-                summary="example summary",
-                description="example description",
             ),
         ],
     )
     def test_method():
         pass
 
-    actual_schema = spec.schema(
-        path='/',
-        methods_map={
+    method = registry.get('test_method')
+    generator = openrpc.MethodSpecificationGenerator(PydanticMethodInfoExtractor())
+    generator(method)
+
+    actual_schema = spec.generate(
+        root_endpoint='/',
+        methods={
             '': [
-                Method(test_method),
+                method,
             ],
         },
     )
@@ -727,45 +777,54 @@ def test_method_examples_annotation_schema(resources, openrpc13_meta):
 
 
 def test_method_schema_annotation_schema(resources, openrpc13_meta):
+    registry = MethodRegistry()
+
     spec = OpenRPC(
         info=Info(
             title='api title',
             version='1.0',
         ),
-        schema_extractor=PydanticSchemaExtractor(),
     )
 
-    @openrpc.annotate(
-        params_schema=[
-            ContentDescriptor(
-                name="params name",
-                schema={
-                    'param1': {'type': 'string'},
-                    'param2': {'type': 'number'},
-                },
-                summary="params summary",
-                description="params description",
-                required=True,
-                deprecated=True,
+    @registry.add(
+        metadata=[
+            openrpc.metadata(
+                params_schema=[
+                    ContentDescriptor(
+                        name="params name",
+                        schema={
+                            'param1': {'type': 'string'},
+                            'param2': {'type': 'number'},
+                        },
+                        summary="params summary",
+                        description="params description",
+                        required=True,
+                        deprecated=True,
+                    ),
+                ],
+                result_schema=ContentDescriptor(
+                    name="result name",
+                    schema={'type': 'string'},
+                    summary="result summary",
+                    description="result description",
+                    required=True,
+                    deprecated=True,
+                ),
             ),
         ],
-        result_schema=ContentDescriptor(
-            name="result name",
-            schema={'type': 'string'},
-            summary="result summary",
-            description="result description",
-            required=True,
-            deprecated=True,
-        ),
     )
     def test_method():
         pass
 
-    actual_schema = spec.schema(
-        path='/',
-        methods_map={
+    method = registry.get('test_method')
+    generator = openrpc.MethodSpecificationGenerator(PydanticMethodInfoExtractor())
+    generator(method)
+
+    actual_schema = spec.generate(
+        root_endpoint='/',
+        methods={
             '': [
-                Method(test_method),
+                method,
             ],
         },
     )
@@ -818,28 +877,37 @@ def test_method_schema_annotation_schema(resources, openrpc13_meta):
 
 
 def test_method_errors_annotation_schema(resources, openrpc13_meta):
+    registry = MethodRegistry()
+
     spec = OpenRPC(
         info=Info(
             title='api title',
             version='1.0',
         ),
-        schema_extractor=PydanticSchemaExtractor(),
     )
 
-    @openrpc.annotate(
-        errors=[
-            exceptions.MethodNotFoundError,
-            exceptions.InvalidParamsError,
+    @registry.add(
+        metadata=[
+            openrpc.metadata(
+                errors=[
+                    exceptions.MethodNotFoundError,
+                    exceptions.InvalidParamsError,
+                ],
+            ),
         ],
     )
     def test_method():
         pass
 
-    actual_schema = spec.schema(
-        path='/',
-        methods_map={
+    method = registry.get('test_method')
+    generator = openrpc.MethodSpecificationGenerator(PydanticMethodInfoExtractor())
+    generator(method)
+
+    actual_schema = spec.generate(
+        root_endpoint='/',
+        methods={
             '': [
-                Method(test_method),
+                method,
             ],
         },
     )

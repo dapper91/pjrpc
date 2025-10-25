@@ -1,280 +1,182 @@
 import abc
+import contextlib as cl
 import functools as ft
 import json
 import logging
-from types import SimpleNamespace
-from typing import Any, Awaitable, Callable, Dict, Generator, Iterable, Optional, Tuple, Type, Union, cast
+from typing import Any, AsyncGenerator, Awaitable, Callable, Generator, Iterable, Mapping, Optional, Protocol, TypeVar
 
-from pjrpc import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, Request, Response, common
-from pjrpc.client import retry
-from pjrpc.common import UNSET, MaybeSet, UnsetType, exceptions, generators, v20
-from pjrpc.common.typedefs import JsonRpcRequestId, MethodType
-
-from .tracer import Tracer
+from pjrpc import common
+from pjrpc.common import UNSET, AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, MaybeSet, Request
+from pjrpc.common import Response, exceptions, generators
+from pjrpc.common.typedefs import JsonRpcRequestIdT, JsonT
 
 logger = logging.getLogger(__package__)
 
 
-class BaseBatch(abc.ABC):
+ReturnT = TypeVar('ReturnT', covariant=True)
+
+
+class ProxyCall(Protocol[ReturnT]):
+    def __call__(self, *args: JsonT, **kwargs: JsonT) -> ReturnT: pass
+
+
+class Batch:
     """
-    Base batch wrapper. Implements some methods to wrap multiple JSON-RPC requests into a single batch request.
-
-    :param client: JSON-RPC client instance
-    """
-
-    class BaseProxy(abc.ABC):
-        """
-        Proxy object. Provides syntactic sugar to make method calls using dot notation.
-
-        :param batch: batch wrapper
-        """
-
-        def __init__(self, batch: 'BaseBatch'):
-            self._batch = batch
-
-        def __getattr__(self, attr: str) -> MethodType:
-            def wrapped(*args: Any, **kwargs: Any) -> 'BaseBatch.BaseProxy':
-                self._batch.add(attr, *args, **kwargs)
-                return self
-
-            return wrapped
-
-        @abc.abstractmethod
-        def __call__(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Union[Awaitable[Any], Any]:
-            """
-            Makes an RPC call.
-
-            :param _trace_ctx: tracers request context
-            """
-
-        @abc.abstractmethod
-        def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Union[Awaitable[Any], Any]:
-            """
-            Makes an RPC call.
-
-            :param _trace_ctx: tracers request context
-            """
-
-    @property
-    @abc.abstractmethod
-    def proxy(self) -> 'BaseProxy':
-        """
-        Batch request proxy object.
-        """
-
-    def __init__(self, client: 'BaseAbstractClient'):
-        self._client = client
-        self._id_gen = client.id_gen_impl()
-        self._requests = client.batch_request_class()
-
-    def __getitem__(self, requests: Iterable[Tuple[Any]]) -> Union[Awaitable[Any], Any]:
-        """
-        Adds requests to the batch and makes a request.
-
-        :param requests: requests to be added to the batch
-        :returns: request results as a tuple
-        """
-
-        self._requests.extend([
-            self._client.request_class(
-                method=method,
-                params=params,
-                id=next(self._id_gen),
-            ) for method, *params in requests  # type: ignore[var-annotated]
-        ])
-        return self.call()
-
-    def __call__(self, method: str, *args: Any, **kwargs: Any) -> 'BaseBatch':
-        """
-        Adds the method call to the batch.
-
-        :param method: method name
-        :param args: method positional arguments
-        :param kwargs: method named arguments
-        :returns: self
-        """
-
-        return self.add(method, *args, **kwargs)
-
-    @abc.abstractmethod
-    def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Union[Awaitable[Any], Any]:
-        """
-        Makes a JSON-RPC request.
-
-        :param _trace_ctx: tracers request context
-        :returns: request results as a tuple
-        """
-
-    @abc.abstractmethod
-    def send(
-        self, request: BatchRequest, _trace_ctx: Optional[SimpleNamespace] = None, **kwargs: Any,
-    ) -> Union[Awaitable[Optional[BatchResponse]], Optional[BatchResponse]]:
-        """
-        Sends a JSON-RPC batch request.
-
-        :param request: request instance
-        :param kwargs: additional client request argument
-        :param _trace_ctx: tracers request context
-        :returns: response instance
-        """
-
-    def add(self, method: str, *args: Any, **kwargs: Any) -> 'BaseBatch':
-        """
-        Adds the method call to the batch.
-
-        :param method: method name
-        :param args: method positional arguments
-        :param kwargs: method named arguments
-        :returns: self
-        """
-
-        assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
-
-        self._requests.append(self._client.request_class(method, args or kwargs, id=next(self._id_gen)))
-        return self
-
-    def notify(self, method: str, *args: Any, **kwargs: Any) -> 'BaseBatch':
-        """
-        Adds a notification request to the batch.
-
-        :param method: method name
-        :param args: method positional arguments
-        :param kwargs: method named arguments
-        """
-
-        assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
-
-        self._requests.append(self._client.request_class(method, args or kwargs))
-        return self
-
-    def _relate(self, batch_request: BatchRequest, batch_response: BatchResponse) -> None:
-        """
-        Sets requests `related` field. if `strict` flag is ``True``
-        checks that all requests have theirs corresponding responses
-
-        :param batch_request: batch request
-        :param batch_response: batch response
-        """
-
-        if batch_response.is_success:
-            response_map = {response.id: response for response in batch_response if response.id is not None}
-
-            for request in batch_request:
-                if request.id is not None:
-                    response = response_map.pop(request.id, None)
-                    if response is None and self._client.strict:
-                        raise exceptions.IdentityError(f"response '{request.id}' not found")
-                    elif response is not None:
-                        response.related = request
-
-            if response_map and self._client.strict:
-                raise exceptions.IdentityError(f"unexpected response found: {response_map.keys()}")
-
-
-class Batch(BaseBatch):
-    """
-    Batch wrapper. Implements some methods to wrap multiple JSON-RPC requests into a single batch request.
-
-    :param client: JSON-RPC client instance
+    Batch object. Provides syntactic sugar to send batch requests.
     """
 
-    class Proxy(BaseBatch.BaseProxy):
+    class Proxy:
+        """
+        Proxy object. Provides syntactic sugar to make method call using dot notation.
+
+        :param batch: batch object
+        """
 
         def __init__(self, batch: 'Batch'):
-            super().__init__(batch)
+            self._batch = batch
 
-        def __call__(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Any:
-            return self.call(_trace_ctx)
+        def __getattr__(self, attr: str) -> ProxyCall[JsonT]:
+            return ft.partial(self._batch.call, attr)
 
-        def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Any:
-            return self._batch.call(_trace_ctx)
+    def __init__(
+        self,
+        id_gen_impl: Callable[..., Generator[JsonRpcRequestIdT, None, None]],
+    ):
+        self._id_gen = id_gen_impl()
+
+        self._requests: list[Request] = []
+        self._response: MaybeSet[Optional[BatchResponse]] = UNSET
 
     @property
-    def proxy(self) -> 'Proxy':
+    def proxy(self) -> Proxy:
+        """
+        Client proxy object.
+        """
+
         return Batch.Proxy(self)
 
-    def __init__(self, client: 'AbstractClient'):
-        super().__init__(client)
-
-    def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Optional[Any]:
-        response = self.send(self._requests, _trace_ctx=_trace_ctx)
-
-        return response.result if response is not None else None
-
-    def send(
-        self, request: BatchRequest, _trace_ctx: Optional[SimpleNamespace] = None, **kwargs: Any,
-    ) -> Optional[BatchResponse]:
-        return cast(
-            Optional[BatchResponse], self._client._send(
-                request,
-                response_class=self._client.batch_response_class,
-                validator=self._relate,
-                _trace_ctx=_trace_ctx,
-                **kwargs,
-            ),
-        )
-
-
-class AsyncBatch(BaseBatch):
-    """
-    Asynchronous batch wrapper. Used to make asynchronous JSON-RPC batch requests.
-    """
-
-    class Proxy(BaseBatch.BaseProxy):
-
-        def __init__(self, batch: 'AsyncBatch'):
-            super().__init__(batch)
-
-        async def __call__(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Any:
-            return await self.call(_trace_ctx)
-
-        async def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Any:
-            return await self._batch.call(_trace_ctx)
-
     @property
-    def proxy(self) -> 'Proxy':
-        return AsyncBatch.Proxy(self)
+    def requests(self) -> list[Request]:
+        """
+        Batch requests.
+        """
 
-    def __init__(self, client: 'AbstractAsyncClient'):
-        super().__init__(client)
+        return self._requests
 
-    async def call(self, _trace_ctx: Optional[SimpleNamespace] = None) -> Optional[Any]:
-        response = await self.send(self._requests, _trace_ctx=_trace_ctx)
+    def __call__(self, method: str, *args: JsonT, **kwargs: JsonT) -> None:
+        """
+        Makes a JSON-RPC call.
 
-        return response.result if response is not None else None
+        :param method: method name
+        :param args: method positional arguments
+        :param kwargs: method named arguments
+        :returns: response result
+        """
 
-    async def send(
-        self, request: BatchRequest, _trace_ctx: Optional[SimpleNamespace] = None, **kwargs: Any,
-    ) -> Optional[BatchResponse]:
-        return await cast(
-            Awaitable[Optional[BatchResponse]], self._client._send(
-                request,
-                response_class=self._client.batch_response_class,
-                validator=self._relate,
-                _trace_ctx=_trace_ctx,
-                **kwargs,
-            ),
-        )
+        assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
+
+        self._requests.append(Request(id=next(self._id_gen), method=method, params=args or kwargs))
+
+    def send(self, request: Request) -> None:
+        self._requests.append(request)
+
+    def notify(self, method: str, *args: JsonT, **kwargs: JsonT) -> None:
+        """
+        Makes a notification request
+
+        :param method: method name
+        :param args: method positional arguments
+        :param kwargs: method named arguments
+        """
+
+        assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
+
+        self._requests.append(Request(id=None, method=method, params=args or kwargs))
+
+    def call(self, method: str, *args: JsonT, **kwargs: JsonT) -> None:
+        """
+        Makes a JSON-RPC call.
+
+        :param method: method name
+        :param args: method positional arguments
+        :param kwargs: method named arguments
+        :returns: response result
+        """
+
+        assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
+
+        self._requests.append(Request(id=next(self._id_gen), method=method, params=args or kwargs))
+
+    def set_response(self, response: Optional[BatchResponse]) -> None:
+        """
+        Sets batch response
+        """
+
+        self._response = response
+
+    def get_response(self) -> Optional[BatchResponse]:
+        """
+        Returns a batch response.
+        """
+
+        if self._response is UNSET:
+            raise RuntimeError("batch reqeust is not sent yet")
+
+        return self._response
+
+    def get_results(self) -> Iterable[Any]:
+        """
+        Returns the batch results preserving requests order (skipping notification request).
+        """
+
+        if self._response is UNSET:
+            raise RuntimeError("batch reqeust is not sent yet")
+        if self._response is None:
+            return []
+
+        if self._response.is_error:
+            raise self._response.unwrap_error()
+
+        response_map = {response.id: response for response in self._response}
+        results: list[Any] = []
+        for request in self._requests:
+            if request.id is not None:
+                if (response := response_map.get(request.id)) is None:
+                    raise exceptions.IdentityError(f"response '{request.id}' is missing")
+                results.append(response.unwrap_result())
+
+        return results
 
 
-class BaseAbstractClient(abc.ABC):
+MiddlewareHandler = Callable[[AbstractRequest, Mapping[str, Any]], Optional[AbstractResponse]]
+
+
+class Middleware(Protocol):
     """
-    Base abstract JSON-RPC client.
+    JSON-RPC client middleware.
+    """
 
-    :param request_class: request class
-    :param response_class: response class
-    :param batch_request_class: batch request class
-    :param batch_response_class: batch response class
-    :param error_cls: JSON-RPC error base class
+    def __call__(
+        self,
+        request: AbstractRequest,
+        request_kwargs: Mapping[str, Any],
+        /,
+        handler: MiddlewareHandler,
+    ) -> Optional[AbstractResponse]:
+        pass
+
+
+class AbstractClient(abc.ABC):
+    """
+    Abstract synchronous JSON-RPC client.
+
     :param id_gen_impl: identifier generator
+    :param error_cls: JSON-RPC error base class
     :param json_loader: json loader
     :param json_dumper: json dumper
     :param json_encoder: json encoder
     :param json_decoder: json decoder
-    :param strict: if ``True`` checks that a request and a response identifiers match
-    :param request_args: backend request argument
-    :param tracers: request tracers list
-    :param retry_strategy: request retry strategy
+    :param middlewares: client reqeust middlewares
     """
 
     class Proxy:
@@ -284,473 +186,345 @@ class BaseAbstractClient(abc.ABC):
         :param client: JSON-RPC client instance
         """
 
-        def __init__(self, client: 'BaseAbstractClient'):
+        def __init__(self, client: 'AbstractClient'):
             self._client = client
 
-        def __getattr__(self, attr: str) -> Callable[..., Any]:
+        def __getattr__(self, attr: str) -> ProxyCall[JsonT]:
             return ft.partial(self._client.call, attr)
+
+    @property
+    def proxy(self) -> Proxy:
+        """
+        Client proxy object.
+        """
+
+        return AbstractClient.Proxy(self)
+
+    @cl.contextmanager
+    def batch(self) -> Generator[Batch, None, None]:
+        """
+        Client batch wrapper.
+        """
+
+        batch = Batch(self._id_gen_impl)
+        yield batch
+
+        response = self._send(BatchRequest(*batch.requests), {})
+        assert isinstance(response, (BatchResponse, type(None))), "unexpected response type"
+
+        batch.set_response(response)
 
     def __init__(
         self,
-        request_class: Type[Request] = v20.Request,
-        response_class: Type[Response] = v20.Response,
-        batch_request_class: Type[BatchRequest] = v20.BatchRequest,
-        batch_response_class: Type[BatchResponse] = v20.BatchResponse,
-        error_cls: Type[exceptions.JsonRpcError] = exceptions.JsonRpcError,
-        id_gen_impl: Callable[..., Generator[JsonRpcRequestId, None, None]] = generators.sequential,
+        *,
+        id_gen_impl: Callable[..., Generator[JsonRpcRequestIdT, None, None]] = generators.sequential,
+        error_cls: type[exceptions.JsonRpcError] = exceptions.JsonRpcError,
         json_loader: Callable[..., Any] = json.loads,
         json_dumper: Callable[..., str] = json.dumps,
-        json_encoder: Type[common.JSONEncoder] = common.JSONEncoder,
+        json_encoder: type[common.JSONEncoder] = common.JSONEncoder,
         json_decoder: Optional[json.JSONDecoder] = None,
-        strict: bool = True,
-        request_args: Optional[Dict[str, Any]] = None,
-        tracers: Iterable[Tracer[Any]] = (),
-        retry_strategy: Optional[retry.RetryStrategy] = None,
+        middlewares: Iterable[Middleware] = (),
+        request_content_type: str = common.DEFAULT_CONTENT_TYPE,
+        response_content_types: Iterable[str] = common.RESPONSE_CONTENT_TYPES,
     ):
-        self.request_class = request_class
-        self.response_class = response_class
-        self.batch_request_class = batch_request_class
-        self.batch_response_class = batch_response_class
-        self.error_cls = error_cls
-        self.json_loader = json_loader
-        self.json_dumper = json_dumper
-        self.json_encoder = json_encoder
-        self.json_decoder = json_decoder
-        self.id_gen_impl = id_gen_impl
-        self.strict = strict
-        self._request_args = request_args or {}
-        self._tracers = tracers
-        self._retry_strategy = retry_strategy
+        self._id_gen_impl = id_gen_impl
+        self._error_cls = error_cls
+        self._json_loader = json_loader
+        self._json_dumper = json_dumper
+        self._json_encoder = json_encoder
+        self._json_decoder = json_decoder
+        self._request_content_type = request_content_type
+        self._response_content_types = set(response_content_types)
 
-    def __call__(
-        self,
-        method: str,
-        *args: Any,
-        _trace_ctx: Optional[SimpleNamespace] = None,
-        **kwargs: Any,
-    ) -> Union[Awaitable[Any], Any]:
+        send = self._send_request
+        for middleware in reversed(list(middlewares)):
+            send = ft.partial(middleware, handler=send)
+
+        self._send = send
+
+    def __call__(self, method: str, *args: JsonT, **kwargs: JsonT) -> JsonT:
         """
-        Makes JSON-RPC call.
+        Makes a JSON-RPC call.
 
         :param method: method name
         :param args: method positional arguments
         :param kwargs: method named arguments
-        :param _trace_ctx: tracers request context
         :returns: response result
         """
 
-        return self.call(method, *args, _trace_ctx=_trace_ctx, **kwargs)
-
-    @property
-    def proxy(self) -> 'Proxy':
-        """
-        Clint proxy object.
-        """
-
-        return BaseAbstractClient.Proxy(self)
+        return self.call(method, *args, **kwargs)
 
     @abc.abstractmethod
-    def call(self, method: str, *args: Any, **kwargs: Any) -> Union[Awaitable[Any], Any]:
-        pass
-
-    @abc.abstractmethod
-    def _send(
+    def _request(
         self,
-        request: AbstractRequest,
-        response_class: Type[AbstractResponse],
-        validator: Callable[..., None],
-        _trace_ctx: Optional[SimpleNamespace] = None,
-        **kwargs: Any,
-    ) -> Union[Awaitable[Optional[AbstractResponse]], Optional[AbstractResponse]]:
-        pass
-
-    def _relate(self, request: Request, response: Response) -> None:
-        """
-        Checks the the request and the response identifiers match.
-
-        :param request: request
-        :param response: response
-        """
-
-        if self.strict and response.id is not None and response.id != request.id:
-            raise exceptions.IdentityError(
-                f"response id doesn't match the request one: expected {request.id}, got {response.id}",
-            )
-
-        response.related = request
-
-
-class AbstractClient(BaseAbstractClient):
-    """
-    Abstract synchronous JSON-RPC client.
-    """
-
-    @property
-    def batch(self) -> Batch:
-        """
-        Client batch wrapper.
-        """
-
-        return Batch(self)
-
-    @abc.abstractmethod
-    def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> Optional[str]:
+        request_text: str,
+        is_notification: bool,
+        request_kwargs: Mapping[str, Any],
+    ) -> Optional[str]:
         """
         Makes a JSON-RPC request.
 
         :param request_text: request text representation
         :param is_notification: is the request a notification
+        :param request_kwargs: additional client request argument
         :returns: response text representation
         """
 
-    def notify(
+    def _send_request(
         self,
-        method: str,
-        *args: Any,
-        _trace_ctx: Optional[SimpleNamespace] = None,
-        **kwargs: Any,
-    ) -> Optional[Response]:
+        request: AbstractRequest,
+        request_kwargs: Mapping[str, Any],
+    ) -> Optional[AbstractResponse]:
+        """
+        Sends a JSON-RPC request.
+
+        :param request: request instance
+        :param request_kwargs: additional client request argument
+        :returns: response instance or None if the request is a notification
+        """
+
+        response_cls: type[AbstractResponse] = BatchResponse if isinstance(request, BatchRequest) else Response
+        request_text = self._json_dumper(request, cls=self._json_encoder)
+
+        response_text = self._request(request_text, request.is_notification, request_kwargs)
+        if not request.is_notification:
+            response = response_cls.from_json(
+                self._json_loader(response_text, cls=self._json_decoder), error_cls=self._error_cls,
+            )
+        else:
+            if response_text:
+                raise exceptions.ProtocolError("unexpected response")
+            response = None
+
+        return response
+
+    def notify(self, method: str, *args: JsonT, **kwargs: JsonT) -> None:
         """
         Makes a notification request
 
         :param method: method name
         :param args: method positional arguments
         :param kwargs: method named arguments
-        :param _trace_ctx: tracers request context
         """
 
         assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
 
-        request = self.request_class(
+        request = Request(
             id=None,
             method=method,
             params=args or kwargs,
         )
-        return self.send(request, _trace_ctx=_trace_ctx)
+        self._send(request, {})
 
-    def call(
-        self, method: str, *args: Any, _trace_ctx: Optional[SimpleNamespace] = None, **kwargs: Any,
-    ) -> Any:
+    def call(self, method: str, *args: JsonT, **kwargs: JsonT) -> JsonT:
         """
-        Makes JSON-RPC call.
+        Makes a JSON-RPC call.
 
         :param method: method name
         :param args: method positional arguments
         :param kwargs: method named arguments
-        :param _trace_ctx: tracers request context
         :returns: response result
         """
 
         assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
 
-        request = self.request_class(
-            id=next(self.id_gen_impl()),
+        request = Request(
+            id=next(self._id_gen_impl()),
             method=method,
             params=args or kwargs,
         )
-        response = self.send(request, _trace_ctx=_trace_ctx)
+        response = self._send(request, {})
 
         assert response is not None, "response is not set"
-        return response.result
+        return response.unwrap_result()
 
-    def send(
-        self,
-        request: Request,
-        _trace_ctx: Optional[SimpleNamespace] = None,
-        _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
-        **kwargs: Any,
-    ) -> Optional[Response]:
-        """
-        Sends a JSON-RPC request.
 
-        :param request: request instance
-        :param kwargs: additional client request argument
-        :param _trace_ctx: tracers request context
-        :param _retry_strategy: request retry strategy
-        :returns: response instance
-        """
+AsyncMiddlewareHandler = Callable[[AbstractRequest, Mapping[str, Any]], Awaitable[Optional[AbstractResponse]]]
 
-        return cast(
-            Response, self._send(
-                request,
-                response_class=self.response_class,
-                validator=self._relate,
-                _trace_ctx=_trace_ctx,
-                _retry_strategy=_retry_strategy,
-                **kwargs,
-            ),
-        )
 
-    def traced(method: Callable[..., Any]) -> Callable[..., Any]:
-        @ft.wraps(method)
-        def wrapper(
-            self: 'AbstractClient',
-            request: AbstractRequest,
-            response_class: Type[AbstractResponse],
-            validator: Callable[..., None],
-            _trace_ctx: Optional[SimpleNamespace] = None,
-            **kwargs: Any,
-        ) -> Optional[AbstractResponse]:
-            """
-            Adds tracing logic to the method.
-            """
+class AsyncMiddleware(Protocol):
+    """
+    Asynchronous JSON-RPC client middleware.
+    """
 
-            trace_ctx = _trace_ctx or SimpleNamespace()
-
-            for tracer in self._tracers:
-                tracer.on_request_begin(trace_ctx, request, kwargs)
-
-            try:
-                response = method(
-                    self, request, response_class=response_class, validator=validator, _trace_ctx=trace_ctx, **kwargs,
-                )
-            except BaseException as e:
-                for tracer in self._tracers:
-                    tracer.on_error(trace_ctx, request, e)
-                raise
-
-            for tracer in self._tracers:
-                tracer.on_request_end(trace_ctx, request, response)
-
-            return response
-
-        return wrapper
-
-    def retried(method: Callable[..., Any]) -> Callable[..., Any]:
-        @ft.wraps(method)
-        def wrapper(
-            self: 'AbstractClient',
-            request: AbstractRequest,
-            _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
-            **kwargs: Any,
-        ) -> Optional[AbstractResponse]:
-            """
-            Adds retrying logic to the method.
-            """
-
-            retry_strategy = self._retry_strategy if isinstance(_retry_strategy, UnsetType) else _retry_strategy
-            if retry_strategy:
-                wrapped_method = retry.retry(method, retry_strategy)
-            else:
-                wrapped_method = method
-
-            response = wrapped_method(self, request, **kwargs)
-
-            return response
-
-        return wrapper
-
-    @retried
-    @traced
-    def _send(
+    async def __call__(
         self,
         request: AbstractRequest,
-        response_class: Type[AbstractResponse],
-        validator: Callable[..., None],
-        _trace_ctx: Optional[SimpleNamespace] = None,
-        **kwargs: Any,
+        request_kwargs: Mapping[str, Any],
+        /,
+        handler: AsyncMiddlewareHandler,
     ) -> Optional[AbstractResponse]:
-        kwargs = {**self._request_args, **kwargs}
-        request_text = self.json_dumper(request, cls=self.json_encoder)
-
-        response_text = self._request(request_text, request.is_notification, **kwargs)
-        if not request.is_notification:
-            response = response_class.from_json(
-                self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls,
-            )
-            validator(request, response)
-
-        else:
-            if self.strict and response_text:
-                raise exceptions.BaseError("unexpected response")
-            response = None
-
-        return response
+        pass
 
 
-class AbstractAsyncClient(BaseAbstractClient):
+class AbstractAsyncClient(abc.ABC):
     """
     Abstract asynchronous JSON-RPC client.
+
+    :param id_gen_impl: identifier generator
+    :param error_cls: JSON-RPC error base class
+    :param json_loader: json loader
+    :param json_dumper: json dumper
+    :param json_encoder: json encoder
+    :param json_decoder: json decoder
+    :param middlewares: client reqeust middlewares
     """
 
+    class Proxy:
+        """
+        Proxy object. Provides syntactic sugar to make method call using dot notation.
+
+        :param client: JSON-RPC client instance
+        """
+
+        def __init__(self, client: 'AbstractAsyncClient'):
+            self._client = client
+
+        def __getattr__(self, attr: str) -> Callable[..., Awaitable[JsonT]]:
+            return ft.partial(self._client.call, attr)
+
     @property
-    def batch(self) -> AsyncBatch:
+    def proxy(self) -> Proxy:
+        """
+        Client proxy object.
+        """
+
+        return AbstractAsyncClient.Proxy(self)
+
+    @cl.asynccontextmanager
+    async def batch(self) -> AsyncGenerator[Batch, None]:
         """
         Client batch wrapper.
         """
 
-        return AsyncBatch(self)
+        batch = Batch(self._id_gen_impl)
+        yield batch
+
+        response = await self._send(BatchRequest(*batch.requests), {})
+        assert isinstance(response, (BatchResponse, type(None))), "unexpected response type"
+
+        batch.set_response(response)
+
+    def __init__(
+        self,
+        *,
+        id_gen_impl: Callable[..., Generator[JsonRpcRequestIdT, None, None]] = generators.sequential,
+        error_cls: type[exceptions.JsonRpcError] = exceptions.JsonRpcError,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
+        json_encoder: type[common.JSONEncoder] = common.JSONEncoder,
+        json_decoder: Optional[json.JSONDecoder] = None,
+        middlewares: Iterable[AsyncMiddleware] = (),
+        request_content_type: str = common.DEFAULT_CONTENT_TYPE,
+        response_content_types: Iterable[str] = common.RESPONSE_CONTENT_TYPES,
+    ):
+        self._id_gen_impl = id_gen_impl
+        self._error_cls = error_cls
+        self._json_loader = json_loader
+        self._json_dumper = json_dumper
+        self._json_encoder = json_encoder
+        self._json_decoder = json_decoder
+        self._request_content_type = request_content_type
+        self._response_content_types = set(response_content_types)
+
+        send = self._send_request
+        for middleware in reversed(list(middlewares)):
+            send = ft.partial(middleware, handler=send)
+
+        self._send = send
+
+    def __call__(self, method: str, *args: JsonT, **kwargs: JsonT) -> Awaitable[JsonT]:
+        """
+        Makes a JSON-RPC call.
+
+        :param method: method name
+        :param args: method positional arguments
+        :param kwargs: method named arguments
+        :returns: response result
+        """
+
+        return self.call(method, *args, **kwargs)
 
     @abc.abstractmethod
-    async def _request(self, request_text: str, is_notification: bool = False, **kwargs: Any) -> Optional[str]:
+    async def _request(
+        self,
+        request_text: str,
+        is_notification: bool,
+        request_kwargs: Mapping[str, Any],
+    ) -> Optional[str]:
         """
         Makes a JSON-RPC request.
 
         :param request_text: request text representation
         :param is_notification: is the request a notification
-        :returns: response text representation
+        :param request_kwargs: additional client request argument
+        :returns: response text representation or None if the request is a notification
         """
 
-    async def send(
+    async def _send_request(
         self,
-        request: Request,
-        _trace_ctx: Optional[SimpleNamespace] = None,
-        _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
-        **kwargs: Any,
-    ) -> Optional[Response]:
+        request: AbstractRequest,
+        request_kwargs: Mapping[str, Any],
+    ) -> Optional[AbstractResponse]:
         """
         Sends a JSON-RPC request.
 
         :param request: request instance
-        :param kwargs: additional client request argument
-        :param _trace_ctx: tracers request context
-        :param _retry_strategy: request retry strategy
-        :returns: response instance
+        :param request_kwargs: additional client request argument
+        :returns: response instance or None if the request is a notification
         """
 
-        return cast(
-            Response, await self._send(
-                request,
-                _trace_ctx=_trace_ctx,
-                _retry_strategy=_retry_strategy,
-                response_class=self.response_class,
-                validator=self._relate,
-                **kwargs,
-            ),
-        )
+        response_cls: type[AbstractResponse] = BatchResponse if isinstance(request, BatchRequest) else Response
+        request_text = self._json_dumper(request, cls=self._json_encoder)
 
-    def traced(method: Callable[..., Any]) -> Callable[..., Any]:
-        @ft.wraps(method)
-        async def wrapper(
-            self: 'AbstractAsyncClient',
-            request: Request,
-            response_class: Type[AbstractResponse],
-            validator: Callable[..., None],
-            _trace_ctx: Optional[SimpleNamespace] = None,
-            **kwargs: Any,
-        ) -> Response:
-            """
-            Adds tracing logic to the method.
-            """
-
-            trace_ctx = _trace_ctx or SimpleNamespace()
-
-            for tracer in self._tracers:
-                tracer.on_request_begin(trace_ctx, request, kwargs)
-
-            try:
-                response = await method(
-                    self, request, response_class=response_class, validator=validator, _trace_ctx=trace_ctx, **kwargs,
-                )
-            except BaseException as e:
-                for tracer in self._tracers:
-                    tracer.on_error(trace_ctx, request, e)
-                raise
-
-            for tracer in self._tracers:
-                tracer.on_request_end(trace_ctx, request, response)
-
-            return response
-
-        return wrapper
-
-    def retried(method: Callable[..., Awaitable[Any]]) -> Callable[..., Any]:
-        @ft.wraps(method)
-        async def wrapper(
-            self: 'AbstractClient',
-            request: AbstractRequest,
-            _retry_strategy: MaybeSet[retry.RetryStrategy] = UNSET,
-            **kwargs: Any,
-        ) -> Optional[AbstractResponse]:
-            """
-            Adds retrying logic to the method.
-            """
-
-            retry_strategy = self._retry_strategy if isinstance(_retry_strategy, UnsetType) else _retry_strategy
-            if retry_strategy:
-                wrapped_method = retry.retry_async(method, retry_strategy)
-            else:
-                wrapped_method = method
-
-            response = await wrapped_method(self, request, **kwargs)
-
-            return response
-
-        return wrapper
-
-    @retried
-    @traced
-    async def _send(
-        self,
-        request: AbstractRequest,
-        response_class: Type[AbstractResponse],
-        validator: Callable[..., None],
-        _trace_ctx: Optional[SimpleNamespace] = None,
-        **kwargs: Any,
-    ) -> Optional[AbstractResponse]:
-        kwargs = {**self._request_args, **kwargs}
-        request_text = self.json_dumper(request, cls=self.json_encoder)
-
-        response_text = await self._request(request_text, request.is_notification, **kwargs)
+        response_text = await self._request(request_text, request.is_notification, request_kwargs)
         if not request.is_notification:
-            response = response_class.from_json(
-                self.json_loader(response_text, cls=self.json_decoder), error_cls=self.error_cls,
+            response = response_cls.from_json(
+                self._json_loader(response_text, cls=self._json_decoder), error_cls=self._error_cls,
             )
-            validator(request, response)
-
         else:
-            if self.strict and response_text:
-                raise exceptions.BaseError("unexpected response")
+            if response_text:
+                raise exceptions.ProtocolError("unexpected response")
             response = None
 
         return response
 
-    async def notify(
-        self,
-        method: str,
-        *args: Any,
-        _trace_ctx: Optional[SimpleNamespace] = None,
-        **kwargs: Any,
-    ) -> Optional[Response]:
+    async def notify(self, method: str, *args: JsonT, **kwargs: JsonT) -> None:
         """
         Makes a notification request
 
         :param method: method name
         :param args: method positional arguments
         :param kwargs: method named arguments
-        :param _trace_ctx: tracers request context
         """
 
         assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
 
-        request = self.request_class(
+        request = Request(
             id=None,
             method=method,
             params=args or kwargs,
         )
-        return await self.send(request, _trace_ctx=_trace_ctx)
+        await self._send(request, {})
 
-    async def call(
-        self, method: str, *args: Any, _trace_ctx: Optional[SimpleNamespace] = None, **kwargs: Any,
-    ) -> Any:
+    async def call(self, method: str, *args: JsonT, **kwargs: JsonT) -> JsonT:
         """
-        Makes JSON-RPC call.
+        Makes a JSON-RPC call.
 
         :param method: method name
         :param args: method positional arguments
         :param kwargs: method named arguments
-        :param _trace_ctx: tracers request context
         :returns: response result
         """
 
         assert not (args and kwargs), "positional and keyword arguments are mutually exclusive"
 
-        request = self.request_class(
-            id=next(self.id_gen_impl()),
+        request = Request(
+            id=next(self._id_gen_impl()),
             method=method,
             params=args or kwargs,
         )
-        response = await self.send(request, _trace_ctx=_trace_ctx)
+        response = await self._send(request, {})
 
-        assert response is not None, "response is not set"
-        return response.result
+        assert response is not None, "response is empty"
+        return response.unwrap_result()

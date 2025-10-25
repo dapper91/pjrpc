@@ -1,7 +1,9 @@
 import json
 
 import pjrpc
-from pjrpc.server import dispatcher as pjrpc_dispatcher
+from pjrpc.server.dispatcher import AsyncDispatcher, Dispatcher, MethodRegistry
+from pjrpc.server.utils import exclude_positional_param
+from pjrpc.server.validators import BaseValidatorFactory
 
 
 def test_middleware(mocker):
@@ -30,8 +32,11 @@ def test_middleware(mocker):
 
         return handler(request, context)
 
-    dispatcher = pjrpc_dispatcher.Dispatcher(middlewares=(test_middleware1, test_middleware2))
-    dispatcher.add(test_method, 'test_method', 'context')
+    registry = MethodRegistry(validator_factory=BaseValidatorFactory(exclude=exclude_positional_param(0)))
+    registry.add_method(test_method, 'test_method', pass_context=True)
+
+    dispatcher = Dispatcher(middlewares=(test_middleware1, test_middleware2))
+    dispatcher.add_methods(registry)
 
     request_text = json.dumps(test_request.to_json())
     response_text, error_codes = dispatcher.dispatch(request_text, test_context)
@@ -68,8 +73,11 @@ async def test_async_middleware(mocker):
 
         return await handler(request, context)
 
-    dispatcher = pjrpc_dispatcher.AsyncDispatcher(middlewares=(test_middleware1, test_middleware2))
-    dispatcher.add(test_method, 'test_method', 'context')
+    registry = MethodRegistry(validator_factory=BaseValidatorFactory(exclude=exclude_positional_param(0)))
+    registry.add_method(test_method, 'test_method', pass_context=True)
+
+    dispatcher = AsyncDispatcher(middlewares=(test_middleware1, test_middleware2))
+    dispatcher.add_methods(registry)
 
     request_text = json.dumps(test_request.to_json())
     response_text, error_codes = await dispatcher.dispatch(request_text, test_context)

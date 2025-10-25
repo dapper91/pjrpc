@@ -1,13 +1,19 @@
 import inspect
 import itertools as it
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type
+from typing import Any, Callable, Iterable, Optional
 
 from pjrpc.common import UNSET, MaybeSet, UnsetType
-from pjrpc.common.exceptions import JsonRpcError
-from pjrpc.common.typedefs import MethodType
+from pjrpc.common.exceptions import TypedError
+
+__all__ = [
+    'BaseMethodInfoExtractor',
+]
+
+MethodType = Callable[..., Any]
+ExcludeFunc = Callable[[int, str, Optional[type[Any]], Optional[Any]], bool]
 
 
-class BaseSchemaExtractor:
+class BaseMethodInfoExtractor:
     """
     Base method schema extractor.
     """
@@ -17,8 +23,7 @@ class BaseSchemaExtractor:
             method_name: str,
             method: MethodType,
             ref_template: str,
-            exclude: Iterable[str] = (),
-    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         """
         Extracts params schema.
         """
@@ -30,8 +35,7 @@ class BaseSchemaExtractor:
             method_name: str,
             method: MethodType,
             ref_template: str,
-            exclude: Iterable[str] = (),
-    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         """
         Extracts request schema.
         """
@@ -43,7 +47,7 @@ class BaseSchemaExtractor:
             method_name: str,
             method: MethodType,
             ref_template: str,
-    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         """
         Extracts result schema.
         """
@@ -55,8 +59,8 @@ class BaseSchemaExtractor:
             method_name: str,
             method: MethodType,
             ref_template: str,
-            errors: Optional[Iterable[Type[JsonRpcError]]] = None,
-    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+            errors: Optional[Iterable[type[TypedError]]] = None,
+    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         """
         Extracts response schema.
         """
@@ -68,8 +72,8 @@ class BaseSchemaExtractor:
             method_name: str,
             method: MethodType,
             ref_template: str,
-            errors: Optional[Iterable[Type[JsonRpcError]]] = None,
-    ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+            errors: Optional[Iterable[type[TypedError]]] = None,
+    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         """
         Extracts error response schema.
         """
@@ -105,7 +109,7 @@ class BaseSchemaExtractor:
 
         return summary
 
-    def extract_errors(self, method: MethodType) -> MaybeSet[List[Type[JsonRpcError]]]:
+    def extract_errors(self, method: MethodType) -> MaybeSet[list[type[TypedError]]]:
         """
         Extracts method errors.
         """

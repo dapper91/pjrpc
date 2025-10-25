@@ -1,63 +1,53 @@
-from __future__ import annotations
+from typing import Awaitable, Callable, Protocol, TypeVar
 
-from typing import Any, Awaitable, Callable, Optional, Type, TypeVar, Union
-
-import pjrpc.common.exceptions
-from pjrpc.common import Request, Response, UnsetType
+from pjrpc.common import MaybeSet, Request, Response
 
 __all__ = [
-    'AsyncErrorHandlerType',
-    'AsyncMiddlewareType',
     'AsyncHandlerType',
+    'AsyncMiddlewareType',
+    'ContextType',
+    'HandlerType',
     'MiddlewareResponse',
     'MiddlewareType',
-    'ErrorHandlerType',
-    'ExcludeFunc',
-    'ResponseOrUnset',
-    'ContextType',
 ]
 
 
 ContextType = TypeVar('ContextType')
 '''Context argument for RPC methods and middlewares'''  # for sphinx autodoc
 
-ResponseOrUnset = Union[UnsetType, Response]
-'''Return value of RPC handlers and middlewares'''  # for sphinx autodoc
-
-AsyncHandlerType = Callable[[Request, ContextType], Awaitable[ResponseOrUnset]]
+AsyncHandlerType = Callable[[Request, ContextType], Awaitable[MaybeSet[Response]]]
 '''Async RPC handler method, passed to middlewares'''  # for sphinx autodoc
 
-HandlerType = Callable[[Request, ContextType], ResponseOrUnset]
+HandlerType = Callable[[Request, ContextType], MaybeSet[Response]]
 '''Blocking RPC handler method, passed to middlewares'''  # for sphinx autodoc
 
-MiddlewareResponse = Union[UnsetType, Response]
+MiddlewareResponse = MaybeSet[Response]
 '''middlewares and handlers return Response or UnsetType'''  # for sphinx autodoc
 
-AsyncMiddlewareType = Callable[
-    [Request, ContextType, AsyncHandlerType[ContextType]],
-    Awaitable[MiddlewareResponse],
-]
-'''Asynchronous middleware type'''  # for sphinx autodoc
 
-AsyncErrorHandlerType = Callable[
-    [Request, ContextType, pjrpc.exceptions.JsonRpcError],
-    Awaitable[pjrpc.exceptions.JsonRpcError],
-]
-'''Asynchronous server error handler'''  # for sphinx autodoc
+class AsyncMiddlewareType(Protocol[ContextType]):
+    """
+    Asynchronous middleware type
+    """
 
-
-MiddlewareType = Callable[
-    [Request, ContextType, HandlerType[ContextType]],
-    MiddlewareResponse,
-]
-'''Synchronous middleware type'''  # for sphinx autodoc
-
-ErrorHandlerType = Callable[
-    [Request, ContextType, pjrpc.exceptions.JsonRpcError],
-    pjrpc.exceptions.JsonRpcError,
-]
-'''Synchronous server error handler'''  # for sphinx autodoc
+    async def __call__(
+        self,
+        request: Request,
+        context: ContextType,
+        handler: AsyncHandlerType[ContextType],
+    ) -> MaybeSet[MiddlewareResponse]:
+        pass
 
 
-ExcludeFunc = Callable[[str, Optional[Type[Any]], Optional[Any]], bool]
-'''Parameter exclude function'''  # for sphinx autodoc
+class MiddlewareType(Protocol[ContextType]):
+    """
+    Synchronous middleware type
+    """
+
+    async def __call__(
+        self,
+        request: Request,
+        context: ContextType,
+        handler: HandlerType[ContextType],
+    ) -> MaybeSet[MiddlewareResponse]:
+        pass

@@ -16,7 +16,7 @@ class JsonRPC:
     :param kwargs: arguments to be passed to the dispatcher :py:class:`pjrpc.server.Dispatcher`
     """
 
-    def __init__(self, path: str = '', **kwargs: Any):
+    def __init__(self, path: str, **kwargs: Any):
         self._path = path
         self._dispatcher = WerkzeugDispatcher(**kwargs)
 
@@ -26,7 +26,11 @@ class JsonRPC:
     def wsgi_app(self, environ: Dict[str, Any], start_response: Callable[..., Any]) -> Iterable[bytes]:
         environ['app'] = self
         request = werkzeug.Request(environ)
-        response = self._rpc_handle(request)
+        if request.path != self._path:
+            response = werkzeug.Response(status=404)
+        else:
+            response = self._rpc_handle(request)
+
         return response(environ, start_response)
 
     @property

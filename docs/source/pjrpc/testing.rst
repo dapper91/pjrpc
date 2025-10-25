@@ -12,21 +12,28 @@ To install the plugin add the following line to your pytest configuration:
 
 .. code-block:: python
 
-    pytest_plugins = ("pjrpc.client.integrations.pytest ", )
+    pytest_plugins = ("pjrpc.client.integrations.pytest_aiohttp", )
 
-or export the environment variable ``PYTEST_PLUGINS=pjrpc.client.integrations.pytest``.
+or
+
+ .. code-block:: python
+
+    pytest_plugins = ("pjrpc.client.integrations.pytest_requests", )
+
+or export the environment variable ``PYTEST_PLUGINS=pjrpc.client.integrations.pytest_aiohttp``.
 For more information `see <https://docs.pytest.org/en/latest/how-to/plugins.html#requiring-loading-plugins-in-a-test-module-or-conftest-file>`_.
 
 Look at the following test example:
 
 .. code-block:: python
 
-    import pytest
     from unittest import mock
 
+    import pytest
+
     import pjrpc
-    from pjrpc.client.integrations.pytest import PjRpcAiohttpMocker
     from pjrpc.client.backend import aiohttp as aiohttp_client
+    from pjrpc.client.integrations.pytest_aiohttp import PjRpcAiohttpMocker
 
 
     async def test_using_fixture(pjrpc_aiohttp_mocker):
@@ -37,7 +44,7 @@ Look at the following test example:
         assert result == 2
 
         pjrpc_aiohttp_mocker.replace(
-            'http://localhost/api/v1', 'sum', error=pjrpc.exc.JsonRpcError(code=1, message='error', data='oops')
+            'http://localhost/api/v1', 'sum', error=pjrpc.exc.JsonRpcError(code=1, message='error', data='oops'),
         )
         with pytest.raises(pjrpc.exc.JsonRpcError) as exc_info:
             await client.proxy.sum(a=1, b=1)
@@ -76,29 +83,42 @@ Testing aiohttp server code is very straightforward:
 
 .. code-block:: python
 
-    import uuid
-
+    import pytest
     from aiohttp import web
 
     import pjrpc.server
-    from pjrpc.server.integration import aiohttp
-    from pjrpc.client.backend import aiohttp as pjrpc_aiohttp_client
+    from pjrpc.client.backend import aiohttp as async_client
+    from pjrpc.server.integration import aiohttp as integration
 
     methods = pjrpc.server.MethodRegistry()
 
-    @methods.add
-    async def sum(request: web.Request, a, b):
-        return a + b
 
-    jsonrpc_app = aiohttp.Application('/api/v1')
-    jsonrpc_app.dispatcher.add_methods(methods)
+    @methods.add()
+    async def div(a: int, b: int) -> float:
+        return a / b
 
-    async def test_sum(aiohttp_client, loop):
-        session = await aiohttp_client(jsonrpc_app.app)
-        client = pjrpc_aiohttp_client.Client('http://localhost/api/v1', session=session)
 
-        result = await client.sum(a=1, b=1)
+    @pytest.fixture
+    def http_app():
+        return web.Application()
+
+
+    @pytest.fixture
+    def jsonrpc_app(http_app):
+        jsonrpc_app = integration.Application('/api/v1', http_app=http_app)
+        jsonrpc_app.add_methods(methods)
+
+        return jsonrpc_app
+
+
+    async def test_pjrpc_server(aiohttp_client, http_app, jsonrpc_app):
+        jsonrpc_cli = async_client.Client('/api/v1', session=await aiohttp_client(http_app))
+
+        result = await jsonrpc_cli.proxy.div(4, 2)
         assert result == 2
+
+        result = await jsonrpc_cli.proxy.div(6, 2)
+        assert result == 3
 
 
 flask
@@ -108,26 +128,58 @@ For flask it stays the same:
 
 .. code-block:: python
 
-    import uuid
+    import flask.testing
+    import pytest
+    import werkzeug.test
 
-    import flask
-
+    import pjrpc.server
+    from pjrpc.client.backend import requests as client
+    from pjrpc.client.integrations.pytest_requests import PjRpcRequestsMocker
     from pjrpc.server.integration import flask as integration
-    from pjrpc.client.backend import requests as pjrpc_client
 
     methods = pjrpc.server.MethodRegistry()
 
-    @methods.add
-    def sum(request: web.Request, a, b):
-        return a + b
 
-    app = flask.Flask(__name__)
-    json_rpc = integration.JsonRPC('/api/v1')
-    json_rpc.dispatcher.add_methods(methods)
-    json_rpc.init_app(app)
+    @methods.add()
+    def div(a: int, b: int) -> float:
+        return a / b
 
-    def test_sum():
-        with app.test_client() as c:
-            client = pjrpc_client.Client('http://localhost/api/v1', session=c)
-            result = await client.sum(a=1, b=1)
+
+    @pytest.fixture()
+    def http_app():
+        return flask.Flask(__name__)
+
+
+    @pytest.fixture
+    def jsonrpc_app(http_app):
+        json_rpc = integration.JsonRPC('/api/v1', http_app=http_app)
+        json_rpc.add_methods(methods)
+
+        return jsonrpc_app
+
+
+    class Response(werkzeug.test.Response):
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise Exception('client response error')
+
+        @property
+        def text(self):
+            return self.data.decode()
+
+
+    @pytest.fixture()
+    def app_client(http_app):
+        return flask.testing.FlaskClient(http_app, Response)
+
+
+    def test_pjrpc_server(http_app, jsonrpc_app, app_client):
+        with PjRpcRequestsMocker(passthrough=True) as mocker:
+            jsonrpc_cli = client.Client('/api/v1', session=app_client)
+
+            mocker.add('http://127.0.0.2:8000/api/v1', 'div', result=2)
+            result = jsonrpc_cli.proxy.div(4, 2)
             assert result == 2
+
+            result = jsonrpc_cli.proxy.div(6, 2)
+            assert result == 3

@@ -1,25 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, TypeVar
-
-
-def get_meta(instance: Any) -> Dict[str, Any]:
-    """
-    Returns object pjrpc metadata.
-    """
-
-    return getattr(instance, '__pjrpc_meta__', {})
-
-
-def set_meta(instance: Any, **meta: Any) -> Dict[str, Any]:
-    """
-    Updates object pjrpc metadata.
-    """
-
-    if not hasattr(instance, '__pjrpc_meta__'):
-        instance.__pjrpc_meta__ = {}
-
-    instance.__pjrpc_meta__.update(meta)
-
-    return instance.__pjrpc_meta__
+from typing import Any, Callable, Optional
 
 
 def remove_prefix(s: str, prefix: str) -> str:
@@ -61,14 +40,18 @@ def join_path(path: str, *paths: str) -> str:
     return result
 
 
-T = TypeVar('T')
-K = TypeVar('K')
+ExcludeFunc = Callable[[int, str, Optional[type[Any]], Optional[Any]], bool]
 
 
-def unique(*iterables: Iterable[T], key: Callable[[T], K]) -> Iterable[T]:
-    items_map: Dict[K, T] = {}
-    for iterable in iterables:
-        for item in iterable:
-            items_map[key(item)] = item
+def exclude_positional_param(param_index: int) -> ExcludeFunc:
+    def exclude(index: int, name: str, typ: Optional[type[Any]], default: Optional[Any]) -> bool:
+        return index == param_index
 
-    return items_map.values()
+    return exclude
+
+
+def exclude_named_param(param_name: str) -> ExcludeFunc:
+    def exclude(index: int, name: str, typ: Optional[type[Any]], default: Optional[Any]) -> bool:
+        return name == param_name
+
+    return exclude

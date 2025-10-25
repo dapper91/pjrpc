@@ -25,7 +25,7 @@ repos:
         args:
           - --fix=no
   - repo: https://github.com/asottile/add-trailing-comma
-    rev: v3.1.0
+    rev: v3.2.0
     hooks:
       - id: add-trailing-comma
         stages:
@@ -39,11 +39,11 @@ repos:
         args:
           - --diff
   - repo: https://github.com/pycqa/flake8
-    rev: 7.1.1
+    rev: 7.2.0
     hooks:
       - id: flake8
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 6.0.1
     hooks:
       - id: isort
         name: fix import order
@@ -63,7 +63,7 @@ repos:
           - --multi-line=9
           - --project=pjrpc
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+    rev: v1.15.0
     hooks:
       - id: mypy
         stages:
@@ -75,12 +75,9 @@ repos:
           - aiohttp>=3.7
           - httpx>=0.23.0
           - pydantic>=2.0
-          - types-jsonschema>=3.0,<4.0
           - types-requests>=2.0
           - aio-pika>=8.0
-          - docstring_parser>=0.8
           - werkzeug>=2.0
           - pytest>=7.4.0
-          - starlette>=0.25.0
           - flask>=2.0.0
           - openapi-ui-bundles>=0.3.0

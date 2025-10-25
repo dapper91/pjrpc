@@ -1,48 +1,24 @@
 import uuid
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any
 
 import flask
 import flask_cors
-import flask_httpauth
 import pydantic as pd
-from werkzeug import security
 
 import pjrpc.server.specs.extractors.pydantic
+import pjrpc.server.specs.openapi.ui
 from pjrpc.server.integration import flask as integration
-from pjrpc.server.specs import extractors
-from pjrpc.server.specs import openapi as specs
+from pjrpc.server.specs import extractors, openapi
 from pjrpc.server.validators import pydantic as validators
 
-app = flask.Flask('myapp')
-flask_cors.CORS(app, resources={"/myapp/api/v1/*": {"origins": "*"}})
-
-methods = pjrpc.server.MethodRegistry()
-validator = validators.PydanticValidator()
-
-auth = flask_httpauth.HTTPBasicAuth()
-credentials = {"admin": security.generate_password_hash("admin")}
-
-
-@auth.verify_password
-def verify_password(username: str, password: str) -> Optional[str]:
-    if username in credentials and security.check_password_hash(credentials.get(username), password):
-        return username
-
-
-class AuthenticatedJsonRPC(integration.JsonRPC):
-    @auth.login_required
-    def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
-        return super()._rpc_handle(dispatcher)
-
-
-class JSONEncoder(pjrpc.JSONEncoder):
-    def default(self, o: Any) -> Any:
-        if isinstance(o, pd.BaseModel):
-            return o.model_dump()
-        if isinstance(o, uuid.UUID):
-            return str(o)
-
-        return super().default(o)
+methods = pjrpc.server.MethodRegistry(
+    validator_factory=validators.PydanticValidatorFactory(),
+    metadata_processors=[
+        openapi.MethodSpecificationGenerator(
+            extractor=extractors.pydantic.PydanticMethodInfoExtractor(),
+        ),
+    ],
+)
 
 
 UserName = Annotated[
@@ -84,31 +60,33 @@ class UserOut(UserIn):
     id: UserId
 
 
-class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+class AlreadyExistsError(pjrpc.exc.TypedError):
     """
     User already registered error.
     """
 
-    code = 2001
-    message = "user already exists"
+    CODE = 2001
+    MESSAGE = "user already exists"
 
 
-class NotFoundError(pjrpc.exc.JsonRpcError):
+class NotFoundError(pjrpc.exc.TypedError):
     """
     User not found error.
     """
 
-    code = 2002
-    message = "user not found"
+    CODE = 2002
+    MESSAGE = "user not found"
 
 
-@specs.annotate(
-    summary='Creates a user',
-    tags=['users'],
-    errors=[AlreadyExistsError],
+@methods.add(
+    metadata=[
+        openapi.metadata(
+            summary='Creates a user',
+            tags=['users'],
+            errors=[AlreadyExistsError],
+        ),
+    ],
 )
-@methods.add
-@validator.validate
 def add_user(user: UserIn) -> UserOut:
     """
     Creates a user.
@@ -122,19 +100,21 @@ def add_user(user: UserIn) -> UserOut:
         if user.name == existing_user.name:
             raise AlreadyExistsError()
 
-    user_id = uuid.uuid4().hex
+    user_id = uuid.uuid4()
     flask.current_app.users_db[user_id] = user
 
     return UserOut(id=user_id, **user.model_dump())
 
 
-@specs.annotate(
-    summary='Returns a user',
-    tags=['users'],
-    errors=[NotFoundError],
+@methods.add(
+    metadata=[
+        openapi.metadata(
+            summary='Returns a user',
+            tags=['users'],
+            errors=[NotFoundError],
+        ),
+    ],
 )
-@methods.add
-@validator.validate
 def get_user(user_id: UserId) -> UserOut:
     """
     Returns a user.
@@ -151,13 +131,15 @@ def get_user(user_id: UserId) -> UserOut:
     return UserOut(id=user_id, **user.model_dump())
 
 
-@specs.annotate(
-    summary='Deletes a user',
-    tags=['users'],
-    errors=[NotFoundError],
+@methods.add(
+    metadata=[
+        openapi.metadata(
+            summary='Deletes a user',
+            tags=['users'],
+            errors=[NotFoundError],
+        ),
+    ],
 )
-@methods.add
-@validator.validate
 def delete_user(user_id: UserId) -> None:
     """
     Deletes a user.
@@ -171,37 +153,43 @@ def delete_user(user_id: UserId) -> None:
         raise NotFoundError()
 
 
-json_rpc = AuthenticatedJsonRPC(
-    '/api/v1',
-    json_encoder=JSONEncoder,
-    spec=specs.OpenAPI(
-        info=specs.Info(version="1.0.0", title="User storage"),
-        servers=[
-            specs.Server(
-                url='http://127.0.0.1:8080',
-            ),
-        ],
-        security_schemes=dict(
-            basicAuth=specs.SecurityScheme(
-                type=specs.SecuritySchemeType.HTTP,
-                scheme='basic',
-            ),
+class JSONEncoder(pjrpc.server.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, pd.BaseModel):
+            return o.model_dump()
+        if isinstance(o, uuid.UUID):
+            return str(o)
+
+        return super().default(o)
+
+
+openapi_spec = openapi.OpenAPI(
+    info=openapi.Info(version="1.0.0", title="User storage"),
+    servers=[
+        openapi.Server(
+            url='http://127.0.0.1:8080',
         ),
-        security=[
-            dict(basicAuth=[]),
-        ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
-        ui=specs.SwaggerUI(),
+    ],
+    security_schemes=dict(
+        basicAuth=openapi.SecurityScheme(
+            type=openapi.SecuritySchemeType.HTTP,
+            scheme='basic',
+        ),
     ),
+    security=[
+        dict(basicAuth=[]),
+    ],
 )
-json_rpc.dispatcher.add_methods(methods)
 
-app.users_db = {}
 
-myapp = flask.Blueprint('myapp', __name__, url_prefix='/myapp')
-json_rpc.init_app(myapp)
+jsonrpc_v1 = integration.JsonRPC('/api/v1', json_encoder=JSONEncoder)
+jsonrpc_v1.add_methods(methods)
+jsonrpc_v1.add_spec(openapi_spec, path='openapi.json')
+jsonrpc_v1.add_spec_ui('swagger', ui=openapi.ui.SwaggerUI(), spec_url='../openapi.json')
 
-app.register_blueprint(myapp)
+flask_cors.CORS(jsonrpc_v1.http_app, resources={"/rpc/api/v1/*": {"origins": "*"}})
+jsonrpc_v1.http_app.users_db = {}
+
 
 if __name__ == "__main__":
-    app.run(port=8080)
+    jsonrpc_v1.http_app.run(port=8080)

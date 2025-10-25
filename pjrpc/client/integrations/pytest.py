@@ -5,18 +5,15 @@ Implements some utilities for mocking out ``pjrpc`` library clients.
 
 import asyncio
 import collections
-import functools as ft
 import json
 import unittest.mock
 from types import ModuleType
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
-
-import pytest
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pjrpc
 from pjrpc import Response
 from pjrpc.common import UNSET, MaybeSet
-from pjrpc.common.typedefs import JsonRpcParams, JsonRpcRequestId
+from pjrpc.common.typedefs import JsonRpcParamsT, JsonRpcRequestIdT
 
 CallType = Dict[Tuple[str, str], unittest.mock.Mock]
 MatchType = Dict[Tuple[str, str], List['Match']]
@@ -51,14 +48,22 @@ class PjRpcMocker:
     :param target: method to be mocked
     :param mocker: mocking package
     :param passthrough: pass not mocked requests to the original method
+    :param dumps: response dump function
     """
 
-    def __init__(self, target: str, mocker: ModuleType = unittest.mock, passthrough: bool = False):
+    def __init__(
+        self,
+        target: str,
+        mocker: ModuleType = unittest.mock,
+        passthrough: bool = False,
+        dumps: Callable[..., Any] = json.dumps,
+    ):
         self._target = target
         self._mocker = mocker
         self._patcher: Optional[Any] = None
         self._async_resp = False
         self._passthrough = passthrough
+        self._dumps = dumps
 
         self._matches: Dict[str, MatchType] = collections.defaultdict(lambda: collections.defaultdict(list))
         self._calls: Dict[str, CallType] = collections.defaultdict(dict)
@@ -77,7 +82,7 @@ class PjRpcMocker:
         method_name: str,
         result: MaybeSet[Any] = UNSET,
         error: MaybeSet[Any] = UNSET,
-        id: Optional[JsonRpcRequestId] = None,
+        id: Optional[JsonRpcRequestIdT] = None,
         version: str = '2.0',
         once: bool = False,
         callback: Optional[Callable[..., Any]] = None,
@@ -104,7 +109,7 @@ class PjRpcMocker:
         method_name: str,
         result: MaybeSet[Any] = UNSET,
         error: MaybeSet[Any] = UNSET,
-        id: Optional[JsonRpcRequestId] = None,
+        id: Optional[JsonRpcRequestIdT] = None,
         version: str = '2.0',
         once: bool = False,
         callback: Optional[Callable[..., Any]] = None,
@@ -210,14 +215,20 @@ class PjRpcMocker:
         if not self._matches[endpoint]:
             self._matches.pop(endpoint)
 
-    def _on_request(self, origin_self: Any, request_text: str, is_notification: bool = False, **kwargs: Any) -> Any:
+    def _on_request(
+            self,
+            origin_self: Any,
+            request_text: str,
+            is_notification: bool,
+            request_kwargs: dict[str, Any],
+    ) -> Any:
         assert self._patcher is not None, 'mocker is not started'
 
         endpoint = origin_self._endpoint
         matches = self._matches.get(endpoint)
         if matches is None:
             if self._passthrough:
-                return self._patcher.temp_original(origin_self, request_text, is_notification, **kwargs)
+                return self._patcher.temp_original(origin_self, request_text, is_notification, request_kwargs)
             else:
                 raise ConnectionRefusedError()
 
@@ -225,11 +236,12 @@ class PjRpcMocker:
 
         response: Union[pjrpc.BatchResponse, pjrpc.Response]
         if isinstance(json_data, (list, tuple)):
-            response = pjrpc.BatchResponse()
+            responses: list[Response] = []
             for request in pjrpc.BatchRequest.from_json(json_data):
-                response.append(
+                responses.append(
                     self._match_request(endpoint, request.version, request.method, request.params, request.id),
                 )
+            response = pjrpc.BatchResponse(responses=tuple(responses))
 
         else:
             request = pjrpc.Request.from_json(json_data)
@@ -237,18 +249,18 @@ class PjRpcMocker:
 
         if self._async_resp:
             async def wrapper() -> str:
-                return json.dumps(response.to_json())
+                return self._dumps(response.to_json())
             return wrapper()
         else:
-            return json.dumps(response.to_json())
+            return self._dumps(response.to_json())
 
     def _match_request(
         self,
         endpoint: str,
         version: str,
         method_name: str,
-        params: Optional[JsonRpcParams],
-        id: Optional[JsonRpcRequestId],
+        params: Optional[JsonRpcParamsT],
+        id: Optional[JsonRpcRequestIdT],
     ) -> Response:
         matches = self._matches[endpoint].get((version, method_name))
         if matches is None:
@@ -295,28 +307,3 @@ class PjRpcMocker:
     def __exit__(self, *args: Any) -> None:
         self.stop()
         self.reset()
-
-
-# shortcuts
-PjRpcRequestsMocker = ft.partial(PjRpcMocker, target='pjrpc.client.backend.requests.Client._request')
-PjRpcAiohttpMocker = ft.partial(PjRpcMocker, target='pjrpc.client.backend.aiohttp.Client._request')
-
-
-@pytest.fixture
-def pjrpc_requests_mocker() -> Generator[PjRpcMocker, None, None]:
-    """
-    Requests client mocking fixture.
-    """
-
-    with PjRpcRequestsMocker() as mocker:
-        yield mocker
-
-
-@pytest.fixture
-def pjrpc_aiohttp_mocker() -> Generator[PjRpcMocker, None, None]:
-    """
-    Aiohttp client mocking fixture.
-    """
-
-    with PjRpcAiohttpMocker() as mocker:
-        yield mocker

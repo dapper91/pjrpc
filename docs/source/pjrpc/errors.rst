@@ -42,7 +42,7 @@ Custom errors
 -------------
 
 Default error list can be easily extended. All you need to create an error class inherited from
-:py:class:`pjrpc.common.exceptions.JsonRpcError` and define an error code and a description message. ``pjrpc``
+:py:class:`pjrpc.common.exceptions.TypedError` and define an error code and a description message. ``pjrpc``
 will be automatically deserializing custom errors for you:
 
 .. code-block:: python
@@ -50,9 +50,9 @@ will be automatically deserializing custom errors for you:
     import pjrpc
     from pjrpc.client.backend import requests as pjrpc_client
 
-    class UserNotFound(pjrpc.exc.JsonRpcError):
-        code = 1
-        message = 'user not found'
+    class UserNotFound(pjrpc.exc.TypedError):
+        CODE = 1
+        MESSAGE = 'user not found'
 
 
     client = pjrpc_client.Client('http://localhost/api/v1')
@@ -78,23 +78,22 @@ On the server side everything is also pretty straightforward:
     from pjrpc.server import MethodRegistry
     from pjrpc.server.integration import flask as integration
 
-    app = flask.Flask(__name__)
-
     methods = pjrpc.server.MethodRegistry()
 
 
-    class UserNotFound(pjrpc.exc.JsonRpcError):
-        code = 1
-        message = 'user not found'
+    class UserNotFound(pjrpc.exc.TypedError):
+        CODE = 1
+        MESSAGE = 'user not found'
 
-    @methods.add
+    @methods.add()
     def add_user(user: dict):
         user_id = uuid.uuid4().hex
         flask.current_app.users[user_id] = user
 
         return {'id': user_id, **user}
 
-     def get_user(self, user_id: str):
+    @methods.add()
+    def get_user(self, user_id: str):
         user = flask.current_app.users.get(user_id)
         if not user:
             raise UserNotFound(data=user_id)
@@ -103,21 +102,20 @@ On the server side everything is also pretty straightforward:
 
 
     json_rpc = integration.JsonRPC('/api/v1')
-    json_rpc.dispatcher.add_methods(methods)
+    json_rpc.add_methods(methods)
 
-    app.users = {}
-
-    json_rpc.init_app(app)
+    json_rpc.http_app.users = {}
 
     if __name__ == "__main__":
-        app.run(port=80)
+        json_rpc.http_app.run(port=80)
 
 
 Independent clients errors
 --------------------------
 
 Having multiple JSON-RPC services with overlapping error codes is a "real-world" case everyone has ever dialed with.
-To handle such situation client has an `error_cls` argument to set a base error class for a particular client:
+To handle such situation the error must be marked as base error, the client has an `error_cls` argument
+to set a base error class for a particular client:
 
 .. code-block:: python
 
@@ -125,26 +123,22 @@ To handle such situation client has an `error_cls` argument to set a base error 
     from pjrpc.client.backend import requests as jrpc_client
 
 
-    class ErrorV1(pjrpc.exc.JsonRpcError):
-        @classmethod
-        def get_error_cls(cls, code, default):
-            return next(iter((c for c in cls.__subclasses__() if getattr(c, 'code', None) == code)), default)
+    class ErrorV1(pjrpc.exc.TypeError, base=True):
+        pass
 
 
     class PermissionDenied(ErrorV1):
-        code = 1
-        message = 'permission denied'
+        CODE = 1
+        MESSAGE = 'permission denied'
 
 
-    class ErrorV2(pjrpc.exc.JsonRpcError):
-        @classmethod
-        def get_error_cls(cls, code, default):
-            return next(iter((c for c in cls.__subclasses__() if getattr(c, 'code', None) == code)), default)
+    class ErrorV2(pjrpc.exc.TypeError, base=True):
+        pass
 
 
     class ResourceNotFound(ErrorV2):
-        code = 1
-        message = 'resource not found'
+        CODE = 1
+        MESSAGE = 'resource not found'
 
 
     client_v1 = jrpc_client.Client('http://localhost:8080/api/v1', error_cls=ErrorV1)

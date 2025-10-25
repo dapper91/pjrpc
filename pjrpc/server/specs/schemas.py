@@ -1,7 +1,7 @@
 import copy
 from typing import Any, Dict, Iterable, List, Type
 
-from pjrpc.common.exceptions import JsonRpcError
+from pjrpc.common.exceptions import TypedError
 
 REQUEST_SCHEMA: Dict[str, Any] = {
     'title': 'Request',
@@ -126,7 +126,7 @@ def build_request_schema(method_name: str, parameters_schema: Dict[str, Any]) ->
     return reqeust_schema
 
 
-def build_response_schema(result_schema: Dict[str, Any], errors: Iterable[Type[JsonRpcError]]) -> Dict[str, Any]:
+def build_response_schema(result_schema: Dict[str, Any], errors: Iterable[Type[TypedError]]) -> Dict[str, Any]:
     response_schema = copy.deepcopy(RESULT_SCHEMA)
     response_schema['properties']['result'] = result_schema
 
@@ -135,8 +135,8 @@ def build_response_schema(result_schema: Dict[str, Any], errors: Iterable[Type[J
         for error in errors:
             error_schema = copy.deepcopy(ERROR_SCHEMA)
             error_props = error_schema['properties']['error']['properties']
-            error_props['code']['const'] = error.code
-            error_props['message']['const'] = error.message
+            error_props['code']['const'] = error.CODE
+            error_props['message']['const'] = error.MESSAGE
             error_schemas.append(error_schema)
 
         response_schema = {'oneOf': [response_schema] + error_schemas}

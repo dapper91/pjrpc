@@ -7,24 +7,21 @@ from aiohttp import web
 
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import aiohttp as integration
-from pjrpc.server.specs import extractors
-from pjrpc.server.specs import openrpc as specs
+from pjrpc.server.specs import extractors, openrpc
 from pjrpc.server.validators import pydantic as validators
 
-methods = pjrpc.server.MethodRegistry()
-validator = validators.PydanticValidator()
+methods = pjrpc.server.MethodRegistry(
+    validator_factory=validators.PydanticValidatorFactory(exclude=integration.is_aiohttp_request),
+    metadata_processors=[
+        openrpc.MethodSpecificationGenerator(
+            extractor=extractors.pydantic.PydanticMethodInfoExtractor(
+                exclude=integration.is_aiohttp_request,
+            ),
+        ),
+    ],
+)
 
 credentials = {"admin": "admin"}
-
-
-class JSONEncoder(pjrpc.JSONEncoder):
-    def default(self, o: Any) -> Any:
-        if isinstance(o, pd.BaseModel):
-            return o.model_dump()
-        if isinstance(o, uuid.UUID):
-            return str(o)
-
-        return super().default(o)
 
 
 UserName = Annotated[
@@ -66,31 +63,34 @@ class UserOut(UserIn, title="User data"):
     id: UserId
 
 
-class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+class AlreadyExistsError(pjrpc.exc.TypedError):
     """
     User already registered error.
     """
 
-    code = 2001
-    message = "user already exists"
+    CODE = 2001
+    MESSAGE = "user already exists"
 
 
-class NotFoundError(pjrpc.exc.JsonRpcError):
+class NotFoundError(pjrpc.exc.TypedError):
     """
     User not found error.
     """
 
-    code = 2002
-    message = "user not found"
+    CODE = 2002
+    MESSAGE = "user not found"
 
 
-@specs.annotate(
-    summary="Creates a user",
-    tags=['users'],
-    errors=[AlreadyExistsError],
+@methods.add(
+    pass_context='request',
+    metadata=[
+        openrpc.metadata(
+            summary="Creates a user",
+            tags=['users'],
+            errors=[AlreadyExistsError],
+        ),
+    ],
 )
-@methods.add(context='request')
-@validator.validate
 def add_user(request: web.Request, user: UserIn) -> UserOut:
     """
     Creates a user.
@@ -105,19 +105,22 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
         if user.name == existing_user.name:
             raise AlreadyExistsError()
 
-    user_id = uuid.uuid4().hex
+    user_id = uuid.uuid4()
     request.config_dict['users'][user_id] = user
 
     return UserOut(id=user_id, **user.model_dump())
 
 
-@specs.annotate(
-    summary="Returns a user",
-    tags=['users'],
-    errors=[NotFoundError],
+@methods.add(
+    pass_context='request',
+    metadata=[
+        openrpc.metadata(
+            summary="Returns a user",
+            tags=['users'],
+            errors=[NotFoundError],
+        ),
+    ],
 )
-@methods.add(context='request')
-@validator.validate
 def get_user(request: web.Request, user_id: UserId) -> UserOut:
     """
     Returns a user.
@@ -135,14 +138,17 @@ def get_user(request: web.Request, user_id: UserId) -> UserOut:
     return UserOut(id=user_id, **user.model_dump())
 
 
-@specs.annotate(
-    summary="Deletes a user",
-    tags=['users'],
-    errors=[NotFoundError],
-    deprecated=True,
+@methods.add(
+    pass_context='request',
+    metadata=[
+        openrpc.metadata(
+            summary="Deletes a user",
+            tags=['users'],
+            errors=[NotFoundError],
+            deprecated=True,
+        ),
+    ],
 )
-@methods.add(context='request')
-@validator.validate
 def delete_user(request: web.Request, user_id: UserId) -> None:
     """
     Deletes a user.
@@ -157,25 +163,33 @@ def delete_user(request: web.Request, user_id: UserId) -> None:
         raise NotFoundError()
 
 
+class JSONEncoder(pjrpc.server.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, pd.BaseModel):
+            return o.model_dump()
+        if isinstance(o, uuid.UUID):
+            return str(o)
+
+        return super().default(o)
+
+
+openrpc_spec = openrpc.OpenRPC(
+    info=openrpc.Info(version="1.0.0", title="User storage"),
+    servers=[
+        openrpc.Server(
+            name="api",
+            url="http://127.0.0.1:8080/myapp/api",
+        ),
+    ],
+)
+
 app = web.Application()
 app['users'] = {}
 
-jsonrpc_app = integration.Application(
-    '/api/v1',
-    json_encoder=JSONEncoder,
-    spec=specs.OpenRPC(
-        info=specs.Info(version="1.0.0", title="User storage"),
-        servers=[
-            specs.Server(
-                name="api",
-                url="http://127.0.0.1:8080/myapp/api",
-            ),
-        ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
-    ),
-)
-jsonrpc_app.dispatcher.add_methods(methods)
-app.add_subapp('/myapp', jsonrpc_app.app)
+jsonrpc_app = integration.Application('/api/v1', json_encoder=JSONEncoder)
+jsonrpc_app.add_methods(methods)
+jsonrpc_app.add_spec(openrpc_spec, path='openrpc.json')
+app.add_subapp('/rpc', jsonrpc_app.http_app)
 
 cors = aiohttp_cors.setup(
     app, defaults={
