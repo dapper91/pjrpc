@@ -2,7 +2,8 @@ import pytest
 from aiohttp import web
 
 from pjrpc import exc
-from pjrpc.common import v20
+from pjrpc.common import BatchRequest, Request, Response
+from pjrpc.server import MethodRegistry
 from pjrpc.server.integration import aiohttp as integration
 from tests.common import _
 
@@ -37,13 +38,15 @@ async def test_request(json_rpc, path, mocker, aiohttp_client, request_id, param
     method_name = 'test_method'
     mock = mocker.Mock(name=method_name, return_value=result)
 
-    json_rpc.dispatcher.add(mock, method_name)
+    registry = MethodRegistry()
+    registry.add_method(mock, method_name)
+    json_rpc.add_methods(registry)
 
-    cli = await aiohttp_client(json_rpc.app)
-    raw = await cli.post(path, json=v20.Request(method=method_name, params=params, id=request_id).to_json())
+    cli = await aiohttp_client(json_rpc.http_app)
+    raw = await cli.post(path, json=Request(method=method_name, params=params, id=request_id).to_json())
     assert raw.status == 200
 
-    resp = v20.Response.from_json(await raw.json())
+    resp = Response.from_json(await raw.json())
 
     if isinstance(params, dict):
         mock.assert_called_once_with(kwargs=params)
@@ -59,10 +62,12 @@ async def test_notify(json_rpc, path, mocker, aiohttp_client):
     method_name = 'test_method'
     mock = mocker.Mock(name=method_name, return_value='result')
 
-    json_rpc.dispatcher.add(mock, method_name)
+    registry = MethodRegistry()
+    registry.add_method(mock, method_name)
+    json_rpc.add_methods(registry)
 
-    cli = await aiohttp_client(json_rpc.app)
-    raw = await cli.post(path, json=v20.Request(method=method_name, params=params).to_json())
+    cli = await aiohttp_client(json_rpc.http_app)
+    raw = await cli.post(path, json=Request(method=method_name, params=params).to_json())
     assert raw.status == 200
     assert raw.content_type != 'application/json'
     assert await raw.read() == b''
@@ -78,23 +83,25 @@ async def test_errors(json_rpc, path, mocker, aiohttp_client):
 
     mock = mocker.Mock(name=method_name, side_effect=error_method)
 
-    json_rpc.dispatcher.add(mock, method_name)
+    registry = MethodRegistry()
+    registry.add_method(mock, method_name)
+    json_rpc.add_methods(registry)
 
-    cli = await aiohttp_client(json_rpc.app)
+    cli = await aiohttp_client(json_rpc.http_app)
     # method not found
-    raw = await cli.post(path, json=v20.Request(method='unknown_method', params=params, id=request_id).to_json())
+    raw = await cli.post(path, json=Request(method='unknown_method', params=params, id=request_id).to_json())
     assert raw.status == 200
 
-    resp = v20.Response.from_json(await raw.json())
+    resp = Response.from_json(await raw.json())
     assert resp.id is request_id
     assert resp.is_error is True
     assert resp.error == exc.MethodNotFoundError(data="method 'unknown_method' not found")
 
     # customer error
-    raw = await cli.post(path, json=v20.Request(method=method_name, params=params, id=request_id).to_json())
+    raw = await cli.post(path, json=Request(method=method_name, params=params, id=request_id).to_json())
     assert raw.status == 200
 
-    resp = v20.Response.from_json(await raw.json())
+    resp = Response.from_json(await raw.json())
     mock.assert_called_once_with(args=params)
     assert resp.id == request_id
     assert resp.is_error is True
@@ -107,7 +114,7 @@ async def test_errors(json_rpc, path, mocker, aiohttp_client):
     # malformed json
     raw = await cli.post(path, headers={'Content-Type': 'application/json'}, data='')
     assert raw.status == 200
-    resp = v20.Response.from_json(await raw.json())
+    resp = Response.from_json(await raw.json())
     assert resp.id is None
     assert resp.is_error is True
     assert resp.error == exc.ParseError(data=_)
@@ -125,10 +132,12 @@ async def test_context(json_rpc, path, mocker, aiohttp_client):
     # test list parameters
     mock = mocker.Mock(name=method_name, return_value='result')
 
-    json_rpc.dispatcher.add(mock, method_name, context='request')
+    registry = MethodRegistry()
+    registry.add_method(mock, method_name, pass_context='request')
+    json_rpc.add_methods(registry)
 
-    cli = await aiohttp_client(json_rpc.app)
-    raw = await cli.post(path, json=v20.Request(method=method_name, params=params, id=request_id).to_json())
+    cli = await aiohttp_client(json_rpc.http_app)
+    raw = await cli.post(path, json=Request(method=method_name, params=params, id=request_id).to_json())
     assert raw.status == 200
 
     mock.assert_called_once()
@@ -142,8 +151,8 @@ async def test_context(json_rpc, path, mocker, aiohttp_client):
 
     mock.reset_mock()
 
-    cli = await aiohttp_client(json_rpc.app)
-    raw = await cli.post(path, json=v20.Request(method=method_name, params=params, id=request_id).to_json())
+    cli = await aiohttp_client(json_rpc.http_app)
+    raw = await cli.post(path, json=Request(method=method_name, params=params, id=request_id).to_json())
     assert raw.status == 200
 
     mock.assert_called_once()
@@ -156,11 +165,12 @@ async def test_context(json_rpc, path, mocker, aiohttp_client):
 async def test_http_status(json_rpc, path, aiohttp_client):
     expected_http_status = 400
     json_rpc = integration.Application(path, status_by_error=lambda codes: expected_http_status)
+    json_rpc.add_methods(MethodRegistry())
 
-    cli = await aiohttp_client(json_rpc.app)
-    raw = await cli.post(path, json=v20.Request(method='unknown_method', id=1).to_json())
+    cli = await aiohttp_client(json_rpc.http_app)
+    raw = await cli.post(path, json=Request(method='unknown_method', id=1).to_json())
     assert raw.status == expected_http_status
 
-    cli = await aiohttp_client(json_rpc.app)
-    raw = await cli.post(path, json=v20.BatchRequest(v20.Request(method='unknown_method', id=1)).to_json())
+    cli = await aiohttp_client(json_rpc.http_app)
+    raw = await cli.post(path, json=BatchRequest(Request(method='unknown_method', id=1)).to_json())
     assert raw.status == expected_http_status

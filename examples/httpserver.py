@@ -1,6 +1,5 @@
 import http.server
 import socketserver
-import uuid
 
 import pjrpc
 import pjrpc.server
@@ -65,12 +64,9 @@ class JsonRpcServer(http.server.HTTPServer):
 methods = pjrpc.server.MethodRegistry()
 
 
-@methods.add(context='request')
-def add_user(request: http.server.BaseHTTPRequestHandler, user: dict):
-    user_id = uuid.uuid4().hex
-    request.server.users[user_id] = user
-
-    return {'id': user_id, **user}
+@methods.add(pass_context='request')
+def sum(request: http.server.BaseHTTPRequestHandler, a: int, b: int) -> int:
+    return a + b
 
 
 class ThreadingJsonRpcServer(socketserver.ThreadingMixIn, JsonRpcServer):

@@ -3,55 +3,68 @@
 Tracing
 =======
 
-``pjrpc`` supports client and server metrics collection. If you familiar with
-`aiohttp <https://aiohttp.readthedocs.io/en/stable/web.html>`_ library it won't take a lot of time to comprehend
-the metrics collection process, because ``pjrpc`` inspired by it and uses the same patterns.
+``pjrpc`` supports client and server metrics collection.
 
 
 client
 ------
 
-The following example illustrate opentracing integration. All you need is just inherit a special class
-:py:class:`pjrpc.client.Tracer` and implement required methods:
+The following example illustrate opentracing integration.
 
 .. code-block:: python
 
+    from typing import Any, Mapping, Optional
+
     import opentracing
-    from opentracing import tags
-    from pjrpc.client import tracer
+    from opentracing import propagation, tags
+
+    from pjrpc.client import MiddlewareHandler
     from pjrpc.client.backend import requests as pjrpc_client
+    from pjrpc.common import AbstractRequest, AbstractResponse, BatchRequest, Request
+
+    tracer = opentracing.global_tracer()
 
 
-    class ClientTracer(tracer.Tracer):
-
-        def __init__(self):
-            super().__init__()
-            self._tracer = opentracing.global_tracer()
-
-        async def on_request_begin(self, trace_context, request, request_kwargs):
-            span = self._tracer.start_active_span(f'jsonrpc.{request.method}').span
+    def tracing_middleware(
+        request: AbstractRequest,
+        request_kwargs: Mapping[str, Any],
+        /,
+        handler: MiddlewareHandler,
+    ) -> Optional[AbstractResponse]:
+        if isinstance(request, Request):
+            span = tracer.start_active_span(f'jsonrpc.{request.method}').span
             span.set_tag(tags.COMPONENT, 'pjrpc.client')
             span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
+            if http_headers := request_kwargs.get('headers', {}):
+                tracer.inject(
+                    span_context=span,
+                    format=propagation.Format.HTTP_HEADERS,
+                    carrier=http_headers,
+                )
 
-        async def on_request_end(self, trace_context, request, response):
-            span = self._tracer.active_span
-            span.set_tag(tags.ERROR, response.is_error)
+            response = handler(request, request_kwargs)
             if response.is_error:
-                span.set_tag('jsonrpc.error_code', response.error.code)
-                span.set_tag('jsonrpc.error_message', response.error.message)
+                span = tracer.active_span
+                span.set_tag(tags.ERROR, response.is_error)
+                span.set_tag('jsonrpc.error_code', response.unwrap_error().code)
+                span.set_tag('jsonrpc.error_message', response.unwrap_error().message)
 
-            span.finish()
+                span.finish()
 
-        async def on_error(self, trace_context, request, error):
-            span = self._tracer.active_span
-            span.set_tag(tags.ERROR, True)
-            span.finish()
+        elif isinstance(request, BatchRequest):
+            response = handler(request, request_kwargs)
+
+        else:
+            raise AssertionError("unreachable")
+
+        return response
 
 
     client = pjrpc_client.Client(
-        'http://localhost/api/v1', tracers=(
-            ClientTracer(),
-        ),
+        'http://localhost:8080/api/v1',
+        middlewares=[
+            tracing_middleware,
+        ],
     )
 
     result = client.proxy.sum(1, 2)
@@ -68,49 +81,56 @@ The following example illustrate prometheus metrics collection:
 
     import asyncio
 
-    import prometheus_client
+    import opentracing
     from aiohttp import web
+    from aiohttp.typedefs import Handler as HttpHandler
+    from opentracing import tags
 
     import pjrpc.server
+    from pjrpc import Request, Response
+    from pjrpc.server import AsyncHandlerType
     from pjrpc.server.integration import aiohttp
-
-    method_latency_hist = prometheus_client.Histogram('method_latency', 'Method latency', labelnames=['method'])
-    method_active_count = prometheus_client.Gauge('method_active_count', 'Method active count', labelnames=['method'])
-
-
-    async def metrics(request):
-        return web.Response(body=prometheus_client.generate_latest())
-
-    http_app = web.Application()
-    http_app.add_routes([web.get('/metrics', metrics)])
-
 
     methods = pjrpc.server.MethodRegistry()
 
 
-    @methods.add(context='context')
-    async def method(context):
+    @methods.add(pass_context='context')
+    async def sum(context: web.Request, a: int, b: int) -> int:
         print("method started")
         await asyncio.sleep(1)
         print("method finished")
 
-
-    async def latency_metric_middleware(request, context, handler):
-        with method_latency_hist.labels(method=request.method).time():
-            return await handler(request, context)
+        return a + b
 
 
-    async def active_count_metric_middleware(request, context, handler):
-        with method_active_count.labels(method=request.method).track_inprogress():
-            return await handler(request, context)
+    async def jsonrpc_tracing_middleware(request: Request, context: web.Request, handler: AsyncHandlerType) -> Response:
+        tracer = opentracing.global_tracer()
+        span = tracer.start_span(f'jsonrpc.{request.method}')
+
+        span.set_tag(tags.COMPONENT, 'pjrpc')
+        span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_SERVER)
+        span.set_tag('jsonrpc.version', request.version)
+        span.set_tag('jsonrpc.id', request.id)
+        span.set_tag('jsonrpc.method', request.method)
+
+        with tracer.scope_manager.activate(span, finish_on_close=True):
+            if response := await handler(request, context):
+                if response.is_error:
+                    span.set_tag('jsonrpc.error_code', response.error.code)
+                    span.set_tag('jsonrpc.error_message', response.error.message)
+                    span.set_tag(tags.ERROR, True)
+                else:
+                    span.set_tag(tags.ERROR, False)
+
+        return response
 
     jsonrpc_app = aiohttp.Application(
-        '/api/v1', app=http_app, middlewares=(
-            latency_metric_middleware,
-            active_count_metric_middleware,
-        ),
+        '/api/v1',
+        middlewares=[
+            jsonrpc_tracing_middleware,
+        ],
     )
-    jsonrpc_app.dispatcher.add_methods(methods)
+    jsonrpc_app.add_methods(methods)
 
     if __name__ == "__main__":
-        web.run_app(jsonrpc_app.app, host='localhost', port=8080)
+        web.run_app(jsonrpc_app.http_app, host='localhost', port=8080)

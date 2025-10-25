@@ -1,5 +1,3 @@
-from typing import Any
-
 from aiohttp import web
 
 import pjrpc.server
@@ -10,14 +8,12 @@ from pjrpc.server.typedefs import AsyncHandlerType, ContextType, MiddlewareRespo
 methods = pjrpc.server.MethodRegistry()
 
 
-@methods.add(context='request')
-async def method(request: Any) -> None:
-    print("method")
+@methods.add(pass_context='request')
+async def sum(request: web.Request, a: int, b: int) -> int:
+    return a + b
 
 
-async def middleware1(
-    request: Request, context: ContextType, handler: AsyncHandlerType,
-) -> MiddlewareResponse:
+async def middleware1(request: Request, context: ContextType, handler: AsyncHandlerType) -> MiddlewareResponse:
     print("middleware1 started")
     result = await handler(request, context)
     print("middleware1 finished")
@@ -25,9 +21,7 @@ async def middleware1(
     return result
 
 
-async def middleware2(
-    request: Request, context: ContextType, handler: AsyncHandlerType,
-) -> MiddlewareResponse:
+async def middleware2(request: Request, context: ContextType, handler: AsyncHandlerType) -> MiddlewareResponse:
     print("middleware2 started")
     result = await handler(request, context)
     print("middleware2 finished")
@@ -35,12 +29,13 @@ async def middleware2(
     return result
 
 jsonrpc_app = aiohttp.Application(
-    '/api/v1', middlewares=(
+    '/api/v1',
+    middlewares=[
         middleware1,
         middleware2,
-    ),
+    ],
 )
-jsonrpc_app.dispatcher.add_methods(methods)
+jsonrpc_app.add_methods(methods)
 
 if __name__ == "__main__":
-    web.run_app(jsonrpc_app.app, host='localhost', port=8080)
+    web.run_app(jsonrpc_app.http_app, host='localhost', port=8080)

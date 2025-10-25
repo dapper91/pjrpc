@@ -1,6 +1,7 @@
 import pytest
 
 from pjrpc.server import validators
+from pjrpc.server.utils import exclude_named_param
 
 
 @pytest.mark.parametrize(
@@ -19,8 +20,8 @@ from pjrpc.server import validators
     ], indirect=['dyn_method'],
 )
 def test_validation_success(dyn_method, params):
-    validator_factory = validators.BaseValidator()
-    validator = validator_factory.build_method_validator(dyn_method)
+    validator_factory = validators.BaseValidatorFactory()
+    validator = validator_factory.build(dyn_method)
 
     validator.validate_params(params)
 
@@ -37,8 +38,8 @@ def test_validation_success(dyn_method, params):
     ], indirect=['dyn_method'],
 )
 def test_validation_error(dyn_method, params):
-    validator_factory = validators.BaseValidator()
-    validator = validator_factory.build_method_validator(dyn_method)
+    validator_factory = validators.BaseValidatorFactory()
+    validator = validator_factory.build(dyn_method)
 
     with pytest.raises(validators.ValidationError):
         validator.validate_params(params)
@@ -54,8 +55,8 @@ def test_validation_error(dyn_method, params):
     ], indirect=['dyn_method'],
 )
 def test_validation_exclude_success(dyn_method, exclude, params):
-    validator_factory = validators.BaseValidator()
-    validator = validator_factory.build_method_validator(dyn_method, exclude=exclude)
+    validator_factory = validators.BaseValidatorFactory(exclude=exclude_named_param('context'))
+    validator = validator_factory.build(dyn_method)
 
     validator.validate_params(params)
 
@@ -68,8 +69,8 @@ def test_validation_exclude_success(dyn_method, exclude, params):
     ], indirect=['dyn_method'],
 )
 def test_validation_exclude_error(dyn_method, exclude, params):
-    validator_factory = validators.BaseValidator()
-    validator = validator_factory.build_method_validator(dyn_method, exclude=exclude)
+    validator_factory = validators.BaseValidatorFactory(exclude=exclude_named_param('context'))
+    validator = validator_factory.build(dyn_method)
 
     with pytest.raises(validators.ValidationError):
         validator.validate_params(params)

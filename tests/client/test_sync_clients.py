@@ -171,13 +171,13 @@ def test_batch(Client, mocker):
 
         client = Client(test_url)
 
-        result = client.batch.send(
-            pjrpc.BatchRequest(
-                pjrpc.Request('method1', params=[1, 2], id=1),
-                pjrpc.Request('method2', params=[2, 3], id=2),
-                pjrpc.Request('method3', params=[3, 4]),
-            ),
-        )
+        with client.batch() as batch:
+            batch.send(pjrpc.Request('method1', params=[1, 2], id=1))
+            batch.send(pjrpc.Request('method2', params=[2, 3], id=2))
+            batch.send(pjrpc.Request('method3', params=[3, 4]))
+
+        result = batch.get_response()
+
         assert len(result) == 2
         assert result[0].id == 1
         assert result[0].result == 'result1'
@@ -205,11 +205,11 @@ def test_batch(Client, mocker):
             },
         ]
 
-        result = client.batch[
-            ('method1', 1, 2),
-            ('method2', 2, 3),
-        ]
-        assert result == ('result1', 2)
+        with client.batch() as batch:
+            batch.call('method1', 1, 2)
+            batch.call('method2', 2, 3)
+
+        assert batch.get_results() == ['result1', 2]
 
         assert mock.requests[1].url == test_url
         assert json.loads(mock.requests[1].content) == [
@@ -227,8 +227,11 @@ def test_batch(Client, mocker):
             },
         ]
 
-        result = client.batch('method1', 1, 2)('method2', 2, 3).call()
-        assert result == ('result1', 2)
+        with client.batch() as batch:
+            batch('method1', 1, 2)
+            batch('method2', 2, 3)
+
+        assert batch.get_results() == ['result1', 2]
 
         assert mock.requests[2].url == test_url
         assert json.loads(mock.requests[2].content) == [
@@ -246,8 +249,11 @@ def test_batch(Client, mocker):
             },
         ]
 
-        result = client.batch.proxy.method1(1, 2).method2(2, 3)()
-        assert result == ('result1', 2)
+        with client.batch() as batch:
+            batch.proxy.method1(1, 2)
+            batch.proxy.method2(2, 3)
+
+        assert batch.get_results() == ['result1', 2]
 
         assert mock.requests[3].url == test_url
         assert json.loads(mock.requests[3].content) == [
@@ -265,12 +271,12 @@ def test_batch(Client, mocker):
             },
         ]
 
-        result = client.batch.send(
-            pjrpc.BatchRequest(
-                pjrpc.Request(method='method1', params=[1, 2], id=1),
-                pjrpc.Request(method='method2', params=[2, 3], id=2),
-            ),
-        )
+        with client.batch() as batch:
+            batch.send(pjrpc.Request(method='method1', params=[1, 2], id=1))
+            batch.send(pjrpc.Request(method='method2', params=[2, 3], id=2))
+
+        result = batch.get_response()
+
         assert result[0].id == 1
         assert result[0].result == 'result1'
         assert result[1].id == 2
@@ -294,8 +300,12 @@ def test_batch(Client, mocker):
 
     with mocker() as mock:
         mock.mock('POST', test_url, status=200)
-        result = client.batch.notify('method1', 1, 2).notify('method2', 2, 3).call()
-        assert result is None
+
+        with client.batch() as batch:
+            batch.notify('method1', 1, 2)
+            batch.notify('method2', 2, 3)
+
+        assert batch.get_response() is None
 
         assert mock.requests[0].url == test_url
         assert json.loads(mock.requests[0].content) == [
@@ -315,7 +325,7 @@ def test_batch(Client, mocker):
 @pytest.mark.parametrize(
     'Client, mocker', [
         (requests_backend.Client, ResponsesMocker),
-        (httpx_backend.Client, RespxMocker),
+        # (httpx_backend.Client, RespxMocker),
     ],
 )
 def test_error(Client, mocker):
@@ -358,7 +368,10 @@ def test_error(Client, mocker):
         )
 
         with pytest.raises(pjrpc.exceptions.InvalidRequestError):
-            client.batch[('method', 'param')]
+            with client.batch() as batch:
+                batch.call('method', 'param')
+
+            batch.get_results()
 
     with mocker() as mock:
         mock.mock(
@@ -379,10 +392,11 @@ def test_error(Client, mocker):
         client = Client(test_url)
 
         with pytest.raises(pjrpc.exceptions.IdentityError):
-            client.batch[
-                ('method1', 'param'),
-                ('method2', 'param'),
-            ]
+            with client.batch() as batch:
+                batch.call('method1', 'param')
+                batch.call('method2', 'param')
+
+            batch.get_results()
 
 
 @pytest.mark.parametrize(

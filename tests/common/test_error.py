@@ -85,7 +85,7 @@ def test_error_deserialization_errors():
 
 
 def test_error_repr():
-    assert repr(pjrpc.exc.ServerError(data='data')) == "ServerError(code=-32000, message='Server error', data='data')"
+    assert repr(pjrpc.exc.ServerError()) == "ServerError(code=-32000, message='Server error')"
     assert str(pjrpc.exc.ServerError()) == "(-32000) Server error"
 
 
@@ -96,9 +96,9 @@ def test_custom_error_registration():
         'data': 'custom_data',
     }
 
-    class CustomError(pjrpc.exc.JsonRpcError):
-        code = 2000
-        message = 'Custom error'
+    class CustomError(pjrpc.exc.TypedError):
+        CODE = 2000
+        MESSAGE = 'Custom error'
 
     error = pjrpc.exc.JsonRpcError.from_json(data)
 

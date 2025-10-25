@@ -6,25 +6,60 @@ import pydantic as pd
 from aiohttp import web
 
 import pjrpc.server.specs.extractors.pydantic
+import pjrpc.server.specs.openapi.ui
 from pjrpc.common.exceptions import MethodNotFoundError
 from pjrpc.server.integration import aiohttp as integration
-from pjrpc.server.specs import extractors
-from pjrpc.server.specs import openapi as specs
+from pjrpc.server.specs import extractors, openapi, openrpc
 from pjrpc.server.validators import pydantic as validators
 
-user_methods_v1 = pjrpc.server.MethodRegistry()
-user_methods_v2 = pjrpc.server.MethodRegistry()
-validator = validators.PydanticValidator()
+
+class AlreadyExistsError(pjrpc.exc.TypedError):
+    """
+    User already registered error.
+    """
+
+    CODE = 2001
+    MESSAGE = "user already exists"
 
 
-class JSONEncoder(pjrpc.JSONEncoder):
-    def default(self, o: Any) -> Any:
-        if isinstance(o, pd.BaseModel):
-            return o.model_dump()
-        if isinstance(o, uuid.UUID):
-            return str(o)
+error_http_status_map = {
+    AlreadyExistsError.CODE: 400,
+    MethodNotFoundError.CODE: 404,
+}
 
-        return super().default(o)
+
+def http_status_by_jsonrpc_codes(codes: tuple[int, ...]) -> int:
+    if len(codes) != 1:
+        return 200
+    else:
+        return error_http_status_map.get(codes[0], 200)
+
+
+method_validator_factory = validators.PydanticValidatorFactory(exclude=integration.is_aiohttp_request)
+method_info_extractor = extractors.pydantic.PydanticMethodInfoExtractor(exclude=integration.is_aiohttp_request)
+openrpc_method_spec_generator = openrpc.MethodSpecificationGenerator(method_info_extractor)
+openapi_method_spec_generator = openapi.MethodSpecificationGenerator(method_info_extractor, error_http_status_map)
+
+methods_v1 = pjrpc.server.MethodRegistry(
+    validator_factory=method_validator_factory,
+    metadata=[
+        openapi.metadata(tags=['v1']),
+    ],
+    metadata_processors=[
+        openrpc_method_spec_generator,
+        openapi_method_spec_generator,
+    ],
+)
+methods_v2 = pjrpc.server.MethodRegistry(
+    validator_factory=method_validator_factory,
+    metadata=[
+        openapi.metadata(tags=['v2']),
+    ],
+    metadata_processors=[
+        openrpc_method_spec_generator,
+        openapi_method_spec_generator,
+    ],
+)
 
 
 UserName = Annotated[
@@ -66,23 +101,19 @@ class UserOut(UserIn):
     id: UserId
 
 
-class AlreadyExistsError(pjrpc.exc.JsonRpcError):
-    """
-    User already registered error.
-    """
-
-    code = 2001
-    message = "user already exists"
-
-
-@specs.annotate(
-    tags=['v1', 'users'],
-    errors=[
-        AlreadyExistsError,
+@methods_v1.add(
+    pass_context=True,
+    metadata=[
+        openapi.metadata(
+            tags=['users'],
+            errors=[AlreadyExistsError],
+        ),
+        openrpc.metadata(
+            tags=['users'],
+            errors=[AlreadyExistsError],
+        ),
     ],
 )
-@user_methods_v1.add(context='request')
-@validator.validate
 def add_user(request: web.Request, user: UserIn) -> UserOut:
     """
     Creates a user.
@@ -93,7 +124,7 @@ def add_user(request: web.Request, user: UserIn) -> UserOut:
     :raise AlreadyExistsError: user already exists
     """
 
-    user_id = uuid.uuid4().hex
+    user_id = uuid.uuid4()
     request.config_dict['users'][user_id] = user
 
     return UserOut(id=user_id, **user.model_dump())
@@ -124,15 +155,21 @@ class UserOutV2(UserInV2):
     id: UserId
 
 
-@specs.annotate(
-    tags=['v2', 'users'],
-    errors=[
-        AlreadyExistsError,
+@methods_v2.add(
+    pass_context=True,
+    name='add_user',
+    metadata=[
+        openapi.metadata(
+            tags=['users'],
+            errors=[AlreadyExistsError],
+        ),
+        openrpc.metadata(
+            tags=['users'],
+            errors=[AlreadyExistsError],
+        ),
     ],
 )
-@user_methods_v2.add(context='request', name='add_user')
-@validator.validate
-def add_user_v2(request: web.Request, user: UserInV2) -> UserOutV2:
+def add_user2(request: web.Request, user: UserInV2) -> UserOutV2:
     """
     Creates a user.
 
@@ -142,64 +179,76 @@ def add_user_v2(request: web.Request, user: UserInV2) -> UserOutV2:
     :raise AlreadyExistsError: user already exists
     """
 
-    user_id = uuid.uuid4().hex
+    user_id = uuid.uuid4()
     request.config_dict['users'][user_id] = user
 
     return UserOutV2(id=user_id, **user.model_dump())
 
 
-error_http_status_map = {
-    AlreadyExistsError.code: 400,
-    MethodNotFoundError.code: 404,
-}
+openapi_spec = openapi.OpenAPI(
+    info=openapi.Info(version="1.0.0", title="User storage"),
+    servers=[
+        openapi.Server(
+            url='http://127.0.0.1:8080',
+        ),
+    ],
+    security_schemes=dict(
+        basicAuth=openapi.SecurityScheme(
+            type=openapi.SecuritySchemeType.HTTP,
+            scheme='basic',
+        ),
+    ),
+    security=[
+        dict(basicAuth=[]),
+    ],
+)
+
+openrpc_spec = openrpc.OpenRPC(
+    info=openrpc.Info(version="1.0.0", title="User storage"),
+    servers=[
+        openapi.Server(
+            url='http://127.0.0.1:8080',
+        ),
+    ],
+)
+
+
+class JSONEncoder(pjrpc.server.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, pd.BaseModel):
+            return o.model_dump()
+        if isinstance(o, uuid.UUID):
+            return str(o)
+
+        return super().default(o)
+
 
 jsonrpc_app = integration.Application(
     '/api',
     json_encoder=JSONEncoder,
-    status_by_error=lambda codes: 200 if len(codes) != 1 else error_http_status_map.get(codes[0], 200),
-    spec=specs.OpenAPI(
-        info=specs.Info(version="1.0.0", title="User storage"),
-        servers=[
-            specs.Server(
-                url='http://127.0.0.1:8080',
-            ),
-        ],
-        security_schemes=dict(
-            basicAuth=specs.SecurityScheme(
-                type=specs.SecuritySchemeType.HTTP,
-                scheme='basic',
-            ),
-        ),
-        security=[
-            dict(basicAuth=[]),
-        ],
-        schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
-        ui=specs.SwaggerUI(),
-        error_http_status_map=error_http_status_map,
-    ),
+    status_by_error=http_status_by_jsonrpc_codes,
 )
-
-jsonrpc_app.app['users'] = {}
-jsonrpc_app.app['posts'] = {}
+jsonrpc_app.add_spec(spec=openapi_spec, path='openapi.json')
+jsonrpc_app.add_spec_ui('/swagger', openapi.ui.SwaggerUI(), spec_url='../openapi.json')
+jsonrpc_app.add_spec_ui('/redoc', openapi.ui.ReDoc(hide_schema_titles=True), spec_url='../openapi.json')
+jsonrpc_app.http_app['users'] = {}
 
 jsonrpc_app_v1 = integration.Application(
     json_encoder=JSONEncoder,
-    status_by_error=lambda codes: 200 if len(codes) != 1 else error_http_status_map.get(codes[0], 200),
+    status_by_error=http_status_by_jsonrpc_codes,
 )
-jsonrpc_app_v1.dispatcher.add_methods(user_methods_v1)
+jsonrpc_app_v1.add_methods(methods_v1)
+jsonrpc_app_v1.add_spec(spec=openrpc_spec, path='openrpc.json')
 
-jsonrpc_app_v2 = integration.Application(
-    json_encoder=JSONEncoder,
-    status_by_error=lambda codes: 200 if len(codes) != 1 else error_http_status_map.get(codes[0], 200),
-)
-jsonrpc_app_v2.dispatcher.add_methods(user_methods_v2)
+jsonrpc_app_v2 = integration.Application(json_encoder=JSONEncoder, status_by_error=http_status_by_jsonrpc_codes)
+jsonrpc_app_v2.add_methods(methods_v2)
+jsonrpc_app_v2.add_spec(spec=openrpc_spec, path='openrpc.json')
 
 jsonrpc_app.add_subapp('/v1', jsonrpc_app_v1)
 jsonrpc_app.add_subapp('/v2', jsonrpc_app_v2)
 
-
 cors = aiohttp_cors.setup(
-    jsonrpc_app.app, defaults={
+    jsonrpc_app.http_app, defaults={
         '*': aiohttp_cors.ResourceOptions(
             allow_credentials=True,
             expose_headers='*',
@@ -207,9 +256,9 @@ cors = aiohttp_cors.setup(
         ),
     },
 )
-for route in list(jsonrpc_app.app.router.routes()):
+for route in list(jsonrpc_app.http_app.router.routes()):
     cors.add(route)
 
 
 if __name__ == "__main__":
-    web.run_app(jsonrpc_app.app, host='localhost', port=8080)
+    web.run_app(jsonrpc_app.http_app, host='localhost', port=8080)

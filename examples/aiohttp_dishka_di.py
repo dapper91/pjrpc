@@ -9,17 +9,26 @@ from dishka.integrations.aiohttp import inject, setup_dishka
 import pjrpc.server
 import pjrpc.server.specs.extractors.pydantic
 from pjrpc.server.integration import aiohttp
-from pjrpc.server.specs import extractors
-from pjrpc.server.specs import openapi as specs
+from pjrpc.server.specs import extractors, openapi
 from pjrpc.server.validators import pydantic as validators
 
 
-def is_di_injected(name: str, annotation: Type[Any], default: Any) -> bool:
+def is_di_injected(idx: int, name: str, annotation: Type[Any], default: Any) -> bool:
     return annotation is FromDishka
 
 
-methods = pjrpc.server.MethodRegistry()
-validator = validators.PydanticValidator(exclude_param=is_di_injected)
+def exclude_param(idx: int, name: str, annotation: Type[Any], default: Any) -> bool:
+    return aiohttp.is_aiohttp_request(idx, name, annotation, default) or is_di_injected(idx, name, annotation, default)
+
+
+methods = pjrpc.server.MethodRegistry(
+    validator_factory=validators.PydanticValidatorFactory(exclude=exclude_param),
+    metadata_processors=[
+        openapi.MethodSpecificationGenerator(
+            extractors.pydantic.PydanticMethodInfoExtractor(exclude=exclude_param),
+        ),
+    ],
+)
 
 
 class UserService:
@@ -42,9 +51,15 @@ class User(pydantic.BaseModel):
     age: int
 
 
-@specs.annotate(summary='Creates a user', tags=['users'])
-@methods.add(context='request', positional=True)
-@validator.validate
+@methods.add(
+    pass_context=True,
+    metadata=[
+        openapi.metadata(
+            summary='Creates a user',
+            tags=['users'],
+        ),
+    ],
+)
 @inject
 async def add_user(
     request: web.Request,
@@ -57,18 +72,13 @@ async def add_user(
     return {'id': user_id, **user_dict}
 
 
-jsonrpc_app = aiohttp.Application(
-    '/api/v1',
-    specs=[
-        specs.OpenAPI(
-            info=specs.Info(version="1.0.0", title="User storage"),
-            schema_extractor=extractors.pydantic.PydanticSchemaExtractor(exclude_param=is_di_injected),
-            ui=specs.SwaggerUI(),
-        ),
-    ],
-)
-jsonrpc_app.dispatcher.add_methods(methods)
-jsonrpc_app.app['users'] = {}
+openapi_spec = openapi.OpenAPI(info=openapi.Info(version="1.0.0", title="User storage"))
+
+jsonrpc_app = aiohttp.Application('/api/v1')
+jsonrpc_app.add_methods(methods)
+jsonrpc_app.add_spec(openapi_spec, path='openapi.json')
+
+jsonrpc_app.http_app['users'] = {}
 
 
 class ServiceProvider(Provider):
@@ -76,11 +86,11 @@ class ServiceProvider(Provider):
 
 
 setup_dishka(
-    app=jsonrpc_app.app,
+    app=jsonrpc_app.http_app,
     container=make_async_container(
         ServiceProvider(),
     ),
 )
 
 if __name__ == "__main__":
-    web.run_app(jsonrpc_app.app, host='localhost', port=8080)
+    web.run_app(jsonrpc_app.http_app, host='localhost', port=8080)

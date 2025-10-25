@@ -10,7 +10,7 @@ class SyncClient:
     def __init__(self, endpoint):
         self._endpoint = endpoint
 
-    def _request(self, data, is_notification=False, **kwargs):
+    def _request(self, data, is_notification, request_kwargs):
         return json.dumps(pjrpc.Response(id='original_id', result='original_result').to_json())
 
 
@@ -27,7 +27,7 @@ def cli(endpoint):
 def test_context_manager(cli, endpoint):
     with PjRpcMocker('test_pytest_plugin.SyncClient._request') as mocker:
         mocker.add(endpoint, 'method', result='result')
-        cli._request(json.dumps(pjrpc.Request(method='method').to_json()))
+        cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {})
 
     assert mocker._patcher not in mocker._patcher._active_patches
     assert not mocker._matches
@@ -39,7 +39,7 @@ def test_pjrpc_mocker_result_error_id(cli, endpoint):
         mocker.add(endpoint, 'method1', result='result')
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method1').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method1').to_json()), False, {}),
             ),
         )
         assert response.result == 'result'
@@ -47,7 +47,7 @@ def test_pjrpc_mocker_result_error_id(cli, endpoint):
         mocker.add(endpoint, 'method2', error=pjrpc.exc.JsonRpcError(code=1, message='message'))
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method2').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method2').to_json()), False, {}),
             ),
         )
 
@@ -59,14 +59,14 @@ def test_pjrpc_mocker_once_param(cli, endpoint):
         mocker.add(endpoint, 'method', result='result', once=True)
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
         )
         assert response.result == 'result'
 
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
         )
         assert response.result == 'original_result'
@@ -79,21 +79,21 @@ def test_pjrpc_mocker_round_robin(cli, endpoint):
 
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
         )
         assert response.result == 'result1'
 
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
         )
         assert response.result == 'result2'
 
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
         )
         assert response.result == 'result1'
@@ -104,7 +104,7 @@ def test_pjrpc_replace_remove(cli, endpoint):
         mocker.add(endpoint, 'method', result='result1')
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
         )
         assert response.result == 'result1'
@@ -112,7 +112,7 @@ def test_pjrpc_replace_remove(cli, endpoint):
         mocker.replace(endpoint, 'method', result='result2')
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
         )
         assert response.result == 'result2'
@@ -120,7 +120,7 @@ def test_pjrpc_replace_remove(cli, endpoint):
         mocker.remove(endpoint, 'method')
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
         )
         assert response.result == 'original_result'
@@ -135,10 +135,10 @@ def test_pjrpc_mocker_calls(endpoint):
         mocker.add('endpoint1', 'method2', result='result')
         mocker.add('endpoint2', 'method1', result='result')
 
-        cli1._request(json.dumps(pjrpc.Request(method='method1', params=[1, '2']).to_json()))
-        cli1._request(json.dumps(pjrpc.Request(method='method1', params=[1, '2']).to_json()))
-        cli1._request(json.dumps(pjrpc.Request(method='method2', params=[1, '2']).to_json()))
-        cli2._request(json.dumps(pjrpc.Request(method='method1', params={'a': 1, 'b': '2'}).to_json()))
+        cli1._request(json.dumps(pjrpc.Request(method='method1', params=[1, '2']).to_json()), False, {})
+        cli1._request(json.dumps(pjrpc.Request(method='method1', params=[1, '2']).to_json()), False, {})
+        cli1._request(json.dumps(pjrpc.Request(method='method2', params=[1, '2']).to_json()), False, {})
+        cli2._request(json.dumps(pjrpc.Request(method='method1', params={'a': 1, 'b': '2'}).to_json()), False, {})
 
         assert mocker.calls['endpoint1'][('2.0', 'method1')].mock_calls == [((1, '2'), {}), ((1, '2'), {})]
         assert mocker.calls['endpoint1'][('2.0', 'method2')].mock_calls == [((1, '2'), {})]
@@ -155,7 +155,11 @@ def test_pjrpc_mocker_callback(cli, endpoint):
 
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method', params={'a': 1, 'b': '2'}).to_json())),
+                cli._request(
+                    json.dumps(pjrpc.Request(method='method', params={'a': 1, 'b': '2'}).to_json()),
+                    False,
+                    {},
+                ),
             ),
         )
 
@@ -168,7 +172,7 @@ def test_pjrpc_mocker_passthrough(cli, endpoint):
 
         response = pjrpc.Response.from_json(
             json.loads(
-                cli._request(json.dumps(pjrpc.Request(method='method2').to_json())),
+                cli._request(json.dumps(pjrpc.Request(method='method2').to_json()), False, {}),
             ),
         )
 
@@ -179,7 +183,7 @@ class AsyncClient:
     def __init__(self, endpoint):
         self._endpoint = endpoint
 
-    async def _request(self, data, is_notification=False, **kwargs):
+    async def _request(self, data, is_notification, request_kwargs):
         return json.dumps(pjrpc.Response(id='original_id', result='original_result').to_json())
 
 
@@ -199,6 +203,8 @@ async def test_pjrpc_mocker_async(endpoint):
                             pjrpc.Request(method='method2'),
                         ).to_json(),
                     ),
+                    False,
+                    {},
                 ),
             ),
         )

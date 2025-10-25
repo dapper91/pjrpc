@@ -2,16 +2,17 @@
 JSON-RPC client.
 """
 
-from .client import AbstractAsyncClient, AbstractClient, AsyncBatch, BaseAbstractClient, BaseBatch, Batch
-from .tracer import LoggingTracer, Tracer
+from . import validators
+from .client import AbstractAsyncClient, AbstractClient, AsyncMiddleware, AsyncMiddlewareHandler, Batch, Middleware
+from .client import MiddlewareHandler
 
 __all__ = [
-    'AbstractClient',
     'AbstractAsyncClient',
-    'AsyncBatch',
-    'BaseBatch',
-    'BaseAbstractClient',
+    'AbstractClient',
+    'AsyncMiddleware',
+    'AsyncMiddlewareHandler',
     'Batch',
-    'LoggingTracer',
-    'Tracer',
+    'Middleware',
+    'MiddlewareHandler',
+    'validators',
 ]

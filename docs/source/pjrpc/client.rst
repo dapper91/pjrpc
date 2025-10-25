@@ -79,14 +79,16 @@ Batch requests also supported. There are several approaches of sending batch req
 
 .. code-block:: python
 
-    client = Client('http://server/api/v1')
+    client = pjrpc_client.Client('http://localhost/api/v1')
 
-    batch_response = client.batch.send(BatchRequest(
-        pjrpc.Request('sum', [2, 2], id=1),
-        pjrpc.Request('sub', [2, 2], id=2),
-        pjrpc.Request('div', [2, 2], id=3),
-        pjrpc.Request('mult', [2, 2], id=4),
-    ))
+    with client.batch() as batch:
+        batch.send(pjrpc.Request('sum', [2, 2], id=1))
+        batch.send(pjrpc.Request('sub', [2, 2], id=2))
+        batch.send(pjrpc.Request('div', [2, 2], id=3))
+        batch.send(pjrpc.Request('mult', [2, 2], id=4))
+
+    batch_response = batch.get_response()
+
     print(f"2 + 2 = {batch_response[0].result}")
     print(f"2 - 2 = {batch_response[1].result}")
     print(f"2 / 2 = {batch_response[2].result}")
@@ -97,27 +99,14 @@ Batch requests also supported. There are several approaches of sending batch req
 
 .. code-block:: python
 
-    client = Client('http://server/api/v1')
+    with client.batch() as batch:
+        batch('sum', 2, 2)
+        batch('sub', 2, 2)
+        batch('div', 2, 2)
+        batch('mult', 2, 2)
 
-    result = client.batch('sum', 2, 2)('sub', 2, 2)('div', 2, 2)('mult', 2, 2).call()
-    print(f"2 + 2 = {result[0]}")
-    print(f"2 - 2 = {result[1]}")
-    print(f"2 / 2 = {result[2]}")
-    print(f"2 * 2 = {result[3]}")
+    result = batch.get_results()
 
-
-- using subscription operator:
-
-.. code-block:: python
-
-    client = Client('http://server/api/v1')
-
-    result = client.batch[
-        ('sum', 2, 2),
-        ('sub', 2, 2),
-        ('div', 2, 2),
-        ('mult', 2, 2),
-    ]
     print(f"2 + 2 = {result[0]}")
     print(f"2 - 2 = {result[1]}")
     print(f"2 / 2 = {result[2]}")
@@ -128,9 +117,14 @@ Batch requests also supported. There are several approaches of sending batch req
 
 .. code-block:: python
 
-    client = Client('http://server/api/v1')
+    with client.batch() as batch:
+        batch.proxy.sum(2, 2)
+        batch.proxy.sub(2, 2)
+        batch.proxy.div(2, 2)
+        batch.proxy.mult(2, 2)
 
-    result = client.batch.proxy.sum(2, 2).sub(2, 2).div(2, 2).mult(2, 2).call()
+    result = batch.get_results()
+
     print(f"2 + 2 = {result[0]}")
     print(f"2 - 2 = {result[1]}")
     print(f"2 / 2 = {result[2]}")
@@ -143,18 +137,16 @@ the succeeded ones like this:
 
 .. code-block:: python
 
-    import pjrpc
-    from pjrpc.client.backend import requests as pjrpc_client
-
-
     client = pjrpc_client.Client('http://localhost/api/v1')
 
-    batch_response = client.batch.send(pjrpc.BatchRequest(
-        pjrpc.Request('sum', [2, 2], id=1),
-        pjrpc.Request('sub', [2, 2], id=2),
-        pjrpc.Request('div', [2, 2], id=3),
-        pjrpc.Request('mult', [2, 2], id=4),
-    ))
+    batch_response = client.send(
+        pjrpc.BatchRequest(
+            pjrpc.Request('sum', [2, 2], id=1),
+            pjrpc.Request('sub', [2, 2], id=2),
+            pjrpc.Request('div', [2, 2], id=3),
+            pjrpc.Request('mult', [2, 2], id=4),
+        )
+    )
 
     for response in batch_response:
         if response.is_success:
@@ -167,13 +159,13 @@ Notifications also supported:
 
 .. code-block:: python
 
-    import pjrpc
-    from pjrpc.client.backend import requests as pjrpc_client
-
-
     client = pjrpc_client.Client('http://localhost/api/v1')
 
-    client.batch.notify('tick').notify('tack').notify('tick').notify('tack').call()
+    with client.batch() as batch:
+        batch.notify('tick')
+        batch.notify('tack')
+        batch.notify('tick')
+        batch.notify('tack')
 
 
 

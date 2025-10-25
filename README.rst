@@ -54,14 +54,10 @@ Extra requirements
 - `aiohttp <https://aiohttp.readthedocs.io>`_
 - `aio_pika <https://aio-pika.readthedocs.io>`_
 - `flask <https://flask.palletsprojects.com>`_
-- `jsonschema <https://python-jsonschema.readthedocs.io>`_
-- `kombu <https://kombu.readthedocs.io/en/stable/>`_
 - `pydantic <https://pydantic-docs.helpmanual.io/>`_
 - `requests <https://requests.readthedocs.io>`_
 - `httpx <https://www.python-httpx.org/>`_
 - `openapi-ui-bundles <https://github.com/dapper91/python-openapi-ui-bundles>`_
-- `starlette <https://www.starlette.io/>`_
-- `django <https://www.djangoproject.com>`_
 
 
 Documentation
@@ -137,12 +133,14 @@ each one by index:
 
     client = pjrpc_client.Client('http://localhost/api/v1')
 
-    batch_response = await client.batch.send(pjrpc.BatchRequest(
-        pjrpc.Request('sum', [2, 2], id=1),
-        pjrpc.Request('sub', [2, 2], id=2),
-        pjrpc.Request('div', [2, 2], id=3),
-        pjrpc.Request('mult', [2, 2], id=4),
-    ))
+    with client.batch() as batch:
+        batch.send(pjrpc.Request('sum', [2, 2], id=1))
+        batch.send(pjrpc.Request('sub', [2, 2], id=2))
+        batch.send(pjrpc.Request('div', [2, 2], id=3))
+        batch.send(pjrpc.Request('mult', [2, 2], id=4))
+
+    batch_response = batch.get_response()
+
     print(f"2 + 2 = {batch_response[0].result}")
     print(f"2 - 2 = {batch_response[1].result}")
     print(f"2 / 2 = {batch_response[2].result}")
@@ -152,38 +150,36 @@ each one by index:
 There are also several alternative approaches which are a syntactic sugar for the first one (note that the result
 is not a ``pjrpc.common.BatchResponse`` object anymore but a tuple of "plain" method invocation results):
 
-- using chain call notation:
+- using call notation:
 
 .. code-block:: python
 
-    result = await client.batch('sum', 2, 2)('sub', 2, 2)('div', 2, 2)('mult', 2, 2).call()
+    async with client.batch() as batch:
+        batch('sum', 2, 2)
+        batch('sub', 2, 2)
+        batch('div', 2, 2)
+        batch('mult', 2, 2)
+
+    result = batch.get_results()
+
     print(f"2 + 2 = {result[0]}")
     print(f"2 - 2 = {result[1]}")
     print(f"2 / 2 = {result[2]}")
     print(f"2 * 2 = {result[3]}")
 
 
-- using subscription operator:
+- using proxy call:
 
 .. code-block:: python
 
-    result = await client.batch[
-        ('sum', 2, 2),
-        ('sub', 2, 2),
-        ('div', 2, 2),
-        ('mult', 2, 2),
-    ]
-    print(f"2 + 2 = {result[0]}")
-    print(f"2 - 2 = {result[1]}")
-    print(f"2 / 2 = {result[2]}")
-    print(f"2 * 2 = {result[3]}")
+    async with client.batch() as batch:
+        batch.proxy.sum(2, 2)
+        batch.proxy.sub(2, 2)
+        batch.proxy.div(2, 2)
+        batch.proxy.mult(2, 2)
 
+    result = batch.get_results()
 
-- using proxy chain call:
-
-.. code-block:: python
-
-    result = await client.batch.proxy.sum(2, 2).sub(2, 2).div(2, 2).mult(2, 2).call()
     print(f"2 + 2 = {result[0]}")
     print(f"2 - 2 = {result[1]}")
     print(f"2 / 2 = {result[2]}")
@@ -202,12 +198,14 @@ the succeeded ones like this:
 
     client = pjrpc_client.Client('http://localhost/api/v1')
 
-    batch_response = client.batch.send(pjrpc.BatchRequest(
-        pjrpc.Request('sum', [2, 2], id=1),
-        pjrpc.Request('sub', [2, 2], id=2),
-        pjrpc.Request('div', [2, 2], id=3),
-        pjrpc.Request('mult', [2, 2], id=4),
-    ))
+    batch_response = client.send(
+        pjrpc.BatchRequest(
+            pjrpc.Request('sum', [2, 2], id=1),
+            pjrpc.Request('sub', [2, 2], id=2),
+            pjrpc.Request('div', [2, 2], id=3),
+            pjrpc.Request('mult', [2, 2], id=4),
+        )
+    )
 
     for response in batch_response:
         if response.is_success:
@@ -226,7 +224,11 @@ Batch notifications:
 
     client = pjrpc_client.Client('http://localhost/api/v1')
 
-    client.batch.notify('tick').notify('tack').notify('tick').notify('tack').call()
+    with client.batch() as batch:
+        batch.notify('tick')
+        batch.notify('tack')
+        batch.notify('tick')
+        batch.notify('tack')
 
 
 
@@ -234,8 +236,7 @@ Server
 ______
 
 ``pjrpc`` supports popular backend frameworks like `aiohttp <https://aiohttp.readthedocs.io>`_,
-`flask <https://flask.palletsprojects.com>`_ and message brokers like `kombu <https://kombu.readthedocs.io/en/stable/>`_
-and `aio_pika <https://aio-pika.readthedocs.io>`_.
+`flask <https://flask.palletsprojects.com>`_ and message brokers like `aio_pika <https://aio-pika.readthedocs.io>`_.
 
 
 Running of aiohttp based JSON-RPC server is a very simple process. Just define methods, add them to the
@@ -253,8 +254,8 @@ registry and run the server:
     methods = pjrpc.server.MethodRegistry()
 
 
-    @methods.add(context='request')
-    async def add_user(request: web.Request, user: dict):
+    @methods.add(pass_context='request')
+    async def add_user(request: web.Request, user: dict) -> dict:
         user_id = uuid.uuid4().hex
         request.app['users'][user_id] = user
 
@@ -262,11 +263,11 @@ registry and run the server:
 
 
     jsonrpc_app = aiohttp.Application('/api/v1')
-    jsonrpc_app.dispatcher.add_methods(methods)
+    jsonrpc_app.add_methods(methods)
     jsonrpc_app.app['users'] = {}
 
     if __name__ == "__main__":
-        web.run_app(jsonrpc_app.app, host='localhost', port=8080)
+        web.run_app(jsonrpc_app.http_app, host='localhost', port=8080)
 
 
 Parameter validation
@@ -283,7 +284,6 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
 
     import enum
     import uuid
-    from typing import List
 
     import pydantic
     from aiohttp import web
@@ -292,9 +292,9 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
     from pjrpc.server.validators import pydantic as validators
     from pjrpc.server.integration import aiohttp
 
-    methods = pjrpc.server.MethodRegistry()
-    validator = validators.PydanticValidator()
-
+    methods = pjrpc.server.MethodRegistry(
+        validator_factory=validators.PydanticValidatorFactory(exclude=aiohttp.is_aiohttp_request),
+    )
 
     class ContactType(enum.Enum):
         PHONE = 'phone'
@@ -310,11 +310,10 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
         name: str
         surname: str
         age: int
-        contacts: List[Contact]
+        contacts: list[Contact]
 
 
-    @methods.add(context='request')
-    @validator.validate
+    @methods.add(pass_context='request')
     async def add_user(request: web.Request, user: User):
         user_id = uuid.uuid4()
         request.app['users'][user_id] = user
@@ -323,7 +322,6 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
 
 
     class JSONEncoder(pjrpc.server.JSONEncoder):
-
         def default(self, o):
             if isinstance(o, uuid.UUID):
                 return o.hex
@@ -334,11 +332,11 @@ necessary). ``pjrpc`` will be validating method parameters and returning informa
 
 
     jsonrpc_app = aiohttp.Application('/api/v1', json_encoder=JSONEncoder)
-    jsonrpc_app.dispatcher.add_methods(methods)
-    jsonrpc_app.app['users'] = {}
+    jsonrpc_app.add_methods(methods)
+    jsonrpc_app.http_app['users'] = {}
 
     if __name__ == "__main__":
-        web.run_app(jsonrpc_app.app, host='localhost', port=8080)
+        web.run_app(jsonrpc_app.http_app, host='localhost', port=8080)
 
 
 Error handling
@@ -361,7 +359,7 @@ which can be found in ``pjrpc.common.exceptions`` module so that error handling 
 
 
 Default error list can be easily extended. All you need to create an error class inherited from
-``pjrpc.exc.JsonRpcError`` and define an error code and a description message. ``pjrpc`` will be automatically
+``pjrpc.exc.TypedError`` and define an error code and a description message. ``pjrpc`` will be automatically
 deserializing custom errors for you:
 
 .. code-block:: python
@@ -369,9 +367,9 @@ deserializing custom errors for you:
     import pjrpc
     from pjrpc.client.backend import requests as pjrpc_client
 
-    class UserNotFound(pjrpc.exc.JsonRpcError):
-        code = 1
-        message = 'user not found'
+    class UserNotFound(pjrpc.exc.TypedError):
+        CODE = 1
+        MESSAGE = 'user not found'
 
 
     client = pjrpc_client.Client('http://localhost/api/v1')
@@ -394,25 +392,23 @@ On the server side everything is also pretty straightforward:
     from pjrpc.server import MethodRegistry
     from pjrpc.server.integration import flask as integration
 
-    app = flask.Flask(__name__)
-
     methods = pjrpc.server.MethodRegistry()
 
 
-    class UserNotFound(pjrpc.exc.JsonRpcError):
-        code = 1
-        message = 'user not found'
+    class UserNotFound(pjrpc.exc.TypedError):
+        CODE = 1
+        MESSAGE = 'user not found'
 
 
-    @methods.add
-    def add_user(user: dict):
+    @methods.add()
+    def add_user(user: dict) -> dict:
         user_id = uuid.uuid4().hex
         flask.current_app.users[user_id] = user
 
         return {'id': user_id, **user}
 
-    @methods.add
-     def get_user(self, user_id: str):
+    @methods.add()
+    def get_user(user_id: str) -> dict:
         user = flask.current_app.users.get(user_id)
         if not user:
             raise UserNotFound(data=user_id)
@@ -421,14 +417,12 @@ On the server side everything is also pretty straightforward:
 
 
     json_rpc = integration.JsonRPC('/api/v1')
-    json_rpc.dispatcher.add_methods(methods)
+    json_rpc.add_methods(methods)
 
-    app.users = {}
-
-    json_rpc.init_app(app)
+    json_rpc.http_app.users = {}
 
     if __name__ == "__main__":
-        app.run(port=80)
+        json_rpc.http_app.run(port=80)
 
 
 
@@ -454,50 +448,30 @@ and Swagger UI web tool with basic auth:
 .. code-block:: python
 
     import uuid
-    from typing import Annotated, Any, Optional
+    from typing import Annotated, Any
 
-    import flask
-    import flask_cors
-    import flask_httpauth
+    import aiohttp.typedefs
     import pydantic as pd
-    from werkzeug import security
+    from aiohttp import web
 
     import pjrpc.server.specs.extractors.pydantic
-    from pjrpc.server.integration import flask as integration
+    import pjrpc.server.specs.openapi.ui
+    from pjrpc.server.integration import aiohttp as integration
     from pjrpc.server.specs import extractors
     from pjrpc.server.specs import openapi as specs
     from pjrpc.server.validators import pydantic as validators
 
-    app = flask.Flask('myapp')
-    flask_cors.CORS(app, resources={"/myapp/api/v1/*": {"origins": "*"}})
 
-    methods = pjrpc.server.MethodRegistry()
-    validator = validators.PydanticValidator()
-
-    auth = flask_httpauth.HTTPBasicAuth()
-    credentials = {"admin": security.generate_password_hash("admin")}
-
-
-    @auth.verify_password
-    def verify_password(username: str, password: str) -> Optional[str]:
-        if username in credentials and security.check_password_hash(credentials.get(username), password):
-            return username
-
-
-    class AuthenticatedJsonRPC(integration.JsonRPC):
-        @auth.login_required
-        def _rpc_handle(self, dispatcher: pjrpc.server.Dispatcher) -> flask.Response:
-            return super()._rpc_handle(dispatcher)
-
-
-    class JSONEncoder(pjrpc.JSONEncoder):
-        def default(self, o: Any) -> Any:
-            if isinstance(o, pd.BaseModel):
-                return o.model_dump()
-            if isinstance(o, uuid.UUID):
-                return str(o)
-
-            return super().default(o)
+    methods = pjrpc.server.MethodRegistry(
+        validator_factory=validators.PydanticValidatorFactory(exclude=integration.is_aiohttp_request),
+        metadata_processors=[
+            specs.MethodSpecificationGenerator(
+                extractor=extractors.pydantic.PydanticMethodInfoExtractor(
+                    exclude=integration.is_aiohttp_request,
+                ),
+            ),
+        ],
+    )
 
 
     UserName = Annotated[
@@ -512,12 +486,12 @@ and Swagger UI web tool with basic auth:
 
     UserAge = Annotated[
         int,
-        pd.Field(description="User age", examples=[25]),
+        pd.Field(description="User age", examples=[36]),
     ]
 
     UserId = Annotated[
         uuid.UUID,
-        pd.Field(description="User identifier", examples=["c47726c6-a232-45f1-944f-60b98966ff1b"]),
+        pd.Field(description="User identifier", examples=["226a2c23-c98b-4729-b398-0dae550e99ff"]),
     ]
 
 
@@ -539,132 +513,130 @@ and Swagger UI web tool with basic auth:
         id: UserId
 
 
-    class AlreadyExistsError(pjrpc.exc.JsonRpcError):
+    class AlreadyExistsError(pjrpc.exc.TypedError):
         """
         User already registered error.
         """
 
-        code = 2001
-        message = "user already exists"
+        CODE = 2001
+        MESSAGE = "user already exists"
 
 
-    class NotFoundError(pjrpc.exc.JsonRpcError):
+    class NotFoundError(pjrpc.exc.TypedError):
         """
         User not found error.
         """
 
-        code = 2002
-        message = "user not found"
+        CODE = 2002
+        MESSAGE = "user not found"
 
 
-    @specs.annotate(
-        summary='Creates a user',
-        tags=['users'],
-        errors=[AlreadyExistsError],
+    @methods.add(
+        pass_context='request',
+        metadata=[
+            specs.metadata(
+                summary='Creates a user',
+                tags=['users'],
+                errors=[AlreadyExistsError],
+            ),
+        ],
     )
-    @methods.add
-    @validator.validate
-    def add_user(user: UserIn) -> UserOut:
-        """
-        Creates a user.
-
-        :param object user: user data
-        :return object: registered user
-        :raise AlreadyExistsError: user already exists
-        """
-
-        for existing_user in flask.current_app.users_db.values():
+    def add_user(request: web.Request, user: UserIn) -> UserOut:
+        for existing_user in request.config_dict['users'].values():
             if user.name == existing_user.name:
                 raise AlreadyExistsError()
 
-        user_id = uuid.uuid4().hex
-        flask.current_app.users_db[user_id] = user
+        user_id = uuid.uuid4()
+        request.config_dict['users'][user_id] = user
 
         return UserOut(id=user_id, **user.model_dump())
 
 
-    @specs.annotate(
-        summary='Returns a user',
-        tags=['users'],
-        errors=[NotFoundError],
-    )
-    @methods.add
-    @validator.validate
-    def get_user(user_id: UserId) -> UserOut:
-        """
-        Returns a user.
-
-        :param object user_id: user id
-        :return object: registered user
-        :raise NotFoundError: user not found
-        """
-
-        user = flask.current_app.users_db.get(user_id.hex)
-        if not user:
-            raise NotFoundError()
-
-        return UserOut(id=user_id, **user.model_dump())
-
-
-    @specs.annotate(
-        summary='Deletes a user',
-        tags=['users'],
-        errors=[NotFoundError],
-    )
-    @methods.add
-    @validator.validate
-    def delete_user(user_id: UserId) -> None:
-        """
-        Deletes a user.
-
-        :param object user_id: user id
-        :raise NotFoundError: user not found
-        """
-
-        user = flask.current_app.users_db.pop(user_id.hex, None)
-        if not user:
-            raise NotFoundError()
-
-
-    json_rpc = AuthenticatedJsonRPC(
-        '/api/v1',
-        json_encoder=JSONEncoder,
-        spec=specs.OpenAPI(
-            info=specs.Info(version="1.0.0", title="User storage"),
-            servers=[
-                specs.Server(
-                    url='http://127.0.0.1:8080',
-                ),
-            ],
-            security_schemes=dict(
-                basicAuth=specs.SecurityScheme(
-                    type=specs.SecuritySchemeType.HTTP,
-                    scheme='basic',
-                ),
+    @methods.add(
+        pass_context='request',
+        metadata=[
+            specs.metadata(
+                summary='Returns a user',
+                tags=['users'],
+                errors=[NotFoundError],
             ),
-            security=[
-                dict(basicAuth=[]),
-            ],
-            schema_extractor=extractors.pydantic.PydanticSchemaExtractor(),
-            ui=specs.SwaggerUI(),
-        ),
+        ],
     )
-    json_rpc.dispatcher.add_methods(methods)
+    def get_user(request: web.Request, user_id: UserId) -> UserOut:
+        user = request.config_dict['users'].get(user_id.hex)
+        if not user:
+            raise NotFoundError()
 
-    app.users_db = {}
+        return UserOut(id=user_id, **user.model_dump())
 
-    myapp = flask.Blueprint('myapp', __name__, url_prefix='/myapp')
-    json_rpc.init_app(myapp)
 
-    app.register_blueprint(myapp)
+    @methods.add(
+        pass_context='request',
+        metadata=[
+            specs.metadata(
+                summary='Deletes a user',
+                tags=['users'],
+                errors=[NotFoundError],
+            ),
+        ],
+    )
+    def delete_user(request: web.Request, user_id: UserId) -> None:
+        user = request.config_dict['users'].pop(user_id.hex, None)
+        if not user:
+            raise NotFoundError()
+
+
+    class JSONEncoder(pjrpc.server.JSONEncoder):
+        def default(self, o: Any) -> Any:
+            if isinstance(o, pd.BaseModel):
+                return o.model_dump()
+            if isinstance(o, uuid.UUID):
+                return str(o)
+
+            return super().default(o)
+
+
+    openapi_spec = specs.OpenAPI(
+        info=specs.Info(version="1.0.0", title="User storage"),
+        servers=[
+            specs.Server(
+                url='http://127.0.0.1:8080',
+            ),
+        ],
+        security_schemes=dict(
+            basicAuth=specs.SecurityScheme(
+                type=specs.SecuritySchemeType.HTTP,
+                scheme='basic',
+            ),
+        ),
+        security=[
+            dict(basicAuth=[]),
+        ],
+    )
+
+    http_app = web.Application()
+    http_app['users'] = {}
+
+    jsonrpc_app = integration.Application('/api')
+    jsonrpc_app.add_spec(openapi_spec, path='openapi.json')
+    jsonrpc_app.add_spec_ui('swagger', specs.ui.SwaggerUI(), spec_url='../openapi.json')
+    jsonrpc_app.add_spec_ui('redoc', specs.ui.ReDoc(), spec_url='../openapi.json')
+
+    jsonrpc_v1_app = integration.Application(http_app=web.Application(), json_encoder=JSONEncoder)
+    jsonrpc_v1_app.add_methods(methods)
+
+    jsonrpc_app.add_subapp('/v1', jsonrpc_v1_app)
+    http_app.add_subapp('/rpc', jsonrpc_app.http_app)
+
 
     if __name__ == "__main__":
-        app.run(port=8080)
+        web.run_app(http_app, host='localhost', port=8080)
 
 
-Specification is available on http://localhost:8080/myapp/api/v1/openapi.json
 
-Web UI is running on http://localhost:8080/myapp/api/v1/ui/
+Specification is available on http://localhost:8080/rpc/api/v1/openapi.json
+
+Web UI is running on http://localhost:8080/rpc/api/v1/swagger/ and http://localhost:8080/rpc/api/v1/redoc/
 
 Swagger UI:
 ~~~~~~~~~~~

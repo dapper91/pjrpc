@@ -1,10 +1,12 @@
+import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Iterable, Optional
 
 import aio_pika
 from yarl import URL
 
 import pjrpc.server
+from pjrpc.server.dispatcher import AsyncExecutor, AsyncMiddlewareType, JSONEncoder
 
 logger = logging.getLogger(__package__)
 
@@ -16,36 +18,52 @@ class Executor:
     `aio_pika <https://aio-pika.readthedocs.io/en/latest/>`_ based JSON-RPC server.
 
     :param broker_url: broker connection url
-    :param rx_queue_name: requests queue name
-    :param tx_exchange_name: response exchange name
-    :param tx_routing_key: response routing key
+    :param request_queue_name: requests queue name
+    :param response_exchange_name: response exchange name
+    :param response_routing_key: response routing key
     :param prefetch_count: worker prefetch count
-    :param kwargs: dispatcher additional arguments
     """
 
     def __init__(
         self,
         broker_url: URL,
-        rx_queue_name: str,
-        tx_exchange_name: Optional[str] = None,
-        tx_routing_key: Optional[str] = None,
+        request_queue_name: str,
+        request_queue_args: Optional[dict[str, Any]] = None,
+        response_exchange_name: Optional[str] = None,
+        response_exchange_args: Optional[dict[str, Any]] = None,
+        response_routing_key: Optional[str] = None,
         prefetch_count: int = 0,
-        **kwargs: Any,
+        executor: Optional[AsyncExecutor] = None,
+        json_loader: Callable[..., Any] = json.loads,
+        json_dumper: Callable[..., str] = json.dumps,
+        json_encoder: type[JSONEncoder] = JSONEncoder,
+        json_decoder: Optional[type[json.JSONDecoder]] = None,
+        middlewares: Iterable[AsyncMiddlewareType[aio_pika.abc.AbstractIncomingMessage]] = (),
+        max_batch_size: Optional[int] = None,
     ):
         self._broker_url = broker_url
-        self._rx_queue_name = rx_queue_name
-        self._tx_exchange_name = tx_exchange_name
-        self._tx_routing_key = tx_routing_key
+        self._request_queue_name = request_queue_name
+        self._request_queue_args = request_queue_args
+        self._response_exchange_name = response_exchange_name
+        self._response_exchange_args = response_exchange_args
+        self._response_routing_key = response_routing_key
         self._prefetch_count = prefetch_count
 
         self._connection = aio_pika.connection.Connection(broker_url)
         self._channel: Optional[aio_pika.abc.AbstractChannel] = None
 
-        self._queue: Optional[aio_pika.abc.AbstractQueue] = None
-        self._exchange: Optional[aio_pika.abc.AbstractExchange] = None
+        self._request_queue: Optional[aio_pika.abc.AbstractQueue] = None
+        self._response_exchange: Optional[aio_pika.abc.AbstractExchange] = None
         self._consumer_tag: Optional[str] = None
-
-        self._dispatcher = AioPikaDispatcher(**kwargs)
+        self._dispatcher = AioPikaDispatcher(
+            executor=executor,
+            json_loader=json_loader,
+            json_dumper=json_dumper,
+            json_encoder=json_encoder,
+            json_decoder=json_decoder,
+            middlewares=middlewares,
+            max_batch_size=max_batch_size,
+        )
 
     @property
     def dispatcher(self) -> AioPikaDispatcher:
@@ -55,37 +73,35 @@ class Executor:
 
         return self._dispatcher
 
-    async def start(
-            self,
-            queue_args: Optional[Dict[str, Any]] = None,
-            exchange_args: Optional[Dict[str, Any]] = None,
-    ) -> None:
+    async def start(self) -> None:
         """
         Starts executor.
-
-        :param queue_args: queue arguments
-        :param exchange_args: exchange arguments
         """
 
         await self._connection.connect()
         self._channel = channel = await self._connection.channel()
-
-        self._queue = queue = await channel.declare_queue(self._rx_queue_name, **(queue_args or {}))
-        if self._tx_exchange_name:
-            self._exchange = await channel.declare_exchange(self._tx_exchange_name, **(exchange_args or {}))
         await channel.set_qos(prefetch_count=self._prefetch_count)
-        self._consumer_tag = await queue.consume(self._rpc_handle)
+
+        self._request_queue = await channel.declare_queue(
+            self._request_queue_name, **(self._request_queue_args or {}),
+        )
+
+        if self._response_exchange_name:
+            self._response_exchange = await channel.declare_exchange(
+                self._response_exchange_name, **(self._response_exchange_args or {}),
+            )
+
+        self._consumer_tag = await self._request_queue.consume(self._rpc_handle)
 
     async def shutdown(self) -> None:
         """
         Stops executor.
         """
 
-        if self._consumer_tag and self._queue:
-            await self._queue.cancel(self._consumer_tag)
-        if self._channel:
-            await self._channel.close()
+        assert self._channel and self._request_queue and self._consumer_tag, "executor not started"
 
+        await self._request_queue.cancel(self._consumer_tag)
+        await self._channel.close()
         await self._connection.close()
 
     async def _rpc_handle(self, message: aio_pika.abc.AbstractIncomingMessage) -> None:
@@ -95,32 +111,22 @@ class Executor:
         :param message: incoming message
         """
 
-        try:
-            reply_to = message.reply_to
-            response = await self._dispatcher.dispatch(message.body.decode(), context=message)
+        async with message.process():
+            try:
+                if (response := await self._dispatcher.dispatch(message.body.decode(), context=message)) is not None:
+                    response_text, error_codes = response
 
-            if response is not None:
-                response_text, error_codes = response
-                if self._tx_routing_key:
-                    routing_key = self._tx_routing_key
-                elif reply_to:
-                    routing_key = reply_to
-                else:
-                    routing_key = ""
-                    logger.warning("property 'reply_to' or 'tx_routing_key' missing")
-                async with self._connection.channel() as channel:
-                    exchange = self._exchange if self._exchange else channel.default_exchange
-                    await exchange.publish(
-                        aio_pika.Message(
-                            body=response_text.encode(),
-                            reply_to=reply_to,
-                            correlation_id=message.correlation_id,
-                            content_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
-                        ),
-                        routing_key=routing_key,
-                    )
+                    async with self._connection.channel() as channel:
+                        exchange = self._response_exchange or channel.default_exchange
+                        await exchange.publish(
+                            aio_pika.Message(
+                                body=response_text.encode(),
+                                correlation_id=message.correlation_id,
+                                content_type=pjrpc.common.DEFAULT_CONTENT_TYPE,
+                            ),
+                            routing_key=message.reply_to or self._response_routing_key or '',
+                        )
 
-            await message.ack()
-
-        except Exception as e:
-            logger.exception("jsonrpc request handling error: %s", e)
+            except Exception as e:
+                logger.exception("jsonrpc request handling error: %s", e)
+                raise
