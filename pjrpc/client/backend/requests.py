@@ -1,6 +1,6 @@
 import json
 import typing
-from typing import Any, Callable, Generator, Iterable, Mapping, MutableMapping, Optional, TypedDict, Union
+from typing import Any, Callable, Generator, Iterable, Mapping, MutableMapping, Optional, Self, TypedDict, Union, Unpack
 
 import requests.auth
 import requests.cookies
@@ -67,14 +67,14 @@ class Client(AbstractClient):
         self._raise_for_status = raise_for_status
 
     @typing.overload
-    def send(self, request: Request, **kwargs: Any) -> Optional[Response]:
+    def send(self, request: Request, **kwargs: Unpack[RequestArgs]) -> Optional[Response]:
         ...
 
     @typing.overload
-    def send(self, request: BatchRequest, **kwargs: Any) -> Optional[BatchResponse]:
+    def send(self, request: BatchRequest, **kwargs: Unpack[RequestArgs]) -> Optional[BatchResponse]:
         ...
 
-    def send(self, request: AbstractRequest, **kwargs: Any) -> Optional[AbstractResponse]:
+    def send(self, request: AbstractRequest, **kwargs: Unpack[RequestArgs]) -> Optional[AbstractResponse]:
         """
         Sends a JSON-RPC request.
 
@@ -125,7 +125,7 @@ class Client(AbstractClient):
         if self._owned_session:
             self._session.close()
 
-    def __enter__(self) -> 'Client':
+    def __enter__(self) -> Self:
         if self._owned_session:
             self._session.__enter__()
 

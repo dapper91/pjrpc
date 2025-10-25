@@ -64,7 +64,7 @@ class OpenRPC(Specification):
         self._external_docs = external_docs
         self._openrpc = openrpc
 
-    def generate(self, root_endpoint: str, methods: Mapping[str, Iterable[Method]]) -> dict[str, Any]:
+    def generate(self, root_endpoint: str, methods: Mapping[str, Iterable[Method[Any, Any]]]) -> dict[str, Any]:
         spec_root = SpecRoot(
             info=self._info,
             servers=self._servers,
@@ -174,7 +174,7 @@ class MethodSpecificationGenerator:
     def __init__(self, extractor: BaseMethodInfoExtractor):
         self._extractor = extractor
 
-    def __call__(self, method: Method) -> Method:
+    def __call__(self, method: Method[Any, Any]) -> Method[Any, Any]:
         method_metadata = MethodMetadata()
         for meta in method.metadata:
             if isinstance(meta, MethodMetadata):

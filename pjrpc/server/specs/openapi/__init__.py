@@ -104,7 +104,7 @@ class OpenAPI(Specification):
         self._openapi = openapi
         self._json_schema_dialect = json_schema_dialect
 
-    def generate(self, root_endpoint: str, methods: Mapping[str, Iterable[Method]]) -> dict[str, Any]:
+    def generate(self, root_endpoint: str, methods: Mapping[str, Iterable[Method[Any, Any]]]) -> dict[str, Any]:
         spec_root = SpecRoot(
             info=self._info,
             paths={},
@@ -227,7 +227,7 @@ class MethodSpecificationGenerator:
         self._extractor = extractor
         self._error_http_status_map = error_http_status_map or {}
 
-    def __call__(self, method: Method) -> Method:
+    def __call__(self, method: Method[Any, Any]) -> Method[Any, Any]:
         method_metadata = MethodMetadata()
         for meta in method.metadata:
             if isinstance(meta, MethodMetadata):

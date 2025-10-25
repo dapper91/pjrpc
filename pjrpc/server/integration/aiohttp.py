@@ -5,7 +5,7 @@ aiohttp JSON-RPC server integration.
 import functools as ft
 import inspect
 import json
-from typing import Any, Callable, Iterable, Mapping, Optional
+from typing import Any, Callable, Iterable, Mapping, Optional, Self
 
 from aiohttp import web
 
@@ -77,7 +77,7 @@ class Application:
 
         return self._endpoints
 
-    def add_methods(self, registry: MethodRegistry, endpoint: str = '') -> 'Application':
+    def add_methods(self, registry: MethodRegistry, endpoint: str = '') -> Self:
         """
         Adds methods to the provided endpoint.
 

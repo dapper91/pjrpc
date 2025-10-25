@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Optional
+from typing import Any, Optional, Unpack
 
 import pydantic
 
@@ -19,15 +19,15 @@ class PydanticValidatorFactory(base.BaseValidatorFactory):
                     from validation (useful for dependency injection)
     """
 
-    def __init__(self, exclude: Optional[ExcludeFunc] = None, **config_args: Any):
+    def __init__(self, exclude: Optional[ExcludeFunc] = None, **config_args: Unpack[pydantic.ConfigDict]):
         super().__init__(exclude=exclude)
 
         config_args.setdefault('extra', 'forbid')
 
         # https://pydantic-docs.helpmanual.io/usage/model_config/
-        self._model_config = pydantic.ConfigDict(**config_args)  # type: ignore[typeddict-item]
+        self._model_config = pydantic.ConfigDict(**config_args)
 
-    def __call__(self, method: Method) -> Method:
+    def __call__(self, method: Method[Any, Any]) -> Method[Any, Any]:
         self.build(method.func)
         return method
 

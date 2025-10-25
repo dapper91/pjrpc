@@ -1,5 +1,5 @@
 import enum
-from typing import Any, Literal, TypeVar, Union
+from typing import Any, Literal, TypeAlias, TypeVar, Union
 
 
 class UnsetType(enum.Enum):
@@ -25,4 +25,4 @@ UNSET: UnsetType = UnsetType.UNSET
 MaybeSetType = TypeVar('MaybeSetType')
 MaybeSet = Union[UnsetType, MaybeSetType]
 
-JsonT = Any
+JsonT: TypeAlias = Any

@@ -6,7 +6,7 @@ import abc
 import dataclasses as dc
 import itertools as it
 import operator as op
-from typing import Any, ClassVar, Iterator, Optional
+from typing import Any, ClassVar, Iterator, Optional, Self
 
 from pjrpc.common.typedefs import JsonRpcRequestIdT
 
@@ -14,7 +14,7 @@ from .common import UNSET, JsonT, MaybeSet
 from .exceptions import DeserializationError, IdentityError, JsonRpcError
 
 
-@dc.dataclass
+@dc.dataclass(slots=True, kw_only=True)
 class AbstractResponse(abc.ABC):
     """
     JSON-RPC 2.0 abstract response.
@@ -22,7 +22,7 @@ class AbstractResponse(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_json(cls, data: JsonT, error_cls: type[JsonRpcError] = JsonRpcError) -> 'AbstractResponse':
+    def from_json(cls, data: JsonT, error_cls: type[JsonRpcError] = JsonRpcError) -> Self:
         pass
 
     @abc.abstractmethod
@@ -48,7 +48,7 @@ class AbstractResponse(abc.ABC):
         pass
 
 
-@dc.dataclass
+@dc.dataclass(slots=True)
 class Response(AbstractResponse):
     """
     JSON-RPC 2.0 response.
@@ -65,7 +65,7 @@ class Response(AbstractResponse):
     error: MaybeSet[JsonRpcError] = UNSET
 
     @classmethod
-    def from_json(cls, data: JsonT, error_cls: type[JsonRpcError] = JsonRpcError) -> 'Response':
+    def from_json(cls, data: JsonT, error_cls: type[JsonRpcError] = JsonRpcError) -> Self:
         """
         Deserializes a response from json data.
 
@@ -164,7 +164,7 @@ class Response(AbstractResponse):
         return data
 
 
-@dc.dataclass
+@dc.dataclass(slots=True)
 class BatchResponse(AbstractResponse):
     """
     JSON-RPC 2.0 batch response.
@@ -183,7 +183,7 @@ class BatchResponse(AbstractResponse):
             data: JsonT,
             error_cls: type[JsonRpcError] = JsonRpcError,
             check_ids: bool = True,
-    ) -> 'BatchResponse':
+    ) -> Self:
         """
         Deserializes a batch response from json data.
 

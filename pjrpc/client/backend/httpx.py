@@ -1,6 +1,6 @@
 import json
 import typing
-from typing import Any, Callable, Generator, Iterable, Mapping, Optional, Sequence, TypedDict, Union
+from typing import Any, Callable, Generator, Iterable, Mapping, Optional, Self, Sequence, TypedDict, Union, Unpack
 
 import httpx
 
@@ -64,14 +64,14 @@ class Client(AbstractClient):
         self._raise_for_status = raise_for_status
 
     @typing.overload
-    def send(self, request: Request, **kwargs: Any) -> Optional[Response]:
+    def send(self, request: Request, **kwargs: Unpack[RequestArgs]) -> Optional[Response]:
         ...
 
     @typing.overload
-    def send(self, request: BatchRequest, **kwargs: Any) -> Optional[BatchResponse]:
+    def send(self, request: BatchRequest, **kwargs: Unpack[RequestArgs]) -> Optional[BatchResponse]:
         ...
 
-    def send(self, request: AbstractRequest, **kwargs: Any) -> Optional[AbstractResponse]:
+    def send(self, request: AbstractRequest, **kwargs: Unpack[RequestArgs]) -> Optional[AbstractResponse]:
         """
         Sends a JSON-RPC request.
 
@@ -123,7 +123,7 @@ class Client(AbstractClient):
         if self._owned_http_client:
             self._http_client.close()
 
-    def __enter__(self) -> 'Client':
+    def __enter__(self) -> Self:
         if self._owned_http_client:
             self._http_client.__enter__()
 
@@ -178,14 +178,14 @@ class AsyncClient(AbstractAsyncClient):
         self._raise_for_status = raise_for_status
 
     @typing.overload
-    async def send(self, request: Request, **kwargs: Any) -> Optional[Response]:
+    async def send(self, request: Request, **kwargs: Unpack[RequestArgs]) -> Optional[Response]:
         ...
 
     @typing.overload
-    async def send(self, request: BatchRequest, **kwargs: Any) -> Optional[BatchResponse]:
+    async def send(self, request: BatchRequest, **kwargs: Unpack[RequestArgs]) -> Optional[BatchResponse]:
         ...
 
-    async def send(self, request: AbstractRequest, **kwargs: Any) -> Optional[AbstractResponse]:
+    async def send(self, request: AbstractRequest, **kwargs: Unpack[RequestArgs]) -> Optional[AbstractResponse]:
         """
         Sends a JSON-RPC request.
 
@@ -242,7 +242,7 @@ class AsyncClient(AbstractAsyncClient):
         if self._owned_http_client:
             await self._http_client.aclose()
 
-    async def __aenter__(self) -> 'AsyncClient':
+    async def __aenter__(self) -> Self:
         if self._owned_http_client:
             await self._http_client.__aenter__()
 

@@ -3,11 +3,11 @@ Definition of package exceptions and JSON-RPC protocol errors.
 """
 
 import dataclasses as dc
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, TypeAlias
 
 from .common import UNSET, MaybeSet
 
-JsonT = Any
+JsonT: TypeAlias = Any
 
 
 class BaseError(Exception):

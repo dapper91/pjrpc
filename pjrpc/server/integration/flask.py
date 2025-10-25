@@ -4,7 +4,7 @@ Flask JSON-RPC extension.
 
 import functools as ft
 import json
-from typing import Any, Callable, Iterable, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Self, Union
 
 import flask
 from flask import current_app
@@ -69,7 +69,7 @@ class JsonRPC:
 
         return self._endpoints
 
-    def add_methods(self, registry: MethodRegistry, endpoint: str = '') -> 'JsonRPC':
+    def add_methods(self, registry: MethodRegistry, endpoint: str = '') -> Self:
         """
         Adds methods to the provided endpoint.
 

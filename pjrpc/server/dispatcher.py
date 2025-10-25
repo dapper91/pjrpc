@@ -4,8 +4,8 @@ import functools as ft
 import json
 import logging
 import warnings
-from typing import Any, Awaitable, Callable, Generic, ItemsView, Iterable, Iterator, KeysView, Optional, TypeVar, Union
-from typing import ValuesView
+from typing import Any, Awaitable, Callable, Concatenate, Generic, ItemsView, Iterable, Iterator, KeysView, Optional
+from typing import ParamSpec, Self, TypeVar, Union, ValuesView
 
 import pjrpc
 from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, MaybeSet, Request, Response, UnsetType
@@ -20,10 +20,12 @@ logger = logging.getLogger(__package__)
 
 FunctionType = Callable[..., Any]
 BoundMethod = Callable[[], Any]
-FunctionT = TypeVar('FunctionT', bound=FunctionType)
+
+FuncParamsT = ParamSpec('FuncParamsT')
+FuncResultT = TypeVar('FuncResultT')
 
 
-class Method:
+class Method(Generic[FuncParamsT, FuncResultT]):
     """
     JSON-RPC method wrapper. Stores method itself and some metainformation.
 
@@ -36,7 +38,7 @@ class Method:
 
     def __init__(
         self,
-        func: Callable[..., Any],
+        func: Callable[FuncParamsT, FuncResultT],
         name: Optional[str] = None,
         *,
         pass_context: Union[bool, str] = False,
@@ -61,7 +63,7 @@ class Method:
         validator_factory = validator_factory or validators.BaseValidatorFactory(exclude=exclude)
         self.validator = validator_factory.build(func)
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: FuncParamsT.args, **kwargs: FuncParamsT.kwargs) -> FuncResultT:
         return self.func(*args, **kwargs)
 
     def bind(self, params: Optional[JsonRpcParamsT], context: Optional[Any] = None) -> BoundMethod:
@@ -89,7 +91,7 @@ class Method:
         return args, kwargs
 
 
-MetadataProcessorT = Callable[[Method], Method]
+MetadataProcessorT = Callable[[Method[Any, Any]], Method[Any, Any]]
 
 
 class MethodRegistry:
@@ -106,7 +108,7 @@ class MethodRegistry:
         self._validator_factory = validator_factory
         self._metadata = list(metadata)
         self._metadata_processors = list(metadata_processors)
-        self._registry: dict[str, Method] = {}
+        self._registry: dict[str, Method[Any, Any]] = {}
 
     def __iter__(self) -> Iterator[str]:
         """
@@ -115,7 +117,7 @@ class MethodRegistry:
 
         return iter(self._registry)
 
-    def __getitem__(self, item: str) -> Method:
+    def __getitem__(self, item: str) -> Method[Any, Any]:
         """
         Returns a method from the registry by name.
 
@@ -126,16 +128,16 @@ class MethodRegistry:
 
         return self._registry[item]
 
-    def items(self) -> ItemsView[str, Method]:
+    def items(self) -> ItemsView[str, Method[Any, Any]]:
         return self._registry.items()
 
     def keys(self) -> KeysView[str]:
         return self._registry.keys()
 
-    def values(self) -> ValuesView[Method]:
+    def values(self) -> ValuesView[Method[Any, Any]]:
         return self._registry.values()
 
-    def get(self, item: str) -> Optional[Method]:
+    def get(self, item: str) -> Optional[Method[Any, Any]]:
         """
         Returns a method from the registry by name.
 
@@ -145,7 +147,7 @@ class MethodRegistry:
 
         return self._registry.get(item)
 
-    def merge(self, other: 'MethodRegistry') -> 'MethodRegistry':
+    def merge(self, other: 'MethodRegistry') -> Self:
         for method in other.values():
             self._add_method(method)
 
@@ -157,7 +159,7 @@ class MethodRegistry:
         *,
         pass_context: Union[bool, str] = False,
         metadata: Iterable[Any] = (),
-    ) -> Callable[[FunctionT], FunctionT]:
+    ) -> Callable[[Callable[FuncParamsT, FuncResultT]], Callable[FuncParamsT, FuncResultT]]:
         """
         Decorator adding decorated method to the registry.
 
@@ -168,7 +170,7 @@ class MethodRegistry:
         :returns: decorated method or decorator
         """
 
-        def decorator(func: FunctionT) -> FunctionT:
+        def decorator(func: Callable[FuncParamsT, FuncResultT]) -> Callable[FuncParamsT, FuncResultT]:
             self._add_function(
                 func,
                 name,
@@ -187,7 +189,7 @@ class MethodRegistry:
         *,
         pass_context: Union[bool, str] = False,
         metadata: Iterable[Any] = (),
-    ) -> 'MethodRegistry':
+    ) -> Self:
         """
         Adds the method to the registry.
 
@@ -225,7 +227,7 @@ class MethodRegistry:
             ),
         )
 
-    def _add_method(self, method: Method) -> None:
+    def _add_method(self, method: Method[Any, Any]) -> None:
         if method.name in self._registry:
             warnings.warn(f"method '{method.name}' already registered")
 
@@ -301,9 +303,13 @@ class BaseDispatcher:
     def registry(self) -> MethodRegistry:
         return self._registry
 
-    def add_methods(self, registry: MethodRegistry) -> 'BaseDispatcher':
+    def add_methods(self, registry: MethodRegistry) -> Self:
         self._registry.merge(registry)
         return self
+
+
+HandlerParams = ParamSpec('HandlerParams')
+HandlerResult = TypeVar('HandlerResult')
 
 
 class Executor(abc.ABC):
@@ -314,12 +320,12 @@ class Executor(abc.ABC):
     @abc.abstractmethod
     def execute(
         self,
-        handler: Callable[..., Any],
+        handler: Callable[Concatenate[Request, HandlerParams], HandlerResult],
         /,
         requests: Iterable[Request],
-        *args: Any,
-        **kwargs: Any,
-    ) -> Iterable[Any]:
+        *args: HandlerParams.args,
+        **kwargs: HandlerParams.kwargs,
+    ) -> Iterable[HandlerResult]:
         pass
 
 
@@ -330,12 +336,12 @@ class BasicExecutor(Executor):
 
     def execute(
         self,
-        handler: Callable[..., Any],
+        handler: Callable[Concatenate[Request, HandlerParams], HandlerResult],
         /,
         requests: Iterable[Request],
-        *args: Any,
-        **kwargs: Any,
-    ) -> Iterable[Any]:
+        *args: HandlerParams.args,
+        **kwargs: HandlerParams.kwargs,
+    ) -> Iterable[HandlerResult]:
         return list(handler(request, *args, **kwargs) for request in requests)
 
 
@@ -492,12 +498,12 @@ class AsyncExecutor(abc.ABC):
     @abc.abstractmethod
     async def execute(
         self,
-        handler: Callable[..., Awaitable[Any]],
+        handler: Callable[Concatenate[Request, HandlerParams], Awaitable[HandlerResult]],
         /,
         requests: Iterable[Request],
-        *args: Any,
-        **kwargs: Any,
-    ) -> Iterable[Any]:
+        *args: HandlerParams.args,
+        **kwargs: HandlerParams.kwargs,
+    ) -> Iterable[HandlerResult]:
         pass
 
 
@@ -508,12 +514,12 @@ class BasicAsyncExecutor(AsyncExecutor):
 
     async def execute(
         self,
-        handler: Callable[..., Awaitable[Any]],
+        handler: Callable[Concatenate[Request, HandlerParams], Awaitable[HandlerResult]],
         /,
         requests: Iterable[Request],
-        *args: Any,
-        **kwargs: Any,
-    ) -> Iterable[Any]:
+        *args: HandlerParams.args,
+        **kwargs: HandlerParams.kwargs,
+    ) -> Iterable[HandlerResult]:
         return [await handler(request, *args, **kwargs) for request in requests]
 
 
@@ -524,12 +530,12 @@ class ParallelAsyncExecutor(AsyncExecutor):
 
     async def execute(
         self,
-        handler: Callable[..., Awaitable[Any]],
+        handler: Callable[Concatenate[Request, HandlerParams], Awaitable[HandlerResult]],
         /,
         requests: Iterable[Request],
-        *args: Any,
-        **kwargs: Any,
-    ) -> Iterable[Any]:
+        *args: HandlerParams.args,
+        **kwargs: HandlerParams.kwargs,
+    ) -> Iterable[HandlerResult]:
         return list(await asyncio.gather(*(handler(request, *args, **kwargs) for request in requests)))
 
 

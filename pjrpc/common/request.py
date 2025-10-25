@@ -6,7 +6,7 @@ import abc
 import dataclasses as dc
 import itertools as it
 import operator as op
-from typing import Any, ClassVar, Iterator, Optional
+from typing import Any, ClassVar, Iterator, Optional, Self
 
 from pjrpc.common.typedefs import JsonRpcParamsT, JsonRpcRequestIdT
 
@@ -14,7 +14,7 @@ from .common import JsonT
 from .exceptions import DeserializationError, IdentityError
 
 
-@dc.dataclass
+@dc.dataclass(slots=True, kw_only=True)
 class AbstractRequest(abc.ABC):
     """
     JSON-RPC 2.0 abstract request.
@@ -22,7 +22,7 @@ class AbstractRequest(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_json(cls, data: JsonT) -> 'AbstractRequest':
+    def from_json(cls, data: JsonT) -> Self:
         pass
 
     @abc.abstractmethod
@@ -35,7 +35,7 @@ class AbstractRequest(abc.ABC):
         pass
 
 
-@dc.dataclass
+@dc.dataclass(slots=True)
 class Request(AbstractRequest):
     """
     JSON-RPC 2.0 request.
@@ -52,7 +52,7 @@ class Request(AbstractRequest):
     id: Optional[JsonRpcRequestIdT] = None
 
     @classmethod
-    def from_json(cls, data: JsonT) -> 'Request':
+    def from_json(cls, data: JsonT) -> Self:
         """
         Deserializes a request from json data.
 
@@ -115,7 +115,7 @@ class Request(AbstractRequest):
         return self.id is None
 
 
-@dc.dataclass
+@dc.dataclass(slots=True)
 class BatchRequest(AbstractRequest):
     """
     JSON-RPC 2.0 batch request.
@@ -131,7 +131,7 @@ class BatchRequest(AbstractRequest):
         self.requests = tuple(requests)
 
     @classmethod
-    def from_json(cls, data: JsonT, check_ids: bool = True) -> 'BatchRequest':
+    def from_json(cls, data: JsonT, check_ids: bool = True) -> Self:
         """
         Deserializes a batch request from json data.
 

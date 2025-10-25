@@ -3,7 +3,7 @@ import json
 import logging
 import typing
 import uuid
-from typing import Any, Callable, Generator, Iterable, Mapping, Optional, TypedDict
+from typing import Any, Callable, Generator, Iterable, Mapping, Optional, Self, TypedDict, Unpack
 
 import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
@@ -118,7 +118,7 @@ class Client(AbstractAsyncClient):
 
         self._futures: dict[str, asyncio.Future[str]] = {}
 
-    async def __aenter__(self) -> 'Client':
+    async def __aenter__(self) -> Self:
         await self.connect()
         return self
 
@@ -165,14 +165,14 @@ class Client(AbstractAsyncClient):
             await self._connection.close()
 
     @typing.overload
-    async def send(self, request: Request, **kwargs: Any) -> Optional[Response]:
+    async def send(self, request: Request, **kwargs: Unpack[RequestArgs]) -> Optional[Response]:
         ...
 
     @typing.overload
-    async def send(self, request: BatchRequest, **kwargs: Any) -> Optional[BatchResponse]:
+    async def send(self, request: BatchRequest, **kwargs: Unpack[RequestArgs]) -> Optional[BatchResponse]:
         ...
 
-    async def send(self, request: AbstractRequest, **kwargs: Any) -> Optional[AbstractResponse]:
+    async def send(self, request: AbstractRequest, **kwargs: Unpack[RequestArgs]) -> Optional[AbstractResponse]:
         """
         Sends a JSON-RPC request.
 

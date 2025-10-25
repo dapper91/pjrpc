@@ -1,7 +1,7 @@
 import json
 import typing
 from ssl import SSLContext
-from typing import Any, Callable, Generator, Iterable, Mapping, Optional, TypedDict, Union
+from typing import Any, Callable, Generator, Iterable, Mapping, Optional, Self, TypedDict, Union, Unpack
 
 from aiohttp import BasicAuth, Fingerprint, client
 from aiohttp.typedefs import LooseCookies, LooseHeaders, StrOrURL
@@ -82,14 +82,14 @@ class Client(AbstractAsyncClient):
         self._raise_for_status = raise_for_status
 
     @typing.overload
-    async def send(self, request: Request, **kwargs: Any) -> Optional[Response]:
+    async def send(self, request: Request, **kwargs: Unpack[RequestArgs]) -> Optional[Response]:
         ...
 
     @typing.overload
-    async def send(self, request: BatchRequest, **kwargs: Any) -> Optional[BatchResponse]:
+    async def send(self, request: BatchRequest, **kwargs: Unpack[RequestArgs]) -> Optional[BatchResponse]:
         ...
 
-    async def send(self, request: AbstractRequest, **kwargs: Any) -> Optional[AbstractResponse]:
+    async def send(self, request: AbstractRequest, **kwargs: Unpack[RequestArgs]) -> Optional[AbstractResponse]:
         """
         Sends a JSON-RPC request.
 
@@ -142,7 +142,7 @@ class Client(AbstractAsyncClient):
         if self._owned_session:
             await self._session.close()
 
-    async def __aenter__(self) -> 'Client':
+    async def __aenter__(self) -> Self:
         if self._owned_session:
             await self._session.__aenter__()
 

@@ -45,7 +45,7 @@ class Specification(abc.ABC):
     """
 
     @abc.abstractmethod
-    def generate(self, root_endpoint: str, methods: Mapping[str, Iterable[Method]]) -> dict[str, Any]:
+    def generate(self, root_endpoint: str, methods: Mapping[str, Iterable[Method[Any, Any]]]) -> dict[str, Any]:
         """
         Returns specification schema.
 
