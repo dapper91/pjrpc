@@ -71,7 +71,7 @@ class PydanticValidator(base.BaseValidator):
         except pydantic.ValidationError as e:
             raise base.ValidationError(*e.errors()) from e
 
-        return {field_name: obj.__dict__[field_name] for field_name in fields}
+        return {field_name: obj.__dict__[field_name] for field_name in model_fields}
 
     def _build_validation_model(self, method_name: str) -> type[pydantic.BaseModel]:
         schema = self._build_validation_schema(self._signature)

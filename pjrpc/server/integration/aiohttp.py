@@ -62,6 +62,10 @@ class Application:
         self._subapps: dict[str, Application] = {}
 
     @property
+    def prefix(self) -> str:
+        return self._prefix
+
+    @property
     def http_app(self) -> web.Application:
         """
         aiohttp application.
@@ -149,7 +153,7 @@ class Application:
         app_endpoints = self._endpoints
         for prefix, subapp in self._subapps.items():
             for subprefix, dispatcher in subapp.endpoints.items():
-                app_endpoints[utils.join_path(prefix, subprefix)] = dispatcher
+                app_endpoints[utils.join_path(prefix, subapp._prefix, subprefix)] = dispatcher
 
         methods = {
             utils.remove_prefix(dispatcher_endpoint, endpoint): dispatcher.registry.values()

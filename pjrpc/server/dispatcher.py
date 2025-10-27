@@ -559,7 +559,7 @@ class AsyncDispatcher(BaseDispatcher, Generic[ContextType]):
         self._max_batch_size = max_batch_size
         self._executor = executor or BasicAsyncExecutor()
 
-        self._request_handler = self._wrap_handle_request()
+        self._rpc_request_handler = self._wrap_handle_rpc_request()
 
     async def dispatch(self, request_text: str, context: ContextType) -> Optional[tuple[str, tuple[int, ...]]]:
         """
@@ -596,12 +596,12 @@ class AsyncDispatcher(BaseDispatcher, Generic[ContextType]):
                     )
                 else:
                     responses = (
-                        resp for resp in await self._executor.execute(self._request_handler, request, context)
+                        resp for resp in await self._executor.execute(self._handle_request, request, context)
                         if not isinstance(resp, UnsetType)
                     )
                     response = self._batch_response(tuple(responses))
             else:
-                response = await self._request_handler(request, context)
+                response = await self._handle_request(request, context)
 
         if not isinstance(response, UnsetType):
             response_text = self._json_dumper(response.to_json(), cls=self._json_encoder)
@@ -617,10 +617,11 @@ class AsyncDispatcher(BaseDispatcher, Generic[ContextType]):
         else:
             self._middlewares = self._middlewares + list(middlewares)
 
-        self._request_handler = self._wrap_handle_request()
+        self._rpc_request_handler = self._wrap_handle_rpc_request()
 
-    def _wrap_handle_request(self) -> Callable[[Request, ContextType], Awaitable[MaybeSet[Response]]]:
-        request_handler = self._handle_request
+    def _wrap_handle_rpc_request(self) -> Callable[[Request, ContextType], Awaitable[MaybeSet[Response]]]:
+        request_handler = self._handle_rpc_request
+
         for middleware in reversed(self._middlewares):
             request_handler = ft.partial(middleware, handler=request_handler)
 
@@ -628,7 +629,7 @@ class AsyncDispatcher(BaseDispatcher, Generic[ContextType]):
 
     async def _handle_request(self, request: Request, context: ContextType) -> MaybeSet[Response]:
         try:
-            return await self._handle_rpc_request(request, context)
+            return await self._rpc_request_handler(request, context)
         except pjrpc.exceptions.JsonRpcError as e:
             logger.info("method execution error %s(%r): %r", request.method, request.params, e)
             error = e
