@@ -568,9 +568,9 @@ and Swagger UI web tool with basic auth:
         web.run_app(http_app, host='localhost', port=8080)
 
 
-Specification is available on http://localhost:8080/rpc/api/v1/openapi.json
+Specification is available on http://localhost:8080/rpc/api/openapi.json
 
-Web UI is running on http://localhost:8080/rpc/api/v1/swagger/ and http://localhost:8080/rpc/api/v1/redoc/
+Web UI is running on http://localhost:8080/rpc/api/swagger/ and http://localhost:8080/rpc/api/redoc/
 
 Swagger UI:
 ~~~~~~~~~~~
