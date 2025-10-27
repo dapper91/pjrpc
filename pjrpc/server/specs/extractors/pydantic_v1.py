@@ -135,20 +135,19 @@ class PydanticMethodInfoExtractor(BaseMethodInfoExtractor):
     ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         return_model = self._build_result_model(method_name, method)
 
-        response_model: type[pd.BaseModel]
-        error_models = tuple(
-            pd.create_model(
-                error.__name__,
-                __base__=JsonRpcResponseError[JsonRpcError[Literal[error.CODE], Any]],  # type: ignore[name-defined]
-                __config__=pydantic.config.get_config(
+        error_models: list[type[pd.BaseModel]] = []
+        for error in errors or []:
+            class ErrorModel(pydantic.BaseModel):
+                Config = pydantic.config.get_config(
                     dict(
                         self._config_args,
                         title=error.__name__,
                         json_schema_extra=dict(description=f'**{error.CODE}** {error.MESSAGE}'),
                     ),
-                ),
-            ) for error in errors or []
-        )
+                )
+                __root__: JsonRpcResponseError[JsonRpcError[Literal[error.CODE], Any]]  # type: ignore[name-defined]
+
+            error_models.append(pd.create_model(error.__name__, __base__=ErrorModel))
 
         class ResponseModel(pydantic.BaseModel):
             Config = pydantic.config.get_config(dict(title=f"{to_camel(method_name)}Response"))
