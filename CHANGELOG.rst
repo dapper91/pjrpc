@@ -2,6 +2,15 @@ Changelog
 =========
 
 
+2.0.1 (2025-10-28)
+-------------------
+
+- pydantic v1 validator/generator bugs fixed.
+- aiohttp subapp specification wrong method path fixed.
+- dispatcher middleware invocation order fixed.
+- documentation fixed.
+
+
 2.0.0 (2025-10-24)
 -------------------
 
