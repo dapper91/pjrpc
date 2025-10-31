@@ -60,7 +60,7 @@ class UserOut(UserIn):
     id: UserId
 
 
-class AlreadyExistsError(pjrpc.exc.TypedError):
+class AlreadyExistsError(pjrpc.server.exceptions.TypedError):
     """
     User already registered error.
     """
@@ -69,7 +69,7 @@ class AlreadyExistsError(pjrpc.exc.TypedError):
     MESSAGE = "user already exists"
 
 
-class NotFoundError(pjrpc.exc.TypedError):
+class NotFoundError(pjrpc.server.exceptions.TypedError):
     """
     User not found error.
     """

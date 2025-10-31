@@ -359,7 +359,7 @@ which can be found in ``pjrpc.common.exceptions`` module so that error handling 
 
 
 Default error list can be easily extended. All you need to create an error class inherited from
-``pjrpc.exc.TypedError`` and define an error code and a description message. ``pjrpc`` will be automatically
+``pjrpc.client.exceptions.TypedError`` and define an error code and a description message. ``pjrpc`` will be automatically
 deserializing custom errors for you:
 
 .. code-block:: python
@@ -367,7 +367,7 @@ deserializing custom errors for you:
     import pjrpc
     from pjrpc.client.backend import requests as pjrpc_client
 
-    class UserNotFound(pjrpc.exc.TypedError):
+    class UserNotFound(pjrpc.client.exceptions.TypedError):
         CODE = 1
         MESSAGE = 'user not found'
 
@@ -395,7 +395,7 @@ On the server side everything is also pretty straightforward:
     methods = pjrpc.server.MethodRegistry()
 
 
-    class UserNotFound(pjrpc.exc.TypedError):
+    class UserNotFound(pjrpc.server.exceptions.TypedError):
         CODE = 1
         MESSAGE = 'user not found'
 
@@ -513,7 +513,7 @@ and Swagger UI web tool with basic auth:
         id: UserId
 
 
-    class AlreadyExistsError(pjrpc.exc.TypedError):
+    class AlreadyExistsError(pjrpc.server.exceptions.TypedError):
         """
         User already registered error.
         """
@@ -522,7 +522,7 @@ and Swagger UI web tool with basic auth:
         MESSAGE = "user already exists"
 
 
-    class NotFoundError(pjrpc.exc.TypedError):
+    class NotFoundError(pjrpc.server.exceptions.TypedError):
         """
         User not found error.
         """

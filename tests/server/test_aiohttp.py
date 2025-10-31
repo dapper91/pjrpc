@@ -1,9 +1,8 @@
 import pytest
 from aiohttp import web
 
-from pjrpc import exc
 from pjrpc.common import BatchRequest, Request, Response
-from pjrpc.server import MethodRegistry
+from pjrpc.server import MethodRegistry, exceptions
 from pjrpc.server.integration import aiohttp as integration
 from tests.common import _
 
@@ -46,7 +45,7 @@ async def test_request(json_rpc, path, mocker, aiohttp_client, request_id, param
     raw = await cli.post(path, json=Request(method=method_name, params=params, id=request_id).to_json())
     assert raw.status == 200
 
-    resp = Response.from_json(await raw.json())
+    resp = Response.from_json(await raw.json(), error_cls=exceptions.JsonRpcError)
 
     if isinstance(params, dict):
         mock.assert_called_once_with(kwargs=params)
@@ -79,7 +78,7 @@ async def test_errors(json_rpc, path, mocker, aiohttp_client):
     method_name = 'test_method'
 
     def error_method(*args, **kwargs):
-        raise exc.JsonRpcError(code=1, message='message')
+        raise exceptions.JsonRpcError(code=1, message='message')
 
     mock = mocker.Mock(name=method_name, side_effect=error_method)
 
@@ -92,20 +91,20 @@ async def test_errors(json_rpc, path, mocker, aiohttp_client):
     raw = await cli.post(path, json=Request(method='unknown_method', params=params, id=request_id).to_json())
     assert raw.status == 200
 
-    resp = Response.from_json(await raw.json())
+    resp = Response.from_json(await raw.json(), error_cls=exceptions.JsonRpcError)
     assert resp.id is request_id
     assert resp.is_error is True
-    assert resp.error == exc.MethodNotFoundError(data="method 'unknown_method' not found")
+    assert resp.error == exceptions.MethodNotFoundError(data="method 'unknown_method' not found")
 
     # customer error
     raw = await cli.post(path, json=Request(method=method_name, params=params, id=request_id).to_json())
     assert raw.status == 200
 
-    resp = Response.from_json(await raw.json())
+    resp = Response.from_json(await raw.json(), error_cls=exceptions.JsonRpcError)
     mock.assert_called_once_with(args=params)
     assert resp.id == request_id
     assert resp.is_error is True
-    assert resp.error == exc.JsonRpcError(code=1, message='message')
+    assert resp.error == exceptions.JsonRpcError(code=1, message='message')
 
     # content type error
     raw = await cli.post(path, data='')
@@ -114,10 +113,10 @@ async def test_errors(json_rpc, path, mocker, aiohttp_client):
     # malformed json
     raw = await cli.post(path, headers={'Content-Type': 'application/json'}, data='')
     assert raw.status == 200
-    resp = Response.from_json(await raw.json())
+    resp = Response.from_json(await raw.json(), error_cls=exceptions.JsonRpcError)
     assert resp.id is None
     assert resp.is_error is True
-    assert resp.error == exc.ParseError(data=_)
+    assert resp.error == exceptions.ParseError(data=_)
 
     # decoding error
     raw = await cli.post(path, headers={'Content-Type': 'application/json'}, data=b'\xff')

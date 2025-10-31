@@ -3,8 +3,8 @@ import json
 import pytest
 import werkzeug
 
-from pjrpc import exc
 from pjrpc.common import Request, Response
+from pjrpc.server import exceptions
 from pjrpc.server.integration import werkzeug as integration
 from tests.common import _
 
@@ -50,7 +50,7 @@ def test_request(json_rpc, path, mocker, request_id, params, result):
         body, code = (test_response.data, test_response.status)
     assert code == '200 OK'
 
-    resp = Response.from_json(json.loads(body))
+    resp = Response.from_json(json.loads(body), error_cls=exceptions.JsonRpcError)
 
     if isinstance(params, dict):
         mock.assert_called_once_with(kwargs=params)
@@ -87,7 +87,7 @@ def test_errors(json_rpc, path, mocker):
     method_name = 'test_method'
 
     def error_method(*args, **kwargs):
-        raise exc.JsonRpcError(code=1, message='message')
+        raise exceptions.JsonRpcError(code=1, message='message')
 
     mock = mocker.Mock(name=method_name, side_effect=error_method)
 
@@ -105,10 +105,10 @@ def test_errors(json_rpc, path, mocker):
         body, code = (test_response.data, test_response.status)
     assert code == '200 OK'
 
-    resp = Response.from_json(json.loads(body))
+    resp = Response.from_json(json.loads(body), error_cls=exceptions.JsonRpcError)
     assert resp.id is request_id
     assert resp.is_error is True
-    assert resp.error == exc.MethodNotFoundError(data="method 'unknown_method' not found")
+    assert resp.error == exceptions.MethodNotFoundError(data="method 'unknown_method' not found")
 
     # customer error
     test_response = cli.post(
@@ -121,11 +121,11 @@ def test_errors(json_rpc, path, mocker):
         body, code = (test_response.data, test_response.status)
     assert code == '200 OK'
 
-    resp = Response.from_json(json.loads(body))
+    resp = Response.from_json(json.loads(body), error_cls=exceptions.JsonRpcError)
     mock.assert_called_once_with(args=params)
     assert resp.id == request_id
     assert resp.is_error is True
-    assert resp.error == exc.JsonRpcError(code=1, message='message')
+    assert resp.error == exceptions.JsonRpcError(code=1, message='message')
 
     # malformed json
     test_response = cli.post(
@@ -137,7 +137,7 @@ def test_errors(json_rpc, path, mocker):
     else:
         body, code = (test_response.data, test_response.status)
     assert code == '200 OK'
-    resp = Response.from_json(json.loads(body))
+    resp = Response.from_json(json.loads(body), error_cls=exceptions.JsonRpcError)
     assert resp.id is None
     assert resp.is_error is True
-    assert resp.error == exc.ParseError(data=_)
+    assert resp.error == exceptions.ParseError(data=_)

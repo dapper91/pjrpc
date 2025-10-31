@@ -12,6 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pjrpc
 from pjrpc import Response
+from pjrpc.client import exceptions
 from pjrpc.common import UNSET, MaybeSet
 from pjrpc.common.typedefs import JsonRpcParamsT, JsonRpcRequestIdT
 
@@ -264,7 +265,7 @@ class PjRpcMocker:
     ) -> Response:
         matches = self._matches[endpoint].get((version, method_name))
         if matches is None:
-            return pjrpc.Response(id=id, error=pjrpc.exc.MethodNotFoundError(data=method_name))
+            return pjrpc.Response(id=id, error=exceptions.MethodNotFoundError(data=method_name).to_json())
 
         match = matches.pop(0)
         if not match.once:

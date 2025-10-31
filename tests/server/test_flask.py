@@ -1,8 +1,8 @@
 import flask
 import pytest
 
-from pjrpc import exc
 from pjrpc.common import BatchRequest, Request, Response
+from pjrpc.server import exceptions
 from pjrpc.server.dispatcher import MethodRegistry
 from pjrpc.server.integration import flask as integration
 from tests.common import _
@@ -51,7 +51,7 @@ def test_request(app, json_rpc, path, mocker, request_id, params, result):
         raw = cli.post(path, json=Request(method=method_name, params=params, id=request_id).to_json())
         assert raw.status_code == 200
 
-        resp = Response.from_json(raw.json)
+        resp = Response.from_json(raw.json, error_cls=exceptions.JsonRpcError)
 
         if isinstance(params, dict):
             mock.assert_called_once_with(kwargs=params)
@@ -84,7 +84,7 @@ def test_errors(app, json_rpc, path, mocker):
     method_name = 'test_method'
 
     def error_method(*args, **kwargs):
-        raise exc.JsonRpcError(code=1, message='message')
+        raise exceptions.JsonRpcError(code=1, message='message')
 
     mock = mocker.Mock(name=method_name, side_effect=error_method)
 
@@ -97,20 +97,20 @@ def test_errors(app, json_rpc, path, mocker):
         raw = cli.post(path, json=Request(method='unknown_method', params=params, id=request_id).to_json())
         assert raw.status_code == 200
 
-        resp = Response.from_json(raw.json)
+        resp = Response.from_json(raw.json, error_cls=exceptions.JsonRpcError)
         assert resp.id is request_id
         assert resp.is_error is True
-        assert resp.error == exc.MethodNotFoundError(data="method 'unknown_method' not found")
+        assert resp.error == exceptions.MethodNotFoundError(data="method 'unknown_method' not found")
 
         # customer error
         raw = cli.post(path, json=Request(method=method_name, params=params, id=request_id).to_json())
         assert raw.status_code == 200
 
-        resp = Response.from_json(raw.json)
+        resp = Response.from_json(raw.json, error_cls=exceptions.JsonRpcError)
         mock.assert_called_once_with(args=params)
         assert resp.id == request_id
         assert resp.is_error is True
-        assert resp.error == exc.JsonRpcError(code=1, message='message')
+        assert resp.error == exceptions.JsonRpcError(code=1, message='message')
 
         # content type error
         raw = cli.post(path, data='')
@@ -119,10 +119,10 @@ def test_errors(app, json_rpc, path, mocker):
         # malformed json
         raw = cli.post(path, headers={'Content-Type': 'application/json'}, data='')
         assert raw.status_code == 200
-        resp = Response.from_json(raw.json)
+        resp = Response.from_json(raw.json, error_cls=exceptions.JsonRpcError)
         assert resp.id is None
         assert resp.is_error is True
-        assert resp.error == exc.ParseError(data=_)
+        assert resp.error == exceptions.ParseError(data=_)
 
 
 async def test_http_status(app, path):

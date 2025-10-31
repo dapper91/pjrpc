@@ -10,7 +10,7 @@ from typing import ValuesView
 import pjrpc
 from pjrpc.common import UNSET, AbstractResponse, BatchRequest, BatchResponse, MaybeSet, Request, Response, UnsetType
 from pjrpc.common.typedefs import JsonRpcParamsT
-from pjrpc.server import utils
+from pjrpc.server import exceptions, utils
 from pjrpc.server.typedefs import AsyncMiddlewareType, MiddlewareType
 
 from . import validators
@@ -263,8 +263,8 @@ class BaseDispatcher:
 
     :param request_class: JSON-RPC request class
     :param response_class: JSON-RPC response class
-    :param batch_request: JSON-RPC batch request class
-    :param batch_response: JSON-RPC batch response class
+    :param batch_request_class: JSON-RPC batch request class
+    :param batch_response_class: JSON-RPC batch response class
     :param json_loader: request json loader
     :param json_dumper: response json dumper
     :param json_encoder: response json encoder
@@ -277,8 +277,8 @@ class BaseDispatcher:
         *,
         request_class: type[Request] = Request,
         response_class: type[Response] = Response,
-        batch_request: type[BatchRequest] = BatchRequest,
-        batch_response: type[BatchResponse] = BatchResponse,
+        batch_request_class: type[BatchRequest] = BatchRequest,
+        batch_response_class: type[BatchResponse] = BatchResponse,
         json_loader: Callable[..., Any] = json.loads,
         json_dumper: Callable[..., str] = json.dumps,
         json_encoder: type[JSONEncoder] = JSONEncoder,
@@ -291,8 +291,8 @@ class BaseDispatcher:
         self._json_decoder = json_decoder
         self._request_class = request_class
         self._response_class = response_class
-        self._batch_request = batch_request
-        self._batch_response = batch_response
+        self._batch_request_class = batch_request_class
+        self._batch_response_class = batch_response_class
         self._middlewares = list(middlewares)
 
         self._registry = MethodRegistry()
@@ -386,29 +386,29 @@ class Dispatcher(BaseDispatcher, Generic[ContextType]):
             request_json = self._json_loader(request_text, cls=self._json_decoder)
             request: Union[Request, BatchRequest]
             if isinstance(request_json, (list, tuple)):
-                request = self._batch_request.from_json(request_json)
+                request = self._batch_request_class.from_json(request_json)
             else:
                 request = self._request_class.from_json(request_json)
 
         except json.JSONDecodeError as e:
-            response = self._response_class(id=None, error=pjrpc.exceptions.ParseError(data=str(e)))
+            response = self._response_class(id=None, error=exceptions.ParseError(data=str(e)))
 
-        except (pjrpc.exceptions.DeserializationError, pjrpc.exceptions.IdentityError) as e:
-            response = self._response_class(id=None, error=pjrpc.exceptions.InvalidRequestError(data=str(e)))
+        except (exceptions.DeserializationError, exceptions.IdentityError) as e:
+            response = self._response_class(id=None, error=exceptions.InvalidRequestError(data=str(e)))
 
         else:
             if isinstance(request, BatchRequest):
                 if self._max_batch_size and len(request) > self._max_batch_size:
                     response = self._response_class(
                         id=None,
-                        error=pjrpc.exceptions.InvalidRequestError(data="batch too large"),
+                        error=exceptions.InvalidRequestError(data="batch too large"),
                     )
                 else:
                     responses = (
                         resp for resp in self._executor.execute(self._request_handler, request, context)
                         if not isinstance(resp, UnsetType)
                     )
-                    response = self._batch_response(tuple(responses))
+                    response = self._batch_response_class(tuple(responses))
             else:
                 response = self._request_handler(request, context)
 
@@ -438,13 +438,13 @@ class Dispatcher(BaseDispatcher, Generic[ContextType]):
     def _handle_request(self, request: Request, /, context: ContextType) -> MaybeSet[Response]:
         try:
             return self._handle_rpc_request(request, context)
-        except pjrpc.exceptions.JsonRpcError as e:
+        except exceptions.JsonRpcError as e:
             logger.info("method execution error %s(%r): %r", request.method, request.params, e)
             error = e
 
         except Exception as e:
             logger.exception("internal server error: %r", e)
-            error = pjrpc.exceptions.InternalError()
+            error = exceptions.InternalError()
 
         if request.id is None:
             return UNSET
@@ -466,22 +466,22 @@ class Dispatcher(BaseDispatcher, Generic[ContextType]):
     ) -> Any:
         method = self._registry.get(method_name)
         if method is None:
-            raise pjrpc.exceptions.MethodNotFoundError(data=f"method '{method_name}' not found")
+            raise exceptions.MethodNotFoundError(data=f"method '{method_name}' not found")
 
         try:
             bound_method = method.bind(params, context=context)
         except validators.ValidationError as e:
-            raise pjrpc.exceptions.InvalidParamsError(data=e) from e
+            raise exceptions.InvalidParamsError(data=e) from e
 
         try:
             return bound_method()
 
-        except pjrpc.exceptions.JsonRpcError:
+        except exceptions.JsonRpcError:
             raise
 
         except Exception as e:
             logger.exception("method unhandled exception %s(%r): %r", method_name, params, e)
-            raise pjrpc.exceptions.ServerError() from e
+            raise exceptions.ServerError() from e
 
 
 class AsyncExecutor(abc.ABC):
@@ -577,29 +577,29 @@ class AsyncDispatcher(BaseDispatcher, Generic[ContextType]):
             request_json = self._json_loader(request_text, cls=self._json_decoder)
             request: Union[Request, BatchRequest]
             if isinstance(request_json, (list, tuple)):
-                request = self._batch_request.from_json(request_json)
+                request = self._batch_request_class.from_json(request_json)
             else:
                 request = self._request_class.from_json(request_json)
 
         except json.JSONDecodeError as e:
-            response = self._response_class(id=None, error=pjrpc.exceptions.ParseError(data=str(e)))
+            response = self._response_class(id=None, error=exceptions.ParseError(data=str(e)))
 
         except (pjrpc.exceptions.DeserializationError, pjrpc.exceptions.IdentityError) as e:
-            response = self._response_class(id=None, error=pjrpc.exceptions.InvalidRequestError(data=str(e)))
+            response = self._response_class(id=None, error=exceptions.InvalidRequestError(data=str(e)))
 
         else:
             if isinstance(request, BatchRequest):
                 if self._max_batch_size and len(request) > self._max_batch_size:
                     response = self._response_class(
                         id=None,
-                        error=pjrpc.exceptions.InvalidRequestError(data="batch too large"),
+                        error=exceptions.InvalidRequestError(data="batch too large"),
                     )
                 else:
                     responses = (
                         resp for resp in await self._executor.execute(self._handle_request, request, context)
                         if not isinstance(resp, UnsetType)
                     )
-                    response = self._batch_response(tuple(responses))
+                    response = self._batch_response_class(tuple(responses))
             else:
                 response = await self._handle_request(request, context)
 
@@ -630,13 +630,13 @@ class AsyncDispatcher(BaseDispatcher, Generic[ContextType]):
     async def _handle_request(self, request: Request, context: ContextType) -> MaybeSet[Response]:
         try:
             return await self._rpc_request_handler(request, context)
-        except pjrpc.exceptions.JsonRpcError as e:
+        except exceptions.JsonRpcError as e:
             logger.info("method execution error %s(%r): %r", request.method, request.params, e)
             error = e
 
         except Exception as e:
             logger.exception("internal server error: %r", e)
-            error = pjrpc.exceptions.InternalError()
+            error = exceptions.InternalError()
 
         if request.id is None:
             return UNSET
@@ -655,12 +655,12 @@ class AsyncDispatcher(BaseDispatcher, Generic[ContextType]):
     ) -> Any:
         method = self._registry.get(method_name)
         if method is None:
-            raise pjrpc.exceptions.MethodNotFoundError(data=f"method '{method_name}' not found")
+            raise exceptions.MethodNotFoundError(data=f"method '{method_name}' not found")
 
         try:
             bound_method = method.bind(params, context=context)
         except validators.ValidationError as e:
-            raise pjrpc.exceptions.InvalidParamsError(data=e) from e
+            raise exceptions.InvalidParamsError(data=e) from e
 
         try:
             result = bound_method()
@@ -669,9 +669,9 @@ class AsyncDispatcher(BaseDispatcher, Generic[ContextType]):
 
             return result
 
-        except pjrpc.exceptions.JsonRpcError:
+        except exceptions.JsonRpcError:
             raise
 
         except Exception as e:
             logger.exception("method unhandled exception %s(%r): %r", method_name, params, e)
-            raise pjrpc.exceptions.ServerError() from e
+            raise exceptions.ServerError() from e

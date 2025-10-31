@@ -3,6 +3,7 @@ import json
 import pytest
 
 import pjrpc
+from pjrpc.client import exceptions
 from pjrpc.client.integrations.pytest import PjRpcMocker
 
 
@@ -41,17 +42,19 @@ def test_pjrpc_mocker_result_error_id(cli, endpoint):
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method1').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
         assert response.result == 'result'
 
-        mocker.add(endpoint, 'method2', error=pjrpc.exc.JsonRpcError(code=1, message='message'))
+        mocker.add(endpoint, 'method2', error=exceptions.JsonRpcError(code=1, message='message'))
         response = pjrpc.Response.from_json(
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method2').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
 
-        assert response.error == pjrpc.exc.JsonRpcError(code=1, message='message')
+        assert response.error == exceptions.JsonRpcError(code=1, message='message')
 
 
 def test_pjrpc_mocker_once_param(cli, endpoint):
@@ -61,6 +64,7 @@ def test_pjrpc_mocker_once_param(cli, endpoint):
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
         assert response.result == 'result'
 
@@ -68,6 +72,7 @@ def test_pjrpc_mocker_once_param(cli, endpoint):
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
         assert response.result == 'original_result'
 
@@ -81,6 +86,7 @@ def test_pjrpc_mocker_round_robin(cli, endpoint):
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
         assert response.result == 'result1'
 
@@ -88,6 +94,7 @@ def test_pjrpc_mocker_round_robin(cli, endpoint):
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
         assert response.result == 'result2'
 
@@ -95,6 +102,7 @@ def test_pjrpc_mocker_round_robin(cli, endpoint):
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
         assert response.result == 'result1'
 
@@ -106,6 +114,7 @@ def test_pjrpc_replace_remove(cli, endpoint):
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
         assert response.result == 'result1'
 
@@ -114,6 +123,7 @@ def test_pjrpc_replace_remove(cli, endpoint):
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
         assert response.result == 'result2'
 
@@ -122,6 +132,7 @@ def test_pjrpc_replace_remove(cli, endpoint):
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
         assert response.result == 'original_result'
 
@@ -161,6 +172,7 @@ def test_pjrpc_mocker_callback(cli, endpoint):
                     {},
                 ),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
 
         assert response.result == 'result'
@@ -174,6 +186,7 @@ def test_pjrpc_mocker_passthrough(cli, endpoint):
             json.loads(
                 cli._request(json.dumps(pjrpc.Request(method='method2').to_json()), False, {}),
             ),
+            error_cls=exceptions.JsonRpcError,
         )
 
         assert response.result == 'original_result'

@@ -1,7 +1,7 @@
 import copy
 from typing import Any, Dict, Iterable, List, Type
 
-from pjrpc.common.exceptions import TypedError
+from pjrpc.server.exceptions import TypedError
 
 REQUEST_SCHEMA: Dict[str, Any] = {
     'title': 'Request',
