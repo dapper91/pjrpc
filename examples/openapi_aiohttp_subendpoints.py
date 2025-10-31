@@ -7,13 +7,13 @@ from aiohttp import web
 
 import pjrpc.server.specs.extractors.pydantic
 import pjrpc.server.specs.openapi.ui
-from pjrpc.common.exceptions import MethodNotFoundError
+from pjrpc.server.exceptions import MethodNotFoundError
 from pjrpc.server.integration import aiohttp as integration
 from pjrpc.server.specs import extractors, openapi, openrpc
 from pjrpc.server.validators import pydantic as validators
 
 
-class AlreadyExistsError(pjrpc.exc.TypedError):
+class AlreadyExistsError(pjrpc.server.exceptions.TypedError):
     """
     User already registered error.
     """

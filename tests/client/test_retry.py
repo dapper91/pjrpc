@@ -2,8 +2,7 @@ import pytest
 import responses
 from aioresponses import aioresponses
 
-import pjrpc
-from pjrpc.client import retry
+from pjrpc.client import exceptions, retry
 from pjrpc.client.backend import aiohttp as aiohttp_backend
 from pjrpc.client.backend import requests as requests_backend
 
@@ -75,7 +74,7 @@ async def test_async_client_retry_strategy_by_code(resp_code, resp_errors, retry
             actual_result = await client.proxy.method()
             assert actual_result == expected_result
         else:
-            with pytest.raises(pjrpc.exceptions.JsonRpcError) as err:
+            with pytest.raises(exceptions.JsonRpcError) as err:
                 await client.proxy.method()
 
             assert err.value.code == resp_code
@@ -181,7 +180,7 @@ def test_client_retry_strategy_by_code(resp_code, resp_errors, retry_codes, retr
         actual_result = client.proxy.method()
         assert actual_result == expected_result
     else:
-        with pytest.raises(pjrpc.exceptions.JsonRpcError) as err:
+        with pytest.raises(exceptions.JsonRpcError) as err:
             client.proxy.method()
 
         assert err.value.code == resp_code

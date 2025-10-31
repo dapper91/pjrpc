@@ -6,8 +6,8 @@ import dataclasses as dc
 from collections import defaultdict
 from typing import Any, Callable, Iterable, Mapping, Optional, Union
 
-from pjrpc.common import UNSET, MaybeSet, UnsetType, exceptions
-from pjrpc.server import Method, utils
+from pjrpc.common import UNSET, MaybeSet, UnsetType
+from pjrpc.server import Method, exceptions, utils
 from pjrpc.server.specs import Specification
 from pjrpc.server.specs.extractors import BaseMethodInfoExtractor
 from pjrpc.server.specs.schemas import build_request_schema, build_response_schema

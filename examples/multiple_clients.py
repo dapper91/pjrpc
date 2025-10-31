@@ -4,7 +4,7 @@ import pjrpc
 from pjrpc.client.backend import requests as jrpc_client
 
 
-class ErrorV1(pjrpc.exc.TypedError, base=True):
+class ErrorV1(pjrpc.client.exceptions.TypedError, base=True):
     pass
 
 
@@ -13,7 +13,7 @@ class PermissionDenied(ErrorV1):
     MESSAGE: ClassVar[str] = 'permission denied'
 
 
-class ErrorV2(pjrpc.exc.TypedError, base=True):
+class ErrorV2(pjrpc.client.exceptions.TypedError, base=True):
     pass
 
 

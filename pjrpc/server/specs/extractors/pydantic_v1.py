@@ -4,7 +4,7 @@ from typing import Any, Callable, Generic, Iterable, Literal, Optional, TypeVar,
 import pydantic as pd
 import pydantic.generics
 
-from pjrpc.common import exceptions
+from pjrpc.server import exceptions
 from pjrpc.server.specs.extractors import BaseMethodInfoExtractor, ExcludeFunc
 
 MethodType = Callable[..., Any]

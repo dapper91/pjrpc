@@ -7,10 +7,9 @@ from aiohttp import BasicAuth, Fingerprint, client
 from aiohttp.typedefs import LooseCookies, LooseHeaders, StrOrURL
 from multidict import MultiDict
 
-import pjrpc
-from pjrpc.client import AbstractAsyncClient, AsyncMiddleware
-from pjrpc.common import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, JSONEncoder, JsonRpcError
-from pjrpc.common import Request, Response, generators
+from pjrpc.client import AbstractAsyncClient, AsyncMiddleware, exceptions
+from pjrpc.common import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, JSONEncoder, Request, Response
+from pjrpc.common import generators
 from pjrpc.common.typedefs import JsonRpcRequestIdT
 
 
@@ -60,7 +59,7 @@ class Client(AbstractAsyncClient):
         session: Optional[client.ClientSession] = None,
         raise_for_status: bool = True,
         id_gen_impl: Callable[..., Generator[JsonRpcRequestIdT, None, None]] = generators.sequential,
-        error_cls: type[JsonRpcError] = JsonRpcError,
+        error_cls: type[exceptions.JsonRpcError] = exceptions.JsonRpcError,
         json_loader: Callable[..., Any] = json.loads,
         json_dumper: Callable[..., str] = json.dumps,
         json_encoder: type[JSONEncoder] = JSONEncoder,
@@ -130,7 +129,7 @@ class Client(AbstractAsyncClient):
 
         content_type = resp.headers.get('Content-Type', '')
         if response_text and content_type.split(';')[0] not in self._response_content_types:
-            raise pjrpc.exc.DeserializationError(f"unexpected response content type: {content_type}")
+            raise exceptions.DeserializationError(f"unexpected response content type: {content_type}")
 
         return response_text
 

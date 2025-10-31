@@ -5,10 +5,9 @@ from typing import Any, Callable, Generator, Iterable, Mapping, MutableMapping, 
 import requests.auth
 import requests.cookies
 
-import pjrpc
-from pjrpc.client import AbstractClient, Middleware
-from pjrpc.common import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, JSONEncoder, JsonRpcError
-from pjrpc.common import Request, Response, generators
+from pjrpc.client import AbstractClient, Middleware, exceptions
+from pjrpc.common import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, JSONEncoder, Request, Response
+from pjrpc.common import generators
 from pjrpc.common.typedefs import JsonRpcRequestIdT
 
 
@@ -45,7 +44,7 @@ class Client(AbstractClient):
         session: Optional[requests.Session] = None,
         raise_for_status: bool = True,
         id_gen_impl: Callable[..., Generator[JsonRpcRequestIdT, None, None]] = generators.sequential,
-        error_cls: type[JsonRpcError] = JsonRpcError,
+        error_cls: type[exceptions.JsonRpcError] = exceptions.JsonRpcError,
         json_loader: Callable[..., Any] = json.loads,
         json_dumper: Callable[..., str] = json.dumps,
         json_encoder: type[JSONEncoder] = JSONEncoder,
@@ -113,7 +112,7 @@ class Client(AbstractClient):
         response_text = resp.text
         content_type = resp.headers.get('Content-Type', '')
         if response_text and content_type.split(';')[0] not in self._response_content_types:
-            raise pjrpc.exc.DeserializationError(f"unexpected response content type: {content_type}")
+            raise exceptions.DeserializationError(f"unexpected response content type: {content_type}")
 
         return response_text
 

@@ -15,12 +15,14 @@ def test_using_fixture(pjrpc_requests_mocker):
     assert result == 2
 
     pjrpc_requests_mocker.replace(
-        'http://localhost/api/v1', 'sum', error=pjrpc.exc.JsonRpcError(code=1, message='error', data='oops'),
+        'http://localhost/api/v1',
+        'sum',
+        error=pjrpc.client.exceptions.JsonRpcError(code=1, message='error', data='oops'),
     )
-    with pytest.raises(pjrpc.exc.JsonRpcError) as exc_info:
+    with pytest.raises(pjrpc.client.exceptions.JsonRpcError) as exc_info:
         client.proxy.sum(a=1, b=1)
 
-    assert exc_info.type is pjrpc.exc.JsonRpcError
+    assert exc_info.type is pjrpc.client.exceptions.JsonRpcError
     assert exc_info.value.code == 1
     assert exc_info.value.message == 'error'
     assert exc_info.value.data == 'oops'
@@ -52,5 +54,5 @@ def test_using_resource_manager():
         assert localhost_calls[('2.0', 'div')].mock_calls == [mock.call(4, 2)]
         assert localhost_calls[('2.0', 'mult')].mock_calls == [mock.call(2, 2)]
 
-        with pytest.raises(pjrpc.exc.MethodNotFoundError):
+        with pytest.raises(pjrpc.client.exceptions.MethodNotFoundError):
             client.proxy.sub(4, 2)

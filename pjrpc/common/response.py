@@ -212,7 +212,7 @@ class BatchResponse(AbstractResponse):
         except KeyError as e:
             raise DeserializationError(f"required field {e} not found") from e
 
-        responses = tuple(Response.from_json(item) for item in data)
+        responses = tuple(Response.from_json(item, error_cls=error_cls) for item in data)
         if check_ids:
             cls._check_response_id_uniqueness(responses)
 

@@ -17,7 +17,7 @@ async def sum(request: web.Request, a: int, b: int) -> int:
 async def sentry_middleware(request: Request, context: web.Request, handler: AsyncHandlerType) -> Response:
     try:
         return await handler(request, context)
-    except pjrpc.exceptions.JsonRpcError as e:
+    except pjrpc.server.exceptions.JsonRpcError as e:
         sentry_sdk.capture_exception(e)
         raise
 

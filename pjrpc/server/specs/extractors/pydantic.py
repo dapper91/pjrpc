@@ -3,7 +3,7 @@ from typing import Any, Callable, Generic, Iterable, Literal, Optional, TypeVar,
 
 import pydantic as pd
 
-from pjrpc.common import exceptions
+from pjrpc.server import exceptions
 from pjrpc.server.specs.extractors import BaseMethodInfoExtractor, ExcludeFunc
 
 __all__ = [

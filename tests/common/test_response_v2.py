@@ -119,7 +119,7 @@ def test_batch_response_serialization():
 
     assert actual_dict == expected_dict
 
-    response = BatchResponse(error=pjrpc.exc.MethodNotFoundError())
+    response = BatchResponse(error=pjrpc.exc.JsonRpcError(code=-32601, message="Method not found"))
     actual_dict = response.to_json()
     expected_dict = {
         'jsonrpc': '2.0',
@@ -174,7 +174,7 @@ def test_batch_response_deserialization():
     response = BatchResponse.from_json(data)
 
     assert response.is_error
-    assert response.error == pjrpc.exc.MethodNotFoundError()
+    assert response.error == pjrpc.exc.JsonRpcError(code=-32601, message='Method not found')
 
 
 def test_batch_response_methods():
