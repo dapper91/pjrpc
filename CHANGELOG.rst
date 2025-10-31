@@ -2,6 +2,12 @@ Changelog
 =========
 
 
+2.1.0 (2025-10-31)
+-------------------
+
+- fix: client and server exceptions separated.
+
+
 2.0.1 (2025-10-28)
 -------------------
 

@@ -9,10 +9,9 @@ import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
 from yarl import URL
 
-import pjrpc
-from pjrpc.client import AbstractAsyncClient, AsyncMiddleware
-from pjrpc.common import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, JSONEncoder, JsonRpcError
-from pjrpc.common import Request, Response, generators
+from pjrpc.client import AbstractAsyncClient, AsyncMiddleware, exceptions
+from pjrpc.common import AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, JSONEncoder, Request, Response
+from pjrpc.common import generators
 from pjrpc.common.typedefs import JsonRpcRequestIdT
 
 logger = logging.getLogger(__package__)
@@ -77,7 +76,7 @@ class Client(AbstractAsyncClient):
         result_queue_name: Optional[str] = None,
         result_queue_args: Optional[QueueArgs] = None,
         id_gen_impl: Callable[..., Generator[JsonRpcRequestIdT, None, None]] = generators.sequential,
-        error_cls: type[JsonRpcError] = JsonRpcError,
+        error_cls: type[exceptions.JsonRpcError] = exceptions.JsonRpcError,
         json_loader: Callable[..., Any] = json.loads,
         json_dumper: Callable[..., str] = json.dumps,
         json_encoder: type[JSONEncoder] = JSONEncoder,
@@ -196,7 +195,7 @@ class Client(AbstractAsyncClient):
 
         if message.content_type not in self._response_content_types:
             future.set_exception(
-                pjrpc.exc.DeserializationError(f"unexpected response content type: {message.content_type}"),
+                exceptions.DeserializationError(f"unexpected response content type: {message.content_type}"),
             )
         else:
             future.set_result(message.body.decode(message.content_encoding or 'utf8'))

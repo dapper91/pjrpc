@@ -5,8 +5,8 @@ OpenRPC specification generator. See https://spec.open-rpc.org/.
 import dataclasses as dc
 from typing import Any, Callable, Iterable, Mapping, Union
 
-from pjrpc.common import UNSET, MaybeSet, UnsetType, exceptions
-from pjrpc.server.dispatcher import Method
+from pjrpc.common import UNSET, MaybeSet, UnsetType
+from pjrpc.server.dispatcher import Method, exceptions
 from pjrpc.server.specs import Specification
 from pjrpc.server.specs.extractors import BaseMethodInfoExtractor
 

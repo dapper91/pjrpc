@@ -2,9 +2,10 @@
 JSON-RPC client.
 """
 
-from . import validators
+from . import exceptions, validators
 from .client import AbstractAsyncClient, AbstractClient, AsyncMiddleware, AsyncMiddlewareHandler, Batch, Middleware
 from .client import MiddlewareHandler
+from .exceptions import JsonRpcError
 
 __all__ = [
     'AbstractAsyncClient',
@@ -12,6 +13,8 @@ __all__ = [
     'AsyncMiddleware',
     'AsyncMiddlewareHandler',
     'Batch',
+    'exceptions',
+    'JsonRpcError',
     'Middleware',
     'MiddlewareHandler',
     'validators',

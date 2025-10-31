@@ -7,8 +7,10 @@ from typing import Any, AsyncGenerator, Awaitable, Callable, Generator, Iterable
 
 from pjrpc import common
 from pjrpc.common import UNSET, AbstractRequest, AbstractResponse, BatchRequest, BatchResponse, MaybeSet, Request
-from pjrpc.common import Response, exceptions, generators
+from pjrpc.common import Response, generators
 from pjrpc.common.typedefs import JsonRpcRequestIdT, JsonT
+
+from . import exceptions
 
 logger = logging.getLogger(__package__)
 

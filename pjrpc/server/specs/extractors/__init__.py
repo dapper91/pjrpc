@@ -3,7 +3,7 @@ import itertools as it
 from typing import Any, Callable, Iterable, Optional
 
 from pjrpc.common import UNSET, MaybeSet, UnsetType
-from pjrpc.common.exceptions import TypedError
+from pjrpc.server import exceptions
 
 __all__ = [
     'BaseMethodInfoExtractor',
@@ -59,7 +59,7 @@ class BaseMethodInfoExtractor:
             method_name: str,
             method: MethodType,
             ref_template: str,
-            errors: Optional[Iterable[type[TypedError]]] = None,
+            errors: Optional[Iterable[type[exceptions.TypedError]]] = None,
     ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         """
         Extracts response schema.
@@ -72,7 +72,7 @@ class BaseMethodInfoExtractor:
             method_name: str,
             method: MethodType,
             ref_template: str,
-            errors: Optional[Iterable[type[TypedError]]] = None,
+            errors: Optional[Iterable[type[exceptions.TypedError]]] = None,
     ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         """
         Extracts error response schema.
@@ -109,7 +109,7 @@ class BaseMethodInfoExtractor:
 
         return summary
 
-    def extract_errors(self, method: MethodType) -> MaybeSet[list[type[TypedError]]]:
+    def extract_errors(self, method: MethodType) -> MaybeSet[list[type[exceptions.TypedError]]]:
         """
         Extracts method errors.
         """

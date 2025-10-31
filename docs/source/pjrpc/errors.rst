@@ -22,7 +22,7 @@ Errors handling
     -32000 to -32099 , Server error , Reserved for implementation-defined server-errors.
 
 
-Errors can be found in :py:mod:`pjrpc.common.exceptions` module. Having said that error handling
+Errors can be found in :py:mod:`pjrpc.client.exceptions` module. Having said that error handling
 is very simple and "pythonic-way":
 
 .. code-block:: python
@@ -34,7 +34,7 @@ is very simple and "pythonic-way":
 
     try:
         result = client.proxy.sum(1, 2)
-    except pjrpc.MethodNotFound as e:
+    except pjrpc.client.exceptions.MethodNotFound as e:
         print(e)
 
 
@@ -42,7 +42,7 @@ Custom errors
 -------------
 
 Default error list can be easily extended. All you need to create an error class inherited from
-:py:class:`pjrpc.common.exceptions.TypedError` and define an error code and a description message. ``pjrpc``
+:py:class:`pjrpc.client.exceptions.TypedError` and define an error code and a description message. ``pjrpc``
 will be automatically deserializing custom errors for you:
 
 .. code-block:: python
@@ -50,7 +50,7 @@ will be automatically deserializing custom errors for you:
     import pjrpc
     from pjrpc.client.backend import requests as pjrpc_client
 
-    class UserNotFound(pjrpc.exc.TypedError):
+    class UserNotFound(pjrpc.client.exceptions.TypedError):
         CODE = 1
         MESSAGE = 'user not found'
 
@@ -81,7 +81,7 @@ On the server side everything is also pretty straightforward:
     methods = pjrpc.server.MethodRegistry()
 
 
-    class UserNotFound(pjrpc.exc.TypedError):
+    class UserNotFound(pjrpc.server.exceptions.TypedError):
         CODE = 1
         MESSAGE = 'user not found'
 
@@ -123,7 +123,7 @@ to set a base error class for a particular client:
     from pjrpc.client.backend import requests as jrpc_client
 
 
-    class ErrorV1(pjrpc.exc.TypeError, base=True):
+    class ErrorV1(pjrpc.client.exceptions.TypeError, base=True):
         pass
 
 
@@ -132,7 +132,7 @@ to set a base error class for a particular client:
         MESSAGE = 'permission denied'
 
 
-    class ErrorV2(pjrpc.exc.TypeError, base=True):
+    class ErrorV2(pjrpc.client.exceptions.TypeError, base=True):
         pass
 
 

@@ -5,6 +5,7 @@ import responses
 import respx
 
 import pjrpc
+from pjrpc.client import exceptions
 from pjrpc.client.backend import httpx as httpx_backend
 from pjrpc.client.backend import requests as requests_backend
 
@@ -325,7 +326,7 @@ def test_batch(Client, mocker):
 @pytest.mark.parametrize(
     'Client, mocker', [
         (requests_backend.Client, ResponsesMocker),
-        # (httpx_backend.Client, RespxMocker),
+        (httpx_backend.Client, RespxMocker),
     ],
 )
 def test_error(Client, mocker):
@@ -345,7 +346,7 @@ def test_error(Client, mocker):
 
         client = Client(test_url)
 
-        with pytest.raises(pjrpc.exceptions.MethodNotFoundError):
+        with pytest.raises(exceptions.MethodNotFoundError):
             client('method', 1, 2)
 
         assert mock.requests[0].url == test_url
@@ -367,7 +368,7 @@ def test_error(Client, mocker):
             },
         )
 
-        with pytest.raises(pjrpc.exceptions.InvalidRequestError):
+        with pytest.raises(exceptions.InvalidRequestError):
             with client.batch() as batch:
                 batch.call('method', 'param')
 
@@ -391,7 +392,7 @@ def test_error(Client, mocker):
 
         client = Client(test_url)
 
-        with pytest.raises(pjrpc.exceptions.IdentityError):
+        with pytest.raises(pjrpc.common.exceptions.IdentityError):
             with client.batch() as batch:
                 batch.call('method1', 'param')
                 batch.call('method2', 'param')

@@ -278,7 +278,7 @@ Error handling
 ______________
 
 ``pjrpc`` implements all the errors listed in `protocol specification <https://www.jsonrpc.org/specification#error_object>`_
-which can be found in :py:mod:`pjrpc.common.exceptions` module so that error handling is very simple and "pythonic-way":
+which can be found in :py:mod:`pjrpc.client.exceptions` module so that error handling is very simple and "pythonic-way":
 
 .. code-block:: python
 
@@ -294,7 +294,7 @@ which can be found in :py:mod:`pjrpc.common.exceptions` module so that error han
 
 
 Default error list can be easily extended. All you need to create an error class inherited from
-:py:class:`pjrpc.common.exceptions.JsonRpcError` and define an error code and a description message. ``pjrpc``
+:py:class:`pjrpc.client.exceptions.TypedError` and define an error code and a description message. ``pjrpc``
 will be automatically deserializing custom errors for you:
 
 .. code-block:: python
@@ -302,7 +302,7 @@ will be automatically deserializing custom errors for you:
     import pjrpc
     from pjrpc.client.backend import requests as pjrpc_client
 
-    class UserNotFound(pjrpc.exc.TypedError):
+    class UserNotFound(pjrpc.client.exceptions.TypedError):
         CODE = 1
         MESSAGE = 'user not found'
 
@@ -330,7 +330,7 @@ On the server side everything is also pretty straightforward:
     methods = pjrpc.server.MethodRegistry()
 
 
-    class UserNotFound(pjrpc.exc.TypedError):
+    class UserNotFound(pjrpc.server.exceptions.TypedError):
         CODE = 1
         MESSAGE = 'user not found'
 
@@ -448,7 +448,7 @@ and Swagger UI web tool with basic auth:
         id: UserId
 
 
-    class AlreadyExistsError(pjrpc.exc.TypedError):
+    class AlreadyExistsError(pjrpc.server.exceptions.TypedError):
         """
         User already registered error.
         """
@@ -457,7 +457,7 @@ and Swagger UI web tool with basic auth:
         MESSAGE = "user already exists"
 
 
-    class NotFoundError(pjrpc.exc.TypedError):
+    class NotFoundError(pjrpc.server.exceptions.TypedError):
         """
         User not found error.
         """
