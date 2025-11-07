@@ -151,7 +151,7 @@ class PydanticMethodInfoExtractor(BaseMethodInfoExtractor):
                     title=error.__name__,
                     json_schema_extra=dict(description=f'**{error.CODE}** {error.MESSAGE}'),
                 ),
-            ) for error in errors or []
+            ) for error in sorted(errors or [], key=lambda err: (err.CODE < 0, abs(err.CODE)))
         )
 
         response_model = pd.create_model(
@@ -186,7 +186,7 @@ class PydanticMethodInfoExtractor(BaseMethodInfoExtractor):
                     title=error.__name__,
                     json_schema_extra=dict(description=f'**{error.CODE}** {error.MESSAGE}'),
                 ),
-            ) for error in errors or []
+            ) for error in sorted(errors or [], key=lambda err: (err.CODE < 0, abs(err.CODE)))
         )
 
         response_model = pd.create_model(
