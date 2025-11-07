@@ -1876,13 +1876,13 @@ def test_method_errors_annotation_with_status_schema(resources, oas31_meta):
                             },
                         ),
                         '500': response_schema(
-                            description='* **-32603** Internal error\n* **-32000** Server error',
+                            description='* **-32000** Server error\n* **-32603** Internal error',
                             schema={
                                 'title': 'TestMethodResponse',
-                                'description': '* **-32603** Internal error\n* **-32000** Server error',
+                                'description': '* **-32000** Server error\n* **-32603** Internal error',
                                 'anyOf': [
-                                    {'$ref': '#/components/schemas/test_openapi_InternalError'},
                                     {'$ref': '#/components/schemas/test_openapi_ServerError'},
+                                    {'$ref': '#/components/schemas/test_openapi_InternalError'},
                                 ],
                             },
                         ),
