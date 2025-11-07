@@ -136,13 +136,13 @@ class PydanticMethodInfoExtractor(BaseMethodInfoExtractor):
         return_model = self._build_result_model(method_name, method)
 
         error_models: list[type[pd.BaseModel]] = []
-        for error in errors or []:
+        for error in sorted(errors or [], key=lambda err: (err.CODE < 0, abs(err.CODE))):
             class ErrorModel(pydantic.BaseModel):
                 Config = pydantic.config.get_config(
                     dict(
                         self._config_args,
                         title=error.__name__,
-                        json_schema_extra=dict(description=f'**{error.CODE}** {error.MESSAGE}'),
+                        schema_extra=dict(description=f'**{error.CODE}** {error.MESSAGE}'),
                     ),
                 )
                 __root__: JsonRpcResponseError[JsonRpcError[Literal[error.CODE], Any]]  # type: ignore[name-defined]
@@ -171,13 +171,13 @@ class PydanticMethodInfoExtractor(BaseMethodInfoExtractor):
             errors: Optional[Iterable[type[exceptions.TypedError]]] = None,
     ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         error_models: list[type[pd.BaseModel]] = []
-        for error in errors or []:
+        for error in sorted(errors or [], key=lambda err: (err.CODE < 0, abs(err.CODE))):
             class ErrorModel(pydantic.BaseModel):
                 Config = pydantic.config.get_config(
                     dict(
                         self._config_args,
                         title=error.__name__,
-                        json_schema_extra=dict(description=f'**{error.CODE}** {error.MESSAGE}'),
+                        schema_extra=dict(description=f'**{error.CODE}** {error.MESSAGE}'),
                     ),
                 )
                 __root__: JsonRpcResponseError[JsonRpcError[Literal[error.CODE], Any]]  # type: ignore[name-defined]
