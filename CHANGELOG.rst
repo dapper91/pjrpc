@@ -2,6 +2,12 @@ Changelog
 =========
 
 
+2.1.1 (2025-11-08)
+-------------------
+
+- fix: pydantic specification extractor fixed.
+
+
 2.1.0 (2025-10-31)
 -------------------
 
