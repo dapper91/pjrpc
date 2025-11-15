@@ -2,6 +2,13 @@ Changelog
 =========
 
 
+2.1.2 (2025-11-15)
+-------------------
+
+- fix: exceptions not frozen dataclasses anymore (cause errors in pytest).
+- fix: '.' replaced by '_' in openapi model prefix.
+
+
 2.1.1 (2025-11-08)
 -------------------
 
