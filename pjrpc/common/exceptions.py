@@ -35,7 +35,7 @@ class DeserializationError(ProtocolError, ValueError):
     """
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class JsonRpcError(BaseError):
     """
     `JSON-RPC <https://www.jsonrpc.org>`_ protocol error.
