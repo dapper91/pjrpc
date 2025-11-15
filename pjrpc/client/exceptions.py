@@ -20,7 +20,7 @@ __all__ = [
 ]
 
 
-@dc.dataclass(frozen=True)
+@dc.dataclass
 class JsonRpcError(exceptions.JsonRpcError):
     """
     Client JSON-RPC error.

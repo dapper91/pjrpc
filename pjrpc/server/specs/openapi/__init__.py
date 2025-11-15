@@ -352,7 +352,7 @@ class MethodSpecificationGenerator:
     ) -> tuple[dict[int, dict[str, Any]], dict[str, JsonSchema]]:
         status_error_schema_map: dict[int, dict[str, Any]] = {}
         component_schemas: dict[str, JsonSchema] = {}
-        component_name_prefix = method_metadata.component_name_prefix or f"{method.__module__}_"
+        component_name_prefix = method_metadata.component_name_prefix or f"{method.__module__.replace('.', '_')}_"
 
         for status, errors in status_errors_map.items():
             if result := self._extractor.extract_error_response_schema(
@@ -378,7 +378,7 @@ class MethodSpecificationGenerator:
         method_metadata: MethodMetadata,
     ) -> tuple[MaybeSet[dict[str, Any]], dict[str, JsonSchema]]:
         component_schemas: dict[str, JsonSchema] = {}
-        component_name_prefix = method_metadata.component_name_prefix or f"{method.__module__}_"
+        component_name_prefix = method_metadata.component_name_prefix or f"{method.__module__.replace('.', '_')}_"
 
         request_schema: MaybeSet[dict[str, Any]] = UNSET
         if params_schema := method_metadata.params_schema:
@@ -406,7 +406,7 @@ class MethodSpecificationGenerator:
         errors: list[type[exceptions.TypedError]],
     ) -> tuple[MaybeSet[dict[str, Any]], dict[str, JsonSchema]]:
         component_schemas: dict[str, JsonSchema] = {}
-        component_name_prefix = method_metadata.component_name_prefix or f"{method.__module__}_"
+        component_name_prefix = method_metadata.component_name_prefix or f"{method.__module__.replace('.', '_')}_"
 
         response_schema: MaybeSet[dict[str, Any]] = UNSET
         if result_schema := method_metadata.result_schema:
