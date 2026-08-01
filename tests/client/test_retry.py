@@ -1,6 +1,6 @@
 import pytest
 import responses
-from aioresponses import aioresponses
+from aiohttp import ClientConnectionError
 
 from pjrpc.client import exceptions, retry
 from pjrpc.client.backend import aiohttp as aiohttp_backend
@@ -40,36 +40,38 @@ def test_retry_strategies(strategy, expected):
         (2000, 0, {}, 0, True),
     ],
 )
-async def test_async_client_retry_strategy_by_code(resp_code, resp_errors, retry_codes, retry_attempts, success):
-    with aioresponses() as mock:
-        test_url = 'http://test.com/api'
-        expected_result = 'result'
+async def test_async_client_retry_strategy_by_code(
+        aiointerceptor, resp_code, resp_errors, retry_codes, retry_attempts, success,
+):
+    test_url = 'http://test.com/api'
+    expected_result = 'result'
 
-        resp_success = dict(
-            url=test_url,
-            payload={"jsonrpc": "2.0", "result": expected_result, "id": 1},
-        )
-        resp_error = dict(
-            url=test_url,
-            payload={"jsonrpc": "2.0", "error": {"code": resp_code, "message": "error"}, "id": 1},
-        )
+    resp_success = dict(
+        url=test_url,
+        payload={"jsonrpc": "2.0", "result": expected_result, "id": 1},
+    )
+    resp_error = dict(
+        url=test_url,
+        payload={"jsonrpc": "2.0", "error": {"code": resp_code, "message": "error"}, "id": 1},
+    )
 
-        client = aiohttp_backend.Client(
-            url=test_url,
-            middlewares=[
-                retry.AsyncRetryMiddleware(
-                    retry.RetryStrategy(
-                        codes=retry_codes,
-                        backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
-                    ),
+    client = aiohttp_backend.Client(
+        url=test_url,
+        middlewares=[
+            retry.AsyncRetryMiddleware(
+                retry.RetryStrategy(
+                    codes=retry_codes,
+                    backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
                 ),
-            ],
-        )
+            ),
+        ],
+    )
 
-        for _ in range(resp_errors):
-            mock.post(**resp_error)
-        mock.post(**resp_success)
+    for _ in range(resp_errors):
+        aiointerceptor.post(**resp_error)
+    aiointerceptor.post(**resp_success)
 
+    async with client:
         if success:
             actual_result = await client.proxy.method()
             assert actual_result == expected_result
@@ -83,45 +85,47 @@ async def test_async_client_retry_strategy_by_code(resp_code, resp_errors, retry
 @pytest.mark.parametrize(
     'resp_exc, resp_errors, retry_exc, retry_attempts, success',
     [
-        (ConnectionError, 2, {TimeoutError, ConnectionError}, 2, True),
-        (TimeoutError, 2, {TimeoutError}, 2, True),
-        (TimeoutError, 2, {ConnectionError}, 2, False),
-        (TimeoutError, 1, {TimeoutError}, 2, True),
-        (TimeoutError, 3, {TimeoutError}, 2, False),
-        (TimeoutError, 1, {}, 2, False),
-        (TimeoutError, 0, {}, 0, True),
+        (ClientConnectionError, 2, {ClientConnectionError}, 2, True),
+        (ClientConnectionError, 2, {TimeoutError}, 2, False),
+        (ClientConnectionError, 1, {ClientConnectionError}, 2, True),
+        (ClientConnectionError, 3, {ClientConnectionError}, 2, False),
+        (ClientConnectionError, 1, {}, 2, False),
+        (ClientConnectionError, 0, {}, 0, True),
     ],
 )
-async def test_async_client_retry_strategy_by_exception(resp_exc, resp_errors, retry_exc, retry_attempts, success):
-    with aioresponses() as mock:
-        test_url = 'http://test.com/api'
-        expected_result = 'result'
+async def test_async_client_retry_strategy_by_exception(
+        aiointerceptor, resp_exc, resp_errors, retry_exc, retry_attempts, success,
+):
+    test_url = 'http://test.com/api'
+    expected_result = 'result'
 
-        resp_success = dict(
-            url=test_url,
-            payload={"jsonrpc": "2.0", "result": expected_result, "id": 1},
-        )
-        resp_error = dict(
-            url=test_url,
-            exception=resp_exc(),
-        )
+    resp_success = dict(
+        url=test_url,
+        payload={"jsonrpc": "2.0", "result": expected_result, "id": 1},
+    )
 
-        client = aiohttp_backend.Client(
-            url=test_url,
-            middlewares=[
-                retry.AsyncRetryMiddleware(
-                    retry.RetryStrategy(
-                        exceptions=retry_exc,
-                        backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
-                    ),
+    resp_error = dict(
+        url=test_url,
+        exception=resp_exc(),
+    )
+
+    client = aiohttp_backend.Client(
+        url=test_url,
+        middlewares=[
+            retry.AsyncRetryMiddleware(
+                retry.RetryStrategy(
+                    exceptions=retry_exc,
+                    backoff=retry.PeriodicBackoff(attempts=retry_attempts, interval=0.0),
                 ),
-            ],
-        )
+            ),
+        ],
+    )
 
-        for _ in range(resp_errors):
-            mock.post(**resp_error)
-        mock.post(**resp_success)
+    for _ in range(resp_errors):
+        aiointerceptor.post(**resp_error)
+    aiointerceptor.post(**resp_success)
 
+    async with client:
         if success:
             actual_result = await client.proxy.method()
             assert actual_result == expected_result
@@ -176,14 +180,15 @@ def test_client_retry_strategy_by_code(resp_code, resp_errors, retry_codes, retr
         responses.add(resp_error)
     responses.add(resp_success)
 
-    if success:
-        actual_result = client.proxy.method()
-        assert actual_result == expected_result
-    else:
-        with pytest.raises(exceptions.JsonRpcError) as err:
-            client.proxy.method()
+    with client:
+        if success:
+            actual_result = client.proxy.method()
+            assert actual_result == expected_result
+        else:
+            with pytest.raises(exceptions.JsonRpcError) as err:
+                client.proxy.method()
 
-        assert err.value.code == resp_code
+            assert err.value.code == resp_code
 
 
 @pytest.mark.parametrize(
@@ -199,7 +204,7 @@ def test_client_retry_strategy_by_code(resp_code, resp_errors, retry_codes, retr
     ],
 )
 @responses.activate
-def test_client_retry_strategy_by_exception(resp_exc, resp_errors, retry_exc, retry_attempts, success):
+async def test_client_retry_strategy_by_exception(resp_exc, resp_errors, retry_exc, retry_attempts, success):
     test_url = 'http://test.com/api'
     expected_result = 'result'
 
@@ -232,12 +237,13 @@ def test_client_retry_strategy_by_exception(resp_exc, resp_errors, retry_exc, re
         responses.add(resp_error)
     responses.add(resp_success)
 
-    if success:
-        actual_result = client.proxy.method()
-        assert actual_result == expected_result
-    else:
-        with pytest.raises(resp_exc):
-            client.proxy.method()
+    with client:
+        if success:
+            actual_result = client.proxy.method()
+            assert actual_result == expected_result
+        else:
+            with pytest.raises(resp_exc):
+                client.proxy.method()
 
 
 @responses.activate
@@ -283,5 +289,6 @@ def test_client_retry_strategy_by_code_and_exception():
         ),
     )
 
-    actual_result = client.proxy.method()
-    assert actual_result == expected_result
+    with client:
+        actual_result = client.proxy.method()
+        assert actual_result == expected_result
