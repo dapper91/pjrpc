@@ -22,16 +22,16 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
 
 [tool.poetry.dependencies]
-python = ">=3.9,<4.0"
+python = ">=3.10,<4.0"
 aio-pika = { version = ">=8.0", optional = true }
 aiohttp = { version = ">=3.7", optional = true }
 flask = { version = ">=2.0.0", optional = true }
@@ -69,10 +69,10 @@ standard-imghdr = "^3.13.0"
 codecov = "^2.1.13"
 mypy = "^1.15.0"
 pre-commit = "~3.2.0"
-aioresponses = "^0.7.4"
+aiointercept = "^0.1.9"
 asynctest = "^0.13.0"
 deepdiff = "^8.0.1"
-pytest = "^7.4.0"
+pytest = "^9.1.1"
 pytest-aiohttp = "^1.0.4"
 pytest-cov = "^4.1.0"
 pytest-mock = "^3.11.1"
@@ -80,6 +80,7 @@ responses = "^0.23.3"
 respx = "^0.22.0"
 types-requests = "^2.32.0.20241016"
 jsonschema = "^4.25.1"
+pytest-lazy-fixtures = "^1.4.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
