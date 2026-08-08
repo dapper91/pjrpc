@@ -36,7 +36,7 @@ Features:
 - :doc:`intuitive interface <pjrpc/quickstart>`
 - :doc:`extensibility <pjrpc/extending>`
 - :doc:`synchronous and asynchronous client backends <pjrpc/client>`
-- :doc:`popular frameworks integration <pjrpc/server>` (aiohttp, flask, aio_pika)
+- :doc:`popular frameworks integration <pjrpc/server>` (aiohttp, flask, fastapi, aio_pika)
 - :doc:`builtin parameter validation <pjrpc/validation>`
 - :doc:`pytest integration <pjrpc/testing>`
 - :doc:`openapi schema generation support <pjrpc/specification>`
@@ -50,6 +50,7 @@ Extra requirements
 - `aiohttp <https://aiohttp.readthedocs.io>`_
 - `aio_pika <https://aio-pika.readthedocs.io>`_
 - `flask <https://flask.palletsprojects.com>`_
+- `fastapi <https://fastapi.tiangolo.com>`_
 - `pydantic <https://pydantic-docs.helpmanual.io/>`_
 - `requests <https://requests.readthedocs.io>`_
 - `httpx <https://www.python-httpx.org/>`_

@@ -5,7 +5,8 @@ Server
 
 
 ``pjrpc`` supports popular backend frameworks like `aiohttp <https://aiohttp.readthedocs.io>`_,
-`flask <https://flask.palletsprojects.com>`_ and message brokers like `aio_pika <https://aio-pika.readthedocs.io>`_.
+`flask <https://flask.palletsprojects.com>`_, `FastAPI <https://fastapi.tiangolo.com>`_
+and message brokers like `aio_pika <https://aio-pika.readthedocs.io>`_.
 
 
 Running of aiohttp based JSON-RPC server is a very simple process. Just define methods, add them to the
