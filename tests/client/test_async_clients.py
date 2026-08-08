@@ -3,7 +3,8 @@ from typing import NamedTuple
 
 import pytest
 import respx
-from aioresponses import aioresponses
+from aiointercept import aiointercept
+from pytest_lazy_fixtures import lf
 
 import pjrpc
 from pjrpc.client.backend import aiohttp as aiohttp_backend
@@ -17,14 +18,14 @@ class AioHttpMocker:
         content: str
 
     def __init__(self):
-        self.mocker = aioresponses()
+        self.mocker = aiointercept(mock_external_urls=True)
 
-    def __enter__(self):
-        self.mocker.__enter__()
+    async def __aenter__(self):
+        await self.mocker.__aenter__()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.mocker.__exit__(exc_type, exc_val, exc_tb)
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.mocker.__aexit__(exc_type, exc_val, exc_tb)
 
     def mock(self, method=None, url=None, status=None, content=None, json=None):
         self.mocker.add(method=method, url=url, status=status, body=content, payload=json, repeat=True)
@@ -38,6 +39,12 @@ class AioHttpMocker:
         ]
 
 
+@pytest.fixture()
+async def aiohttp_mocker():
+    async with AioHttpMocker() as moker:
+        yield moker
+
+
 class RespxMocker(respx.MockRouter):
 
     def mock(self, method=None, url=None, status=None, content=None, json=None):
@@ -49,32 +56,36 @@ class RespxMocker(respx.MockRouter):
         return [request for request, response in self.calls]
 
 
+@pytest.fixture()
+async def respx_mocker():
+    async with RespxMocker() as moker:
+        yield moker
+
+
 @pytest.mark.parametrize(
     'Client, mocker', [
-        (aiohttp_backend.Client, AioHttpMocker),
-        (httpx_backend.AsyncClient, RespxMocker),
+        (aiohttp_backend.Client, lf('aiohttp_mocker')),
+        (httpx_backend.AsyncClient, lf('respx_mocker')),
     ],
 )
 async def test_call(Client, mocker):
     test_url = 'http://test.com/api'
 
-    with mocker() as mock:
-        mock.mock(
-            'POST', test_url, status=200, json={
-                'jsonrpc': '2.0',
-                'id': 1,
-                'result': 'result',
-            },
-        )
+    mocker.mock(
+        'POST', test_url, status=200, json={
+            'jsonrpc': '2.0',
+            'id': 1,
+            'result': 'result',
+        },
+    )
 
-        client = Client(test_url)
-
+    async with Client(test_url) as client:
         response = await client.send(pjrpc.Request(method='method', params=(1, 2), id=1))
         assert response.id == 1
         assert response.result == 'result'
 
-        assert mock.requests[0].url == test_url
-        assert json.loads(mock.requests[0].content) == {
+        assert mocker.requests[0].url == test_url
+        assert json.loads(mocker.requests[0].content) == {
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method',
@@ -84,8 +95,8 @@ async def test_call(Client, mocker):
         result = await client.call('method', arg1=1, arg2=2)
         assert result == 'result'
 
-        assert mock.requests[1].url == test_url
-        assert json.loads(mock.requests[1].content) == {
+        assert mocker.requests[1].url == test_url
+        assert json.loads(mocker.requests[1].content) == {
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method',
@@ -95,8 +106,8 @@ async def test_call(Client, mocker):
         result = await client('method', 1, 2)
         assert result == 'result'
 
-        assert mock.requests[2].url == test_url
-        assert json.loads(mock.requests[2].content) == {
+        assert mocker.requests[2].url == test_url
+        assert json.loads(mocker.requests[2].content) == {
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method',
@@ -106,8 +117,8 @@ async def test_call(Client, mocker):
         result = await client.proxy.method(1, 2)
         assert result == 'result'
 
-        assert mock.requests[3].url == test_url
-        assert json.loads(mock.requests[3].content) == {
+        assert mocker.requests[3].url == test_url
+        assert json.loads(mocker.requests[3].content) == {
             'jsonrpc': '2.0',
             'id': 1,
             'method': 'method',
@@ -117,22 +128,20 @@ async def test_call(Client, mocker):
 
 @pytest.mark.parametrize(
     'Client, mocker', [
-        (aiohttp_backend.Client, AioHttpMocker),
-        (httpx_backend.AsyncClient, RespxMocker),
+        (aiohttp_backend.Client, lf('aiohttp_mocker')),
+        (httpx_backend.AsyncClient, lf('respx_mocker')),
     ],
 )
 async def test_notify(Client, mocker):
     test_url = 'http://test.com/api'
 
-    with mocker() as mock:
-        mock.mock('POST', test_url, status=200, content=' ')
+    mocker.mock('POST', test_url, status=200, content=' ')
 
-        client = Client(test_url)
-
+    async with Client(test_url) as client:
         response = await client.send(pjrpc.Request(method='method', params=[1, 2]))
         assert response is None
-        assert mock.requests[0].url == test_url
-        assert json.loads(mock.requests[0].content) == {
+        assert mocker.requests[0].url == test_url
+        assert json.loads(mocker.requests[0].content) == {
             'jsonrpc': '2.0',
             'method': 'method',
             'params': [1, 2],
@@ -140,8 +149,8 @@ async def test_notify(Client, mocker):
 
         response = await client.notify('method', a=1, b=2)
         assert response is None
-        assert mock.requests[1].url == test_url
-        assert json.loads(mock.requests[1].content) == {
+        assert mocker.requests[1].url == test_url
+        assert json.loads(mocker.requests[1].content) == {
             'jsonrpc': '2.0',
             'method': 'method',
             'params': {'a': 1, 'b': 2},
@@ -150,31 +159,29 @@ async def test_notify(Client, mocker):
 
 @pytest.mark.parametrize(
     'Client, mocker', [
-        (aiohttp_backend.Client, AioHttpMocker),
-        (httpx_backend.AsyncClient, RespxMocker),
+        (aiohttp_backend.Client, lf('aiohttp_mocker')),
+        (httpx_backend.AsyncClient, lf('respx_mocker')),
     ],
 )
 async def test_batch(Client, mocker):
     test_url = 'http://test.com/api'
 
-    with (mocker() as mock):
-        mock.mock(
-            'POST', test_url, status=200, json=[
-                {
-                    'jsonrpc': '2.0',
-                    'id': 1,
-                    'result': 'result1',
-                },
-                {
-                    'jsonrpc': '2.0',
-                    'id': 2,
-                    'result': 2,
-                },
-            ],
-        )
+    mocker.mock(
+        'POST', test_url, status=200, json=[
+            {
+                'jsonrpc': '2.0',
+                'id': 1,
+                'result': 'result1',
+            },
+            {
+                'jsonrpc': '2.0',
+                'id': 2,
+                'result': 2,
+            },
+        ],
+    )
 
-        client = Client(test_url)
-
+    async with Client(test_url) as client:
         async with client.batch() as batch:
             batch.send(pjrpc.Request(method='method1', params=[1, 2], id=1))
             batch.send(pjrpc.Request(method='method2', params=[2, 3], id=2))
@@ -188,8 +195,8 @@ async def test_batch(Client, mocker):
         assert result[1].id == 2
         assert result[1].result == 2
 
-        assert mock.requests[0].url == test_url
-        assert json.loads(mock.requests[0].content) == [
+        assert mocker.requests[0].url == test_url
+        assert json.loads(mocker.requests[0].content) == [
             {
                 'jsonrpc': '2.0',
                 'id': 1,
@@ -216,8 +223,8 @@ async def test_batch(Client, mocker):
         result = batch.get_results()
         assert result == ['result1', 2]
 
-        assert mock.requests[1].url == test_url
-        assert json.loads(mock.requests[1].content) == [
+        assert mocker.requests[1].url == test_url
+        assert json.loads(mocker.requests[1].content) == [
             {
                 'jsonrpc': '2.0',
                 'id': 1,
@@ -239,8 +246,8 @@ async def test_batch(Client, mocker):
         result = batch.get_results()
         assert result == ['result1', 2]
 
-        assert mock.requests[2].url == test_url
-        assert json.loads(mock.requests[2].content) == [
+        assert mocker.requests[2].url == test_url
+        assert json.loads(mocker.requests[2].content) == [
             {
                 'jsonrpc': '2.0',
                 'id': 1,
@@ -262,8 +269,8 @@ async def test_batch(Client, mocker):
         result = batch.get_results()
         assert result == ['result1', 2]
 
-        assert mock.requests[3].url == test_url
-        assert json.loads(mock.requests[3].content) == [
+        assert mocker.requests[3].url == test_url
+        assert json.loads(mocker.requests[3].content) == [
             {
                 'jsonrpc': '2.0',
                 'id': 1,
@@ -278,8 +285,9 @@ async def test_batch(Client, mocker):
             },
         ]
 
-    with mocker() as mock:
-        mock.mock('POST', test_url, status=200, content=' ')
+    mocker.mock('POST', test_url, status=200, content=' ')
+
+    async with Client(test_url) as client:
         async with client.batch() as batch:
             batch.notify('method1', 1, 2)
             batch.notify('method2', 2, 3)
@@ -287,8 +295,8 @@ async def test_batch(Client, mocker):
         result = batch.get_response()
         assert result is None
 
-        assert mock.requests[0].url == test_url
-        assert json.loads(mock.requests[0].content) == [
+        assert mocker.requests[4].url == test_url
+        assert json.loads(mocker.requests[4].content) == [
             {
                 'jsonrpc': '2.0',
                 'method': 'method1',
@@ -304,24 +312,23 @@ async def test_batch(Client, mocker):
 
 @pytest.mark.parametrize(
     'Client, mocker', [
-        (aiohttp_backend.Client, AioHttpMocker),
-        (httpx_backend.AsyncClient, RespxMocker),
+        (aiohttp_backend.Client, lf('aiohttp_mocker')),
+        (httpx_backend.AsyncClient, lf('respx_mocker')),
     ],
 )
 async def test_context_manager(Client, mocker):
     test_url = 'http://test.com/api'
 
-    with mocker() as mock:
-        mock.mock(
-            'POST', test_url, status=200, json={
-                'jsonrpc': '2.0',
-                'id': 1,
-                'result': 'result',
-            },
-        )
+    mocker.mock(
+        'POST', test_url, status=200, json={
+            'jsonrpc': '2.0',
+            'id': 1,
+            'result': 'result',
+        },
+    )
 
-        async with Client(test_url) as client:
-            response = await client.send(pjrpc.Request(method='method', params=(1, 2), id=1))
+    async with Client(test_url) as client:
+        response = await client.send(pjrpc.Request(method='method', params=(1, 2), id=1))
 
-            assert response.id == 1
-            assert response.result == 'result'
+        assert response.id == 1
+        assert response.result == 'result'

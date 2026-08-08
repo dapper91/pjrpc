@@ -1,8 +1,8 @@
 import pytest
-from aioresponses import aioresponses
+from aiointercept import aiointercept
 
 
 @pytest.fixture
-def responses():
-    with aioresponses() as mocker:
+async def aiointerceptor():
+    async with aiointercept(mock_external_urls=True) as mocker:
         yield mocker

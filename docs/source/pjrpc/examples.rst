@@ -88,6 +88,13 @@ httpserver
     :language: python
 
 
+fastapi server
+----------
+
+.. literalinclude:: ../../../examples/fastapi_server.py
+    :language: python
+
+
 middlewares
 -----------
 
@@ -162,4 +169,11 @@ aiohttp OpenAPI specification
 -----------------------------
 
 .. literalinclude:: ../../../examples/openapi_aiohttp.py
+    :language: python
+
+
+fastapi OpenAPI specification
+-----------------------------
+
+.. literalinclude:: ../../../examples/openapi_fastapi.py
     :language: python
